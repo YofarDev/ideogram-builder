@@ -1,7 +1,5 @@
 import { emit } from './events.js';
 
-const API_URL = 'https://api.deepseek.com/v1/chat/completions';
-
 const SYSTEM_PROMPT = `You are an expert prompt engineer for Ideogram AI image generation. Given a natural language description, generate a complete JSON prompt for Ideogram's API.
 
 Output valid JSON with this exact structure:
@@ -37,7 +35,7 @@ Rules:
 - If the description mentions photography, use "photo" field instead of "art_style"
 - Return ONLY valid JSON, no explanations`;
 
-let apiKey = '';
+let fullConfig = null;
 
 export function initAIEnhancer() {
   const modelSelect = document.getElementById('ai-model');
@@ -49,27 +47,41 @@ export function initAIEnhancer() {
   fetch('/api/config')
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(config => {
-      const ds = config.deepseek || {};
-      if (ds.api_key) {
-        apiKey = ds.api_key;
-      }
+      fullConfig = config;
+      modelSelect.innerHTML = '';
+      const providers = ['deepseek', 'google', 'openrouter', 'mimo'];
+      let firstModel = null;
 
-      if (ds.models?.length) {
-        modelSelect.innerHTML = '';
-        ds.models.forEach(m => {
+      providers.forEach(provider => {
+        const p = config[provider];
+        if (!p?.api_key || !p?.models?.length) return;
+        if (p.models.every(m => !m)) return;
+
+        const group = document.createElement('optgroup');
+        group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        p.models.forEach(m => {
+          if (!m) return;
           const opt = document.createElement('option');
-          opt.value = m;
+          opt.value = `${provider}::${m}`;
           opt.textContent = m;
-          modelSelect.appendChild(opt);
+          group.appendChild(opt);
+          if (!firstModel) firstModel = opt.value;
         });
-        if (ds.default_model && ds.models.includes(ds.default_model)) {
-          modelSelect.value = ds.default_model;
+
+        if (p.default_model && p.models.includes(p.default_model)) {
+          const defaultVal = `${provider}::${p.default_model}`;
+          if (firstModel) firstModel = defaultVal;
         }
-      }
+
+        modelSelect.appendChild(group);
+      });
+
+      if (firstModel) modelSelect.value = firstModel;
       btn.disabled = false;
     })
     .catch(() => {
-      modelSelect.innerHTML = '<option value="deepseek-v4-flash">deepseek-v4-flash</option><option value="deepseek-v4-pro">deepseek-v4-pro</option><option value="deepseek-chat">deepseek-chat</option>';
+      modelSelect.innerHTML = '<option value="deepseek::deepseek-v4-flash">deepseek-v4-flash</option>';
       btn.disabled = false;
     });
 }
@@ -81,16 +93,22 @@ async function enhancePrompt() {
     return;
   }
 
-  if (!apiKey) {
-    showStatus('No API key available — check LLM credentials', 'error');
-    return;
-  }
-
-  const model = document.getElementById('ai-model').value;
-  if (!model) {
+  const selected = document.getElementById('ai-model').value;
+  if (!selected) {
     showStatus('No model selected', 'error');
     return;
   }
+
+  const [provider, ...rest] = selected.split('::');
+  const model = rest.join('::');
+  const p = fullConfig?.[provider];
+  if (!p?.api_key) {
+    showStatus(`No API key for ${provider}`, 'error');
+    return;
+  }
+
+  const baseUrl = p.base_url || 'https://api.deepseek.com/v1';
+  const apiUrl = `${baseUrl}/chat/completions`;
 
   setLoading(true);
 
@@ -98,11 +116,11 @@ async function enhancePrompt() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch(API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${p.api_key}`,
       },
       body: JSON.stringify({
         model,
