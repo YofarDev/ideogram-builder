@@ -9,28 +9,20 @@ RUN rm -rf /comfyui && \
     pip install -r requirements.txt
 
 # Install custom nodes needed for the Ideogram-4 workflow
-RUN comfy-node-install comfyui-kjnodes rgthree-comfy
+# Clone directly into custom_nodes since comfy-node-install may not work without comfy-cli workspace
+RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git /comfyui/custom_nodes/ComfyUI-KJNodes && \
+    cd /comfyui/custom_nodes/ComfyUI-KJNodes && \
+    pip install -r requirements.txt
+RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes/rgthree-comfy && \
+    cd /comfyui/custom_nodes/rgthree-comfy && \
+    pip install -r requirements.txt
 
 # Download the 4 Ideogram-4 model files
-RUN comfy model download \
-  --url https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_fp8_scaled.safetensors \
-  --relative-path models/diffusion_models \
-  --filename ideogram4_fp8_scaled.safetensors
-
-RUN comfy model download \
-  --url https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors \
-  --relative-path models/diffusion_models \
-  --filename ideogram4_unconditional_fp8_scaled.safetensors
-
-RUN comfy model download \
-  --url https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors \
-  --relative-path models/text_encoders \
-  --filename qwen3vl_8b_fp8_scaled.safetensors
-
-RUN comfy model download \
-  --url https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/vae/flux2-vae.safetensors \
-  --relative-path models/vae \
-  --filename flux2-vae.safetensors
+RUN mkdir -p /comfyui/models/diffusion_models /comfyui/models/text_encoders /comfyui/models/vae
+RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_fp8_scaled.safetensors
+RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors
+RUN wget -q -O /comfyui/models/text_encoders/qwen3vl_8b_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors
+RUN wget -q -O /comfyui/models/vae/flux2-vae.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/vae/flux2-vae.safetensors
 
 # Copy custom handler and workflow template
 COPY src/handler.py /handler.py
