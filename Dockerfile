@@ -1,8 +1,9 @@
 FROM runpod/worker-comfyui:5.8.5-base
 
 # Ideogram-4 needs DualModelGuider which was added in a recent ComfyUI update
-# Reinstall ComfyUI to latest version
-RUN /usr/bin/yes | comfy --workspace /comfyui install --nvidia
+# Remove old ComfyUI and reinstall latest
+RUN rm -rf /comfyui && \
+    /usr/bin/yes | comfy --workspace /comfyui install --version latest --nvidia
 
 # Install custom nodes needed for the Ideogram-4 workflow
 RUN comfy-node-install comfyui-kjnodes rgthree-comfy
