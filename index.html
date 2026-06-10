@@ -1034,13 +1034,6 @@
                 </div>
 
                 <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
-
-                <div class="generate-section">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <button id="btn-generate-image" class="btn btn-primary" style="flex:1;">Generate Image</button>
-                        <span id="generate-status" style="font-size:12px;color:var(--text-dim);"></span>
-                    </div>
-                </div>
             </div>
 
             <div class="tab-content" id="tab-gallery">
@@ -1100,6 +1093,9 @@
                     </div>
                 </div>
             </div>
+
+            <button id="btn-generate-image" class="btn btn-primary btn-block" style="margin-top:12px;padding:12px 16px;font-size:14px;font-weight:600;">Generate Image</button>
+            <span id="generate-status" style="font-size:12px;color:var(--text-dim);display:block;text-align:center;margin-top:6px;"></span>
 
             <div class="panel" id="box-panel" style="display: none;">
                 <div class="panel-header">
