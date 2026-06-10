@@ -32,8 +32,9 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `json-builder.js` | JSON output textarea | state, events |
 | `runpod.js` | RunPod serverless API calls (submit + poll) | state, events |
 | `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
-| `ai-enhancer.js` | DeepSeek LLM prompt enhancement | events |
-| `settings.js` | Mode toggle, aspect ratio, box form fields | state, events |
+| `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo) | events |
+| `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
+| `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
 | `app.js` | Button wiring, init orchestration | all modules |
 
 ## Event Catalog
@@ -43,7 +44,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `box:selected` | `{ id }` or `null` | canvas | settings (form), palette (colors) |
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |
 | `canvas:rebuild` | none | png-import | canvas (calls initCanvas) |
-| `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image) |
+| `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
 | `state:loaded` | `{ json }` | png-import, ai-enhancer | canvas (boxes), settings (form), palette (colors) |
@@ -54,6 +55,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing color palette?** → `src/palette.js` + `src/state.js`
 - **Editing JSON output format?** → `src/json-builder.js`
 - **Editing RunPod generation?** → `src/runpod.js`
+- **Editing gallery/history?** → `src/gallery.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
