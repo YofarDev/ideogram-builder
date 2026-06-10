@@ -7,6 +7,7 @@ import { generateImage } from './runpod.js';
 import { initImport, loadFromPastedJSON } from './png-import.js';
 import { initSettings } from './settings.js';
 import { initAIEnhancer } from './ai-enhancer.js';
+import { initGallery } from './gallery.js';
 
 // Initialize all modules
 initSettings();
@@ -15,6 +16,7 @@ initPalette();
 initJsonBuilder();
 initCanvasEvents();
 initImport();
+initGallery();
 
 // Wire button handlers (no inline onclick in HTML)
 document.getElementById('btn-reset').addEventListener('click', () => initCanvas());
