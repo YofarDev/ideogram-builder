@@ -1,9 +1,12 @@
 FROM runpod/worker-comfyui:5.8.5-base
 
 # Ideogram-4 needs DualModelGuider which was added in a recent ComfyUI commit
-# Remove old ComfyUI and reinstall from specific commit that has DualModelGuider
+# The base image has comfy-cli v1.6.0 which is too old for --commit flag
+# Manually update ComfyUI to the latest master branch
 RUN rm -rf /comfyui && \
-    /usr/bin/yes | comfy --workspace /comfyui install --commit 039ed38e --nvidia
+    git clone https://github.com/comfyanonymous/ComfyUI.git /comfyui && \
+    cd /comfyui && \
+    pip install -r requirements.txt
 
 # Install custom nodes needed for the Ideogram-4 workflow
 RUN comfy-node-install comfyui-kjnodes rgthree-comfy
