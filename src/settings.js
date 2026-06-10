@@ -10,10 +10,6 @@ export function initSettings() {
     emit('canvas:rebuild');
   });
 
-  document.getElementById('r-seed').addEventListener('input', (e) => {
-    document.getElementById('r-seed-value').textContent = e.target.value.toString().padStart(5, '0');
-  });
-
   document.getElementById('mode_photo').addEventListener('change', () => setPhotoArtMode(MODE_PHOTO));
   document.getElementById('mode_artstyle').addEventListener('change', () => setPhotoArtMode(MODE_ARTSTYLE));
 
