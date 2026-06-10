@@ -360,6 +360,114 @@
             transform: scale(1.3);
         }
 
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .gallery-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .gallery-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .gallery-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-card-info {
+            padding: 8px 10px;
+        }
+
+        .gallery-card-date {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-bottom: 3px;
+        }
+
+        .gallery-card-prompt {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .gallery-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .gallery-card-delete {
+            float: right;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 2px;
+            line-height: 1;
+        }
+
+        .gallery-card-delete:hover {
+            color: var(--danger);
+        }
+
         /* AI Prompt Section */
         .ai-section {
             background: rgba(26, 23, 20, 0.85);
@@ -896,35 +1004,49 @@
 
     <div class="main-content">
         <div class="left-col">
-            <div class="ai-section">
-                <div class="ai-header">
-                    <span class="ai-label">AI Prompt</span>
-                    <select id="ai-model" class="ai-model-select">
-                        <option value="">Loading...</option>
-                    </select>
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="editor">Editor</button>
+                <button class="tab-btn" data-tab="gallery">Gallery</button>
+            </div>
+
+            <div class="tab-content active" id="tab-editor">
+                <div class="ai-section">
+                    <div class="ai-header">
+                        <span class="ai-label">AI Prompt</span>
+                        <select id="ai-model" class="ai-model-select">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                    <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+                    <div class="ai-actions">
+                        <button id="btn-ai-enhance" class="btn btn-primary">✨ AI Enhance</button>
+                        <span id="ai-status" class="ai-status"></span>
+                    </div>
                 </div>
-                <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
-                <div class="ai-actions">
-                    <button id="btn-ai-enhance" class="btn btn-primary">✨ AI Enhance</button>
-                    <span id="ai-status" class="ai-status"></span>
+
+                <div class="canvas-container">
+                    <div id="canvas-wrapper"><img id="canvas-overlay"></div>
+                </div>
+
+                <div class="action-row">
+                    <button id="btn-generate-json" class="btn btn-primary">Generate JSON Prompt</button>
+                    <button id="btn-load-json" class="btn btn-ghost">Load From JSON</button>
+                </div>
+
+                <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
+
+                <div class="generate-section">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button id="btn-generate-image" class="btn btn-primary" style="flex:1;">Generate Image</button>
+                        <span id="generate-status" style="font-size:12px;color:var(--text-dim);"></span>
+                    </div>
                 </div>
             </div>
 
-            <div class="canvas-container">
-                <div id="canvas-wrapper"><img id="canvas-overlay"></div>
-            </div>
-
-            <div class="action-row">
-                <button id="btn-generate-json" class="btn btn-primary">Generate JSON Prompt</button>
-                <button id="btn-load-json" class="btn btn-ghost">Load From JSON</button>
-            </div>
-
-            <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
-
-            <div class="generate-section">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <button id="btn-generate-image" class="btn btn-primary" style="flex:1;">Generate Image</button>
-                    <span id="generate-status" style="font-size:12px;color:var(--text-dim);"></span>
+            <div class="tab-content" id="tab-gallery">
+                <div id="gallery-container">
+                    <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
+                    <div class="gallery-grid" id="gallery-grid"></div>
                 </div>
             </div>
         </div>
