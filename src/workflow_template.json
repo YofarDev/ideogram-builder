@@ -1,0 +1,143 @@
+{
+  "158": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "159": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": ["167", 0]
+    }
+  },
+  "160": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "161": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": ["165", 0],
+      "guider": ["182", 0],
+      "sampler": ["163", 0],
+      "sigmas": ["190", 0],
+      "latent_image": ["160", 0]
+    }
+  },
+  "162": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["161", 0],
+      "vae": ["158", 0]
+    }
+  },
+  "163": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "165": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": ["197", 0]
+    }
+  },
+  "166": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "ideogram4_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "167": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["168", 0],
+      "text": ["185", 0]
+    }
+  },
+  "168": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "ideogram4",
+      "device": "default"
+    }
+  },
+  "181": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "ideogram4_unconditional_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "182": {
+    "class_type": "DualModelGuider",
+    "inputs": {
+      "model": ["184", 0],
+      "positive": ["167", 0],
+      "model_negative": ["181", 0],
+      "negative": ["159", 0],
+      "cfg": 7
+    }
+  },
+  "184": {
+    "class_type": "CFGOverride",
+    "inputs": {
+      "model": ["198", 0],
+      "cfg": 3,
+      "start_percent": 0.9,
+      "end_percent": 1
+    }
+  },
+  "185": {
+    "class_type": "Ideogram4PromptBuilderKJ",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "import_json": "",
+      "high_level_description": "",
+      "background": "",
+      "style": "photo",
+      "style.photo": "realistic, amateur, casual",
+      "aesthetics": "",
+      "lighting": "overcast, calm",
+      "medium": "photography"
+    }
+  },
+  "190": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": ["198", 0],
+      "scheduler": "simple",
+      "steps": 28,
+      "denoise": 1
+    }
+  },
+  "197": {
+    "class_type": "Seed (rgthree)",
+    "inputs": {
+      "seed": 629572452953202
+    }
+  },
+  "198": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": ["166", 0],
+      "shift": 5
+    }
+  },
+  "200": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": ["162", 0],
+      "filename_prefix": "ideogram"
+    }
+  }
+}
