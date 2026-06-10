@@ -252,13 +252,8 @@
         }
 
         #canvas-wrapper {
-            background-image:
-                linear-gradient(45deg, #1a1714 25%, transparent 25%),
-                linear-gradient(-45deg, #1a1714 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #1a1714 75%),
-                linear-gradient(-45deg, transparent 75%, #1a1714 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-image: radial-gradient(circle, rgba(212, 168, 83, 0.08) 1px, transparent 1px);
+            background-size: 24px 24px;
             background-color: #0f0d0a;
             position: relative;
             transform-origin: top left;
@@ -267,13 +262,40 @@
             touch-action: none;
         }
 
-        .canvas-empty {
+        #canvas-wrapper.has-boxes {
+            background-image: none;
+        }
+
+        #canvas-wrapper.empty-state {
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        #canvas-wrapper.empty-state::after {
+            content: 'Draw bounding boxes by clicking and dragging';
             color: var(--text-dim);
             font-style: italic;
-            font-size: 12px;
+            font-size: 13px;
+            pointer-events: none;
+            letter-spacing: 0.01em;
+        }
+
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.8;
+            display: none;
+        }
+
+        #canvas-overlay.visible {
+            display: block;
         }
 
         /* Bounding boxes */
@@ -284,6 +306,7 @@
             cursor: grab;
             box-sizing: border-box;
             transition: box-shadow 0.2s, border-color 0.2s;
+            z-index: 2;
         }
 
         .bounding-box:hover {
@@ -298,6 +321,26 @@
             z-index: 10;
         }
 
+        .box-label {
+            position: absolute;
+            top: 4px;
+            left: 6px;
+            right: 6px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: var(--text);
+            pointer-events: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            opacity: 0.85;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+
+        .box-label:empty {
+            display: none;
+        }
+
         .resize-handle {
             position: absolute;
             width: 10px;
@@ -310,6 +353,7 @@
             cursor: nwse-resize;
             box-shadow: 0 1px 3px rgba(0,0,0,0.4);
             transition: transform 0.15s;
+            z-index: 3;
         }
 
         .resize-handle:hover {
@@ -380,49 +424,7 @@
             box-shadow: 0 0 0 2px var(--accent-dim);
         }
 
-        .ai-key-field {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            position: relative;
-        }
 
-        #ai-api-key {
-            font-family: var(--font-body);
-            font-size: 12px;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 5px 8px;
-            width: 120px;
-            outline: none;
-            transition: border-color 0.2s, width 0.2s;
-        }
-
-        #ai-api-key:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-dim);
-            width: 180px;
-        }
-
-        .ai-key-indicator {
-            font-size: 10px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-dim);
-            white-space: nowrap;
-            transition: color 0.3s;
-        }
-
-        .ai-key-indicator.loaded {
-            color: var(--accent);
-        }
-
-        .ai-key-indicator.error {
-            color: var(--danger);
-        }
 
         #ai-prompt {
             width: 100%;
@@ -550,16 +552,6 @@
 
         .input-row .input-group {
             flex: 1;
-        }
-
-        #image-view {
-            max-height: 400px;
-            object-fit: scale-down;
-            border-radius: var(--radius-sm);
-            background: var(--surface);
-            border: 1px solid var(--border);
-            display: block;
-            width: 100%;
         }
 
         /* Panels */
@@ -894,28 +886,26 @@
                 </select>
             </div>
             <span class="dim-display" id="dim-display">1024 × 1024</span>
-            <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
+                <div class="ar-group" id="opacity-group" style="display:none;">
+                    <label>Overlay</label>
+                    <input type="range" id="overlay-opacity" min="0" max="100" value="80" style="width:70px;">
+                </div>
+                <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
         </div>
     </header>
 
     <div class="main-content">
         <div class="left-col">
             <div class="canvas-container">
-                <div id="canvas-wrapper"></div>
+                <div id="canvas-wrapper"><img id="canvas-overlay"></div>
             </div>
 
             <div class="ai-section">
                 <div class="ai-header">
                     <span class="ai-label">AI Prompt</span>
-                    <div class="ai-key-row">
-                        <select id="ai-model" class="ai-model-select">
-                            <option value="">Loading...</option>
-                        </select>
-                        <div class="ai-key-field">
-                            <input type="password" id="ai-api-key" placeholder="API key" value="">
-                            <span class="ai-key-indicator" id="ai-key-indicator"></span>
-                        </div>
-                    </div>
+                    <select id="ai-model" class="ai-model-select">
+                        <option value="">Loading...</option>
+                    </select>
                 </div>
                 <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
                 <div class="ai-actions">
@@ -932,19 +922,10 @@
             <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
 
             <div class="generate-section">
-                <div class="input-row">
-                    <div class="input-group compact" style="flex: 0.5;">
-                        <label>Seed</label>
-                        <input type="range" id="r-seed" min="1" max="99999" step="1" value="42">
-                        <span class="seed-value" id="r-seed-value">00042</span>
-                    </div>
-                    <div class="input-group compact" style="flex: 1;">
-                        <label>API</label>
-                        <input type="url" id="api-location" value="http://localhost:8188">
-                    </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button id="btn-generate-image" class="btn btn-primary" style="flex:1;">Generate Image</button>
+                    <span id="generate-status" style="font-size:12px;color:var(--text-dim);"></span>
                 </div>
-                <button id="btn-generate-image" class="btn btn-primary btn-block">Generate Image</button>
-                <img id="image-view">
             </div>
         </div>
 
