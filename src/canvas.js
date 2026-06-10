@@ -14,6 +14,7 @@ let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 
 export function initCanvas() {
   const canvas = document.getElementById('canvas-wrapper');
+  const container = document.querySelector('.canvas-container');
   const { width, height } = state.canvas;
 
   canvas.style.width = width + 'px';
@@ -23,8 +24,23 @@ export function initCanvas() {
   canvas.style.transformOrigin = 'top left';
   canvas.style.transform = `scale(${state.canvas.scale})`;
 
+  // Collapse dead space from CSS transform
+  const padY = 32; // 16px padding × 2
+  container.style.height = (height * state.canvas.scale + padY) + 'px';
+
   canvas.style.backgroundImage = '';
   canvas.style.backgroundSize = '';
+
+  const overlay = document.getElementById('canvas-overlay');
+  if (overlay) {
+    overlay.src = '';
+    overlay.classList.remove('visible');
+  }
+  const opacityGroup = document.getElementById('opacity-group');
+  if (opacityGroup) opacityGroup.style.display = 'none';
+
+  canvas.classList.add('empty-state');
+  canvas.classList.remove('has-boxes');
 
   emit('canvas:reset');
   clearBoxes();
@@ -35,6 +51,8 @@ export function clearBoxes() {
   canvas.innerHTML = '';
   state.boxes.length = 0;
   state.selectedBoxId = null;
+  canvas.classList.add('empty-state');
+  canvas.classList.remove('has-boxes');
   emit('box:selected', { id: null });
 }
 
@@ -47,10 +65,15 @@ export function selectBox(id) {
 
 export function deleteSelectedBox() {
   if (!state.selectedBoxId) return;
+  const canvas = document.getElementById('canvas-wrapper');
   const dom = document.getElementById(state.selectedBoxId);
   if (dom) dom.remove();
   state.boxes = state.boxes.filter(b => b.id !== state.selectedBoxId);
   selectBox(null);
+  if (state.boxes.length === 0) {
+    canvas.classList.add('empty-state');
+    canvas.classList.remove('has-boxes');
+  }
 }
 
 export function initCanvasEvents() {
@@ -82,6 +105,11 @@ export function initCanvasEvents() {
       const handle = document.createElement('div');
       handle.className = 'resize-handle';
       currentBoxDOM.appendChild(handle);
+
+      const label = document.createElement('span');
+      label.className = 'box-label';
+      currentBoxDOM.appendChild(label);
+
       canvas.appendChild(currentBoxDOM);
       selectBox(box.id);
 
@@ -153,6 +181,9 @@ export function initCanvasEvents() {
         canvas.removeChild(currentBoxDOM);
         state.boxes = state.boxes.filter(b => b.id !== box.id);
         selectBox(null);
+      } else {
+        canvas.classList.remove('empty-state');
+        canvas.classList.add('has-boxes');
       }
     }
     isDrawing = false;
@@ -161,15 +192,35 @@ export function initCanvasEvents() {
     currentBoxDOM = null;
   });
 
+  // --- Keyboard: Delete/Backspace removes selected box ---
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedBoxId) {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+      deleteSelectedBox();
+    }
+  });
+
   // --- Event listeners ---
 
   on('canvas:rebuild', () => initCanvas());
 
+  const overlay = document.getElementById('canvas-overlay');
+  const opacityGroup = document.getElementById('opacity-group');
+
   on('image:ready', ({ imageUrl }) => {
-    canvas.style.backgroundImage = `url("${imageUrl}")`;
-    canvas.style.backgroundSize = 'cover';
-    document.getElementById('image-view').src = imageUrl;
+    overlay.src = imageUrl;
+    overlay.classList.add('visible');
+    opacityGroup.style.display = 'flex';
   });
+
+  const opacitySlider = document.getElementById('overlay-opacity');
+  if (opacitySlider) {
+    opacitySlider.addEventListener('input', () => {
+      overlay.style.opacity = opacitySlider.value / 100;
+    });
+  }
 
   on('state:loaded', ({ json }) => {
     clearBoxes();
@@ -203,7 +254,17 @@ export function initCanvasEvents() {
       const handle = document.createElement('div');
       handle.className = 'resize-handle';
       dom.appendChild(handle);
+
+      const label = document.createElement('span');
+      label.className = 'box-label';
+      label.textContent = box.text || box.desc || '';
+      dom.appendChild(label);
+
       canvas.appendChild(dom);
     });
+    if (state.boxes.length > 0) {
+      canvas.classList.remove('empty-state');
+      canvas.classList.add('has-boxes');
+    }
   });
 }
