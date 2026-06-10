@@ -19,8 +19,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             try:
                 creds = json.loads(CREDENTIALS_PATH.read_text())
-                config = creds.get("deepseek", {})
-                # Never expose the full key in any UI display
+                config = {}
+                config["deepseek"] = creds.get("deepseek", {})
+                config["runpod"] = creds.get("runpod", {})
                 self.wfile.write(json.dumps(config).encode())
             except FileNotFoundError:
                 self.wfile.write(json.dumps({"error": "credentials file not found"}).encode())

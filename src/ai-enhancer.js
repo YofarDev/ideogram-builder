@@ -37,48 +37,40 @@ Rules:
 - If the description mentions photography, use "photo" field instead of "art_style"
 - Return ONLY valid JSON, no explanations`;
 
+let apiKey = '';
+
 export function initAIEnhancer() {
-  const keyInput = document.getElementById('ai-api-key');
   const modelSelect = document.getElementById('ai-model');
+  const btn = document.getElementById('btn-ai-enhance');
 
-  const savedKey = localStorage.getItem('ai_api_key') || '';
-  keyInput.value = savedKey;
-
-  keyInput.addEventListener('change', () => {
-    localStorage.setItem('ai_api_key', keyInput.value);
-  });
-
-  document.getElementById('btn-ai-enhance').addEventListener('click', enhancePrompt);
+  btn.disabled = true;
+  btn.addEventListener('click', enhancePrompt);
 
   fetch('/api/config')
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(config => {
-      if (config.api_key) {
-        keyInput.value = config.api_key;
-        localStorage.setItem('ai_api_key', config.api_key);
-        document.getElementById('ai-key-indicator').textContent = 'loaded';
-        document.getElementById('ai-key-indicator').className = 'ai-key-indicator loaded';
+      const ds = config.deepseek || {};
+      if (ds.api_key) {
+        apiKey = ds.api_key;
       }
 
-      if (config.models?.length) {
+      if (ds.models?.length) {
         modelSelect.innerHTML = '';
-        config.models.forEach(m => {
+        ds.models.forEach(m => {
           const opt = document.createElement('option');
           opt.value = m;
           opt.textContent = m;
           modelSelect.appendChild(opt);
         });
-        if (config.default_model && config.models.includes(config.default_model)) {
-          modelSelect.value = config.default_model;
+        if (ds.default_model && ds.models.includes(ds.default_model)) {
+          modelSelect.value = ds.default_model;
         }
       }
+      btn.disabled = false;
     })
     .catch(() => {
-      if (savedKey) {
-        document.getElementById('ai-key-indicator').textContent = 'restored';
-        document.getElementById('ai-key-indicator').className = 'ai-key-indicator loaded';
-      }
       modelSelect.innerHTML = '<option value="deepseek-v4-flash">deepseek-v4-flash</option><option value="deepseek-v4-pro">deepseek-v4-pro</option><option value="deepseek-chat">deepseek-chat</option>';
+      btn.disabled = false;
     });
 }
 
@@ -89,9 +81,8 @@ async function enhancePrompt() {
     return;
   }
 
-  const apiKey = document.getElementById('ai-api-key').value.trim();
   if (!apiKey) {
-    showStatus('No API key available', 'error');
+    showStatus('No API key available — check LLM credentials', 'error');
     return;
   }
 
