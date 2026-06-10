@@ -20,7 +20,6 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 3. No module touches another module's DOM elements (except app.js for button wiring)
 4. Max ~150 LOC per file — split if approaching 200
 5. State mutations centralized in `state.js`
-6. `comfyui-template.js` is pure data — only imported by `comfyui.js`
 
 ## Module Map
 
@@ -28,13 +27,13 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 |--------|------|-------------|
 | `state.js` | All mutable state (boxes, palette, canvas dims, mode) | nothing |
 | `events.js` | Pub/sub event bus | nothing |
-| `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events | state, events |
+| `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events, image overlay | state, events |
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON output textarea | state, events |
-| `comfyui.js` | ComfyUI API calls | state, events, comfyui-template |
-| `comfyui-template.js` | Base64 workflow JSON constant | nothing |
+| `runpod.js` | RunPod serverless API calls (submit + poll) | state, events |
 | `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
-| `settings.js` | Mode toggle, sliders, box form fields | state, events |
+| `ai-enhancer.js` | DeepSeek LLM prompt enhancement | events |
+| `settings.js` | Mode toggle, aspect ratio, box form fields | state, events |
 | `app.js` | Button wiring, init orchestration | all modules |
 
 ## Event Catalog
@@ -44,15 +43,17 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `box:selected` | `{ id }` or `null` | canvas | settings (form), palette (colors) |
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |
 | `canvas:rebuild` | none | png-import | canvas (calls initCanvas) |
-| `image:ready` | `{ imageUrl }` | comfyui, png-import | canvas (background + image-view) |
-| `state:loaded` | `{ json }` | png-import | canvas (boxes), settings (form), palette (colors) |
+| `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image) |
+| `runpod:loading` | none | runpod | (future: disable UI) |
+| `runpod:done` | none | runpod | (future: re-enable UI) |
+| `state:loaded` | `{ json }` | png-import, ai-enhancer | canvas (boxes), settings (form), palette (colors) |
 
 ## Editing Guide
 
 - **Editing canvas interactions?** → `src/canvas.js` + `src/state.js`
 - **Editing color palette?** → `src/palette.js` + `src/state.js`
 - **Editing JSON output format?** → `src/json-builder.js`
-- **Editing ComfyUI workflow?** → `src/comfyui-template.js` + `src/comfyui.js`
+- **Editing RunPod generation?** → `src/runpod.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
