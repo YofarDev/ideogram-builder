@@ -80,26 +80,32 @@ Cross-module communication via events.js only.
 | `state:loaded` | `{ json, boxes, params }` | png-import | canvas (recreate boxes), palette (render colors), settings (restore form) |
 | `image:generated` | `{ imageUrl }` | comfyui | canvas (set background) |
 
+## Context
+
+This is a **restructure** of working code, not a greenfield build. All business logic, edge cases, error handling, and data formats already exist in `index.html`. The spec describes *where* each piece moves, not *what* it does. Behavior is preserved identically.
+
 ## State Management
 
 Single source of truth in `state.js`. Plain object + exported helper functions.
 
+`state.js` is a **leaf dependency** — it imports nothing, all modules import it. This is not a contradiction: "depends on" in the module map means "imports at the top of the file."
+
 ```js
 export const state = {
   canvas: { width: 1024, height: 1024, scale: 1 },
-  boxes: [],
-  globalPalette: [],
+  boxes: [],         // Each box: { id, x, y, w, h, mode, text, desc, colors }
+  globalPalette: [], // Shared across all elements (max 16 hex colors, uppercase)
   selectedBoxId: null,
   boxCounter: 0,
-  photoArtMode: 'art_style',
+  photoArtMode: 'art_style',  // 'photo' | 'art_style'
 };
 
 export function getBox(id) { ... }
-export function addBox(box) { ... }
+export function addBox(box) { ... }           // box.colors = per-box palette (max 5)
 export function removeBox(id) { ... }
 export function updateBox(id, props) { ... }
 export function selectBox(id) { ... }
-export function addColorToPalette(type, hex) { ... }
+export function addColorToPalette(type, hex) { ... }   // type: 'global' (shared, max 16) or 'box' (per-element, max 5)
 export function removeColorFromPalette(type, hex) { ... }
 ```
 
@@ -118,7 +124,7 @@ export function emit(event, data) { (listeners[event] ?? []).forEach(fn => fn(da
 1. Each module imports only from `state.js`, `events.js`, or browser APIs — never from sibling feature modules
 2. Cross-module communication goes through `events.js` emit/on only
 3. No module touches another module's DOM elements
-4. Max ~150 LOC per file — split if approaching 200
+4. Max ~150 LOC per file — split if approaching 200. Canvas module may reach 180 due to pointer event complexity; acceptable.
 5. State mutations go through `state.js` helper functions, not direct property assignment from other modules
 6. The `comfyui-template.js` base64 constant is pure data — never import it from anywhere except `comfyui.js`
 
