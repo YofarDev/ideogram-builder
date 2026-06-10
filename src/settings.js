@@ -1,34 +1,26 @@
-// settings.js — Photo/art mode toggle, slider bindings, box form management
-
 import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
-import { on } from './events.js';
+import { on, emit } from './events.js';
 
 export function initSettings() {
-  // Slider listeners — update display + state
-  document.getElementById('canvas-width').addEventListener('input', (e) => {
-    document.getElementById('w-val').textContent = e.target.value.toString().padStart(4, '0');
-    state.canvas.width = parseInt(e.target.value);
-  });
-
-  document.getElementById('canvas-height').addEventListener('input', (e) => {
-    document.getElementById('h-val').textContent = e.target.value.toString().padStart(4, '0');
-    state.canvas.height = parseInt(e.target.value);
+  document.getElementById('aspect-ratio').addEventListener('change', (e) => {
+    const [w, h] = e.target.value.split('x').map(Number);
+    state.canvas.width = w;
+    state.canvas.height = h;
+    document.getElementById('dim-display').textContent = `${w} × ${h}`;
+    emit('canvas:rebuild');
   });
 
   document.getElementById('r-seed').addEventListener('input', (e) => {
     document.getElementById('r-seed-value').textContent = e.target.value.toString().padStart(5, '0');
   });
 
-  // Mode toggle
   document.getElementById('mode_photo').addEventListener('change', () => setPhotoArtMode(MODE_PHOTO));
   document.getElementById('mode_artstyle').addEventListener('change', () => setPhotoArtMode(MODE_ARTSTYLE));
 
-  // Box form — update state on every input change
   ['box-mode', 'box-text', 'box-desc'].forEach((id) => {
     document.getElementById(id).addEventListener('input', updateBoxData);
   });
 
-  // React to box selection — populate form
   on('box:selected', ({ id }) => {
     const boxPanel = document.getElementById('box-panel');
     if (id) {
@@ -44,7 +36,6 @@ export function initSettings() {
     }
   });
 
-  // React to state load — restore form values
   on('state:loaded', ({ json }) => {
     document.getElementById('high_level_description').value = json.high_level_description || '';
     document.getElementById('aesthetics').value = json.style_description?.aesthetics || '';
@@ -71,7 +62,7 @@ function setPhotoArtMode(mode) {
   if (mode === MODE_PHOTO) {
     document.getElementById('medium').value = 'photograph';
     document.getElementById('medium').disabled = true;
-    document.getElementById('mode_label').innerText = 'Photo';
+    document.getElementById('mode_label').innerText = 'Photo Style';
   } else {
     document.getElementById('medium').disabled = false;
     document.getElementById('mode_label').innerText = 'Art Style';

@@ -6,9 +6,11 @@ import { initJsonBuilder, generateJSON } from './json-builder.js';
 import { generateImage } from './comfyui.js';
 import { initImport, loadFromPastedJSON } from './png-import.js';
 import { initSettings } from './settings.js';
+import { initAIEnhancer } from './ai-enhancer.js';
 
 // Initialize all modules
 initSettings();
+initAIEnhancer();
 initPalette();
 initJsonBuilder();
 initCanvasEvents();

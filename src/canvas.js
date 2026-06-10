@@ -20,8 +20,8 @@ export function initCanvas() {
   canvas.style.height = height + 'px';
 
   state.canvas.scale = height > 800 ? 800 / height : 1;
+  canvas.style.transformOrigin = 'top left';
   canvas.style.transform = `scale(${state.canvas.scale})`;
-  canvas.parentElement.style.width = (width * state.canvas.scale) + 'px';
 
   canvas.style.backgroundImage = '';
   canvas.style.backgroundSize = '';

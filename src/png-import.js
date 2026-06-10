@@ -30,15 +30,15 @@ async function importImage(file) {
 
   const img = new Image();
   img.onload = function () {
-    // Update sliders + state dimensions
-    const wSlider = document.getElementById('canvas-width');
-    const hSlider = document.getElementById('canvas-height');
-    wSlider.value = this.width.toString();
-    wSlider.dispatchEvent(new Event('input'));
-    hSlider.value = this.height.toString();
-    hSlider.dispatchEvent(new Event('input'));
+    state.canvas.width = this.width;
+    state.canvas.height = this.height;
+    document.getElementById('dim-display').textContent = `${this.width} × ${this.height}`;
+    const arSelect = document.getElementById('aspect-ratio');
+    const val = `${this.width}x${this.height}`;
+    if (Array.from(arSelect.options).some(o => o.value === val)) {
+      arSelect.value = val;
+    }
 
-    // Rebuild canvas with new dimensions
     emit('canvas:rebuild');
 
     // Show image on canvas

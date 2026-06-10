@@ -4,7 +4,7 @@
 
 Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-based bounding box editor with color palettes, ComfyUI integration, and PNG metadata import.
 
-**No build tools.** ES modules loaded via `<script type="module">`. Serve with any static server (e.g. `python3 -m http.server`).
+**No build tools.** ES modules loaded via `<script type="module">`. Serve with `python3 server.py` (auto-loads LLM credentials from `~/.config/llm-credentials.json`).
 
 ## Architecture Rules
 

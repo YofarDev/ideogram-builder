@@ -1,131 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Prompt Generation Tool</title>
-    <style>:root {
-            --bg-color: #f4f4f9;
-            --panel-bg: #ffffff;
-            --border: #ccc;
-            --primary: #0066FF;
-            --text: #333;
+    <title>Ideogram Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f0d0a;
+            --surface: #1a1714;
+            --surface-2: #221f1b;
+            --border: rgba(212, 168, 83, 0.1);
+            --border-strong: rgba(212, 168, 83, 0.2);
+            --text: #e8e0d4;
+            --text-muted: #8a7f73;
+            --text-dim: #5c554a;
+            --accent: #d4a853;
+            --accent-dim: rgba(212, 168, 83, 0.12);
+            --accent-glow: rgba(212, 168, 83, 0.25);
+            --danger: #c1694f;
+            --danger-dim: rgba(193, 105, 79, 0.15);
+            --radius: 8px;
+            --radius-sm: 5px;
+            --font-display: 'DM Serif Display', Georgia, serif;
+            --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg-color);
+            font-family: var(--font-body);
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 85% 15%, rgba(212, 168, 83, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 85%, rgba(193, 105, 79, 0.025) 0%, transparent 50%);
             color: var(--text);
-            margin: 0;
-            padding: 20px;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            padding: 16px;
+            gap: 16px;
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
-        .header-controls {
-            background: var(--panel-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
+        ::selection {
+            background: rgba(212, 168, 83, 0.3);
+            color: var(--text);
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(212, 168, 83, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(212, 168, 83, 0.35); }
+
+        /* Toolbar */
+        .toolbar {
             display: flex;
-            gap: 20px;
             align-items: center;
+            gap: 24px;
+            padding: 12px 20px;
+            background: rgba(26, 23, 20, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            animation: fadeSlideDown 0.4s ease-out;
         }
 
+        .toolbar-brand {
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--accent);
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+
+        .toolbar-brand em {
+            font-style: italic;
+            color: var(--text-muted);
+        }
+
+        .toolbar-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toolbar-spacer {
+            flex: 1;
+        }
+
+        .ar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ar-group label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+        }
+
+        .dim-display {
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        /* Select */
+        select {
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 30px 6px 10px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a7f73' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            min-width: 160px;
+        }
+
+        select:hover { border-color: rgba(212, 168, 83, 0.35); }
+        select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+        /* Buttons */
+        .btn {
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 7px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.01em;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #0f0d0a;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover {
+            background: #ddb85e;
+            border-color: #ddb85e;
+            box-shadow: 0 0 16px rgba(212, 168, 83, 0.25);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: var(--border-strong);
+        }
+        .btn-secondary:hover {
+            color: var(--text);
+            border-color: rgba(212, 168, 83, 0.35);
+            background: rgba(212, 168, 83, 0.06);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--accent);
+            border-color: rgba(212, 168, 83, 0.25);
+        }
+        .btn-ghost:hover {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .btn-danger {
+            background: transparent;
+            color: var(--danger);
+            border-color: rgba(193, 105, 79, 0.3);
+        }
+        .btn-danger:hover {
+            background: var(--danger-dim);
+            border-color: var(--danger);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Main layout */
         .main-content {
             display: flex;
-            gap: 20px;
+            gap: 16px;
             align-items: flex-start;
+            flex: 1;
+            animation: fadeIn 0.5s ease-out 0.1s both;
         }
 
         .left-col {
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            min-width: 0;
         }
 
         .right-col {
-            width: 35%;
+            width: 340px;
+            flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 12px;
         }
 
-        .panel {
-            background: var(--panel-bg);
-            padding: 15px;
-            border-radius: 8px;
+        /* Canvas container */
+        .canvas-container {
+            background: var(--surface);
             border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            overflow: hidden;
+            min-height: 200px;
+            animation: fadeSlideUp 0.4s ease-out 0.15s both;
+            line-height: 0;
         }
 
-        .panel h3 {
-            margin-top: 0;
-            font-size: 16px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 5px;
-        }
-
-        .input-group {
-            margin-bottom: 10px;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-
-        .input-group input[type="text"],
-        .input-group textarea {
-            width: 100%;
-            padding: 6px;
-            box-sizing: border-box;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-        }
-
-        button {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background: #0055cc;
-        }
-
-        /* Canvas Area */
         #canvas-wrapper {
-            background: repeating-conic-gradient(#eee 0% 25%, transparent 0% 50%) 50% / 20px 20px;
-            background-color: #fff;
-            border: 2px dashed #999;
+            background-image:
+                linear-gradient(45deg, #1a1714 25%, transparent 25%),
+                linear-gradient(-45deg, #1a1714 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1a1714 75%),
+                linear-gradient(-45deg, transparent 75%, #1a1714 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #0f0d0a;
             position: relative;
             transform-origin: top left;
-            margin-bottom: 10px;
             overflow: hidden;
             user-select: none;
             touch-action: none;
         }
 
+        .canvas-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        /* Bounding boxes */
         .bounding-box {
             position: absolute;
-            border: 2px solid #ff0044;
-            background: rgba(255, 0, 68, 0.2);
+            border: 1.5px solid rgba(212, 168, 83, 0.5);
+            background: rgba(212, 168, 83, 0.06);
             cursor: grab;
             box-sizing: border-box;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .bounding-box:hover {
+            border-color: rgba(212, 168, 83, 0.75);
+            background: rgba(212, 168, 83, 0.1);
         }
 
         .bounding-box.selected {
-            border-color: #0066FF;
-            background: rgba(0, 102, 255, 0.2);
+            border-color: var(--accent);
+            background: rgba(212, 168, 83, 0.12);
+            box-shadow: 0 0 16px rgba(212, 168, 83, 0.2), inset 0 0 16px rgba(212, 168, 83, 0.04);
             z-index: 10;
         }
 
@@ -133,154 +302,736 @@
             position: absolute;
             width: 10px;
             height: 10px;
-            background: white;
-            border: 1px solid black;
+            background: var(--accent);
+            border: 1.5px solid var(--bg);
+            border-radius: 50%;
             right: -5px;
             bottom: -5px;
             cursor: nwse-resize;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            transition: transform 0.15s;
         }
 
-        /* Swatches */
+        .resize-handle:hover {
+            transform: scale(1.3);
+        }
+
+        /* AI Prompt Section */
+        .ai-section {
+            background: rgba(26, 23, 20, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            animation: fadeSlideUp 0.4s ease-out 0.18s both;
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .ai-label {
+            font-family: var(--font-display);
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .ai-key-row {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ai-key-label {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .ai-model-select {
+            font-family: var(--font-body);
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 5px 26px 5px 8px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5' viewBox='0 0 9 5'%3E%3Cpath d='M1 1l3.5 3L8 1' stroke='%238a7f73' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 7px center;
+            min-width: 140px;
+            transition: border-color 0.2s;
+        }
+
+        .ai-model-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .ai-key-field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        #ai-api-key {
+            font-family: var(--font-body);
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 5px 8px;
+            width: 120px;
+            outline: none;
+            transition: border-color 0.2s, width 0.2s;
+        }
+
+        #ai-api-key:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+            width: 180px;
+        }
+
+        .ai-key-indicator {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+
+        .ai-key-indicator.loaded {
+            color: var(--accent);
+        }
+
+        .ai-key-indicator.error {
+            color: var(--danger);
+        }
+
+        #ai-prompt {
+            width: 100%;
+            font-family: var(--font-body);
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            outline: none;
+            resize: vertical;
+            min-height: 64px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        #ai-prompt:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        #ai-prompt::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        #ai-prompt:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .ai-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        #btn-ai-enhance {
+            padding: 8px 20px;
+            font-size: 13px;
+        }
+
+        #btn-ai-enhance:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .ai-status {
+            font-size: 12px;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .ai-status.error {
+            color: var(--danger);
+        }
+
+        .ai-status.success {
+            color: var(--accent);
+        }
+
+        /* Action row */
+        .action-row {
+            display: flex;
+            gap: 8px;
+            animation: fadeSlideUp 0.4s ease-out 0.2s both;
+        }
+
+        .action-row .btn {
+            flex: 1;
+            padding: 9px 16px;
+            font-size: 13px;
+        }
+
+        /* JSON textarea */
+        #json-output {
+            width: 100%;
+            min-height: 180px;
+            max-height: 300px;
+            font-family: 'DM Sans', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            animation: fadeSlideUp 0.4s ease-out 0.25s both;
+        }
+
+        #json-output:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        #json-output::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        /* Generate section */
+        .generate-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            animation: fadeSlideUp 0.4s ease-out 0.3s both;
+        }
+
+        .generate-section .btn-block {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-row .input-group {
+            flex: 1;
+        }
+
+        #image-view {
+            max-height: 400px;
+            object-fit: scale-down;
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: block;
+            width: 100%;
+        }
+
+        /* Panels */
+        .panel {
+            background: rgba(26, 23, 20, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            animation: fadeSlideUp 0.4s ease-out both;
+        }
+
+        .panel:nth-child(1) { animation-delay: 0.2s; }
+        .panel:nth-child(2) { animation-delay: 0.3s; }
+
+        .panel-header {
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-header::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .panel-header h3 {
+            font-family: var(--font-display);
+            font-size: 15px;
+            font-weight: 400;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+
+        .panel-body {
+            padding: 14px 16px 16px;
+        }
+
+        /* Input groups */
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .input-group input[type="text"],
+        .input-group input[type="url"],
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input[type="text"]:focus,
+        .input-group input[type="url"]:focus,
+        .input-group textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 48px;
+        }
+
+        .input-group input[type="text"]::placeholder,
+        .input-group textarea::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        /* Compact input groups (used in the toolbar area / generate section) */
+        .input-group.compact {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0;
+        }
+
+        .input-group.compact label {
+            margin-bottom: 0;
+            white-space: nowrap;
+        }
+
+        .input-group.compact select,
+        .input-group.compact input {
+            width: auto;
+        }
+
+        .input-group.compact input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent);
+            background: transparent;
+            border: none;
+            height: 4px;
+        }
+
+        .input-group.compact input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: var(--surface-2);
+            border-radius: 2px;
+            border: 1px solid var(--border);
+        }
+
+        .input-group.compact input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg);
+            margin-top: -6px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: transform 0.15s;
+        }
+
+        .input-group.compact input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .input-group.compact input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: var(--surface-2);
+            border-radius: 2px;
+            border: 1px solid var(--border);
+        }
+
+        .input-group.compact input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg);
+            cursor: pointer;
+        }
+
+        .seed-value {
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* Color picker inline */
+        .color-input-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .color-input-row input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        .color-input-row input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 2px;
+        }
+
+        .color-input-row input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+
+        .color-input-row .btn {
+            padding: 7px 12px;
+            font-size: 11px;
+        }
+
+        /* Color Swatches */
         .color-list {
             display: flex;
             flex-wrap: wrap;
-            gap: 5px;
-            margin-top: 5px;
+            gap: 6px;
+            margin-top: 8px;
         }
 
         .swatch {
-            width: 30px;
-            height: 30px;
-            border: 1px solid #000;
-            border-radius: 4px;
+            width: 26px;
+            height: 26px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 11px;
             cursor: pointer;
             color: transparent;
-            transition: 0.2s;
+            transition: all 0.15s;
+            position: relative;
         }
 
         .swatch:hover {
-            color: #fff;
-            text-shadow: 0 0 2px #000;
+            color: rgba(255,255,255,0.85);
+            transform: scale(1.15);
+            box-shadow: 0 0 12px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.3);
         }
 
-        #json-output {
-            width: 100%;
-            height: 300px;
-            font-family: monospace;
-            padding: 10px;
-            box-sizing: border-box;
+        /* Pill Toggle */
+        .pill-group {
+            display: flex;
+            gap: 0;
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            width: fit-content;
         }
 
-        .pill-group { display: flex; gap: 12px; font-family: sans-serif; }
-        .pill-group input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
-        .pill-label { display: inline-block; padding: 1px 10px; background-color: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 30px; cursor: pointer; }
-        .pill-group input[type="radio"]:checked + .pill-label { background-color: #2563eb; color: white; border-color: #2563eb; }
-        .pill-group p { display: inline-block; padding: 3px 10px;}
+        .pill-group input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .pill-label {
+            display: inline-block;
+            padding: 5px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 0.01em;
+        }
+
+        .pill-group input[type="radio"]:checked + .pill-label {
+            background: var(--accent);
+            color: #0f0d0a;
+        }
+
+        .pill-group input[type="radio"]:not(:checked) + .pill-label:hover {
+            color: var(--text);
+            background: rgba(212, 168, 83, 0.06);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .right-col {
+                width: 100%;
+            }
+            .toolbar {
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .toolbar-section {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; gap: 10px; }
+            .toolbar { padding: 10px 14px; }
+            .input-row { flex-direction: column; }
+        }
     </style>
-
 </head>
-
 <body>
 
-    <div class="header-controls">
-        <div style="width: 30%;">
-            <label>Width: <span id="w-val">1024</span></label>
-            <input type="range" id="canvas-width" min="256" max="4096" step="16" value="1024" style="width: 80%;">
+    <header class="toolbar">
+        <div class="toolbar-brand">Ideogram <em>Builder</em></div>
+        <div class="toolbar-spacer"></div>
+        <div class="toolbar-section">
+            <div class="ar-group">
+                <label>Aspect</label>
+                <select id="aspect-ratio">
+                    <option value="1024x1024">1:1 &mdash; Square</option>
+                    <option value="1152x864">4:3 &mdash; Classic</option>
+                    <option value="864x1152">3:4 &mdash; Portrait</option>
+                    <option value="1280x720">16:9 &mdash; Widescreen</option>
+                    <option value="720x1280">9:16 &mdash; Tall</option>
+                    <option value="1152x768">3:2 &mdash; Photo</option>
+                    <option value="768x1152">2:3 &mdash; Photo Portrait</option>
+                    <option value="1344x576">21:9 &mdash; Ultrawide</option>
+                    <option value="576x1344">9:21 &mdash; Cinema Tall</option>
+                </select>
+            </div>
+            <span class="dim-display" id="dim-display">1024 × 1024</span>
+            <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
         </div>
-        <div style="width: 30%;">
-            <label>Height: <span id="h-val">1024</span></label>
-            <input type="range" id="canvas-height" min="256" max="4096" step="16" value="1024" style="width: 80%;">
-        </div>
-        <button id="btn-reset">Go (Reset Canvas)</button>
-    </div>
+    </header>
 
     <div class="main-content">
         <div class="left-col">
-            <div><em>Click and drag below to create bounding boxes. Drag in a PNG from comfy to import its bounding boxes and prompts</em></div>
-            <div style="width: 100%; max-height: 800px; border: 1px solid #ccc; background: #fff; margin: auto;">
+            <div class="canvas-container">
                 <div id="canvas-wrapper"></div>
             </div>
 
-            <div style="display: flex; justify-content: space-around; width: 100%;">
-                <button id="btn-generate-json" style="background: #00CC88; padding: 12px; font-size: 16px; width:100%; margin:5px;">Generate JSON Prompt</button>
-                <button id="btn-load-json" style="background: #00CC88; padding: 12px; font-size: 16px; width:100%; margin:5px;">Load From Pasted JSON</button>
+            <div class="ai-section">
+                <div class="ai-header">
+                    <span class="ai-label">AI Prompt</span>
+                    <div class="ai-key-row">
+                        <select id="ai-model" class="ai-model-select">
+                            <option value="">Loading...</option>
+                        </select>
+                        <div class="ai-key-field">
+                            <input type="password" id="ai-api-key" placeholder="API key" value="">
+                            <span class="ai-key-indicator" id="ai-key-indicator"></span>
+                        </div>
+                    </div>
+                </div>
+                <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+                <div class="ai-actions">
+                    <button id="btn-ai-enhance" class="btn btn-primary">✨ AI Enhance</button>
+                    <span id="ai-status" class="ai-status"></span>
+                </div>
             </div>
-            <textarea id="json-output" placeholder="JSON will appear here...
-Or paste a JSON here to load parameters from it"></textarea>
-        <div>
-            <label>Seed: <span id="r-seed-value">42</span></label>
-            <input type="range" id="r-seed" min="1" max="99999" step="1" value="42">
-        </div>
-        <div>
-            <label>Comfy API:</label>
-            <input type="text" id="api-location" value="http://localhost:8188">
-        </div>
-            <button id="btn-generate-image" style="background: #00CC88; padding: 12px; font-size: 16px;">Generate Image</button>
-            <img id="image-view" style="max-height: 800px; object-fit: scale-down;">
+
+            <div class="action-row">
+                <button id="btn-generate-json" class="btn btn-primary">Generate JSON Prompt</button>
+                <button id="btn-load-json" class="btn btn-ghost">Load From JSON</button>
+            </div>
+
+            <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
+
+            <div class="generate-section">
+                <div class="input-row">
+                    <div class="input-group compact" style="flex: 0.5;">
+                        <label>Seed</label>
+                        <input type="range" id="r-seed" min="1" max="99999" step="1" value="42">
+                        <span class="seed-value" id="r-seed-value">00042</span>
+                    </div>
+                    <div class="input-group compact" style="flex: 1;">
+                        <label>API</label>
+                        <input type="url" id="api-location" value="http://localhost:8188">
+                    </div>
+                </div>
+                <button id="btn-generate-image" class="btn btn-primary btn-block">Generate Image</button>
+                <img id="image-view">
+            </div>
         </div>
 
         <div class="right-col">
             <div class="panel">
-                <h3>Global Settings</h3>
-                <div class="pill-group">
-                    <p style="margin: 0;">Mode:</p>
-                    <input type="radio" id="mode_photo" name="art_mode" value="photo">
-                    <label for="mode_photo" class="pill-label">photo</label>
-
-                    <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
-                    <label for="mode_artstyle" class="pill-label">art_style</label>
+                <div class="panel-header">
+                    <h3>Global Settings</h3>
                 </div>
-                <br>
-                <div class="input-group"><label>High Level Description</label><input type="text"
-                        id="high_level_description"></div>
-                <div class="input-group"><label>Aesthetics</label><input type="text" id="aesthetics"></div>
-                <div class="input-group"><label>Lighting</label><input type="text" id="lighting"></div>
-                <div class="input-group"><label>Medium</label><input type="text" id="medium"></div>
-                <div class="input-group"><label id="mode_label">Art Style</label><input type="text" id="art_style"></div>
-                <div class="input-group"><label>Background</label><textarea id="background"></textarea></div>
-                <div class="input-group">
-                    <label>Global Color Palette (Max 16)</label>
-                    <input type="color" id="global-color-picker">
-                    <button id="btn-add-global-color">Add</button>
-                    <div id="global-colors" class="color-list"></div>
+                <div class="panel-body">
+                    <div class="input-group">
+                        <label>Mode</label>
+                        <div class="pill-group">
+                            <input type="radio" id="mode_photo" name="art_mode" value="photo">
+                            <label for="mode_photo" class="pill-label">Photo</label>
+                            <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+                            <label for="mode_artstyle" class="pill-label">Art Style</label>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>High Level Description</label>
+                        <input type="text" id="high_level_description" placeholder="e.g. A serene landscape at dawn">
+                    </div>
+                    <div class="input-group">
+                        <label>Aesthetics</label>
+                        <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
+                    </div>
+                    <div class="input-group">
+                        <label>Lighting</label>
+                        <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
+                    </div>
+                    <div class="input-group">
+                        <label>Medium</label>
+                        <input type="text" id="medium">
+                    </div>
+                    <div class="input-group">
+                        <label id="mode_label">Art Style</label>
+                        <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
+                    </div>
+                    <div class="input-group">
+                        <label>Background</label>
+                        <textarea id="background" placeholder="Describe the background environment"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Global Color Palette (max 16)</label>
+                        <div class="color-input-row">
+                            <input type="color" id="global-color-picker" value="#d4a853">
+                            <button id="btn-add-global-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
+                        </div>
+                        <div id="global-colors" class="color-list"></div>
+                    </div>
                 </div>
             </div>
 
             <div class="panel" id="box-panel" style="display: none;">
-                <h3>Selected Box Properties</h3>
-                <div class="input-group">
-                    <label>Mode</label>
-                    <select id="box-mode">
-                        <option value="obj">Object (obj)</option>
-                        <option value="text">Text (text)</option>
-                    </select>
+                <div class="panel-header">
+                    <h3>Box Properties</h3>
                 </div>
-                <div class="input-group" id="text-input-group" style="display: none;">
-                    <label>Text Content</label>
-                    <input type="text" id="box-text">
+                <div class="panel-body">
+                    <div class="input-group">
+                        <label>Element Type</label>
+                        <select id="box-mode" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;">
+                            <option value="obj">Object</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="text-input-group" style="display: none;">
+                        <label>Text Content</label>
+                        <input type="text" id="box-text" placeholder="Enter text to render">
+                    </div>
+                    <div class="input-group">
+                        <label>Description</label>
+                        <textarea id="box-desc" placeholder="Describe this element"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Box Color Palette (max 5)</label>
+                        <div class="color-input-row">
+                            <input type="color" id="box-color-picker" value="#d4a853">
+                            <button id="btn-add-box-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
+                        </div>
+                        <div id="box-colors" class="color-list"></div>
+                    </div>
+                    <button id="btn-delete-box" class="btn btn-danger btn-block" style="margin-top:8px;">Delete Box</button>
                 </div>
-                <div class="input-group">
-                    <label>Description</label>
-                    <textarea id="box-desc"></textarea>
-                </div>
-                <div class="input-group">
-                    <label>Box Color Palette (Max 5)</label>
-                    <input type="color" id="box-color-picker">
-                    <button id="btn-add-box-color">Add</button>
-                    <div id="box-colors" class="color-list"></div>
-                </div>
-                <button id="btn-delete-box" style="background: #ff0044; width: 100%; margin-top: 10px;">Delete
-                    Box</button>
             </div>
         </div>
     </div>
 
     <script type="module" src="src/app.js"></script>
-
 </body>
-
 </html>
