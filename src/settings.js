@@ -77,4 +77,7 @@ function updateBoxData() {
   box.text = document.getElementById('box-text').value;
   box.desc = document.getElementById('box-desc').value;
   document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
+
+  const label = document.getElementById(state.selectedBoxId)?.querySelector('.box-label');
+  if (label) label.textContent = box.text || box.desc || '';
 }
