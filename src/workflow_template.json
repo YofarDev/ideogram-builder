@@ -108,7 +108,11 @@
       "style.photo": "realistic, amateur, casual",
       "aesthetics": "",
       "lighting": "overcast, calm",
-      "medium": "photography"
+      "medium": "photography",
+      "import_mode": "always",
+      "bg_brightness": 25,
+      "style_palette_data": "",
+      "elements_data": ""
     }
   },
   "190": {
