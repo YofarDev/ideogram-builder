@@ -1,0 +1,101 @@
+{
+  "high_level_description": "A young tribal person stands in a lush tropical forest, facing a swirling barrier of dark energy.",
+  "style_description": {
+    "aesthetics": "cinematic, mysterious, ethereal",
+    "lighting": "dramatic side light from the barrier, with soft diffused light from canopy above",
+    "medium": "digital painting",
+    "art_style": "fantasy realism",
+    "color_palette": [
+      "#2d5a27",
+      "#8b6914",
+      "#1a1a2e",
+      "#4a0e4e",
+      "#d4af37"
+    ]
+  },
+  "compositional_deconstruction": {
+    "background": "Dense tropical rainforest with tall trees, hanging vines, large green leaves, and dappled sunlight filtering through the canopy.",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [
+          100,
+          150,
+          700,
+          500
+        ],
+        "desc": "A young tribal person with dark skin, wearing traditional attire made of leaves and animal skins, adorned with beads and a feather headdress; face painted with white and red patterns; eyes wide with awe and fear; hand raised defensively.",
+        "color_palette": [
+          "#4a2c1a",
+          "#c0392b",
+          "#f1c40f",
+          "#2c3e50"
+        ]
+      },
+      {
+        "type": "obj",
+        "bbox": [
+          200,
+          550,
+          850,
+          900
+        ],
+        "desc": "Dark energy barrier: a swirling, semi-transparent wall of purple-black energy with tendrils of violet and deep blue; faintly glowing with a malevolent aura; distorting the background behind it.",
+        "color_palette": [
+          "#1a0a2e",
+          "#4a0e4e",
+          "#2b0f4c",
+          "#6b21a8"
+        ]
+      },
+      {
+        "type": "obj",
+        "bbox": [
+          0,
+          0,
+          1000,
+          200
+        ],
+        "desc": "Canopy of tropical trees with large dark green leaves and patches of bright sky visible; a few beams of sunlight cutting through.",
+        "color_palette": [
+          "#1b4d3e",
+          "#3a7d44",
+          "#6b8e23",
+          "#87ceeb"
+        ]
+      },
+      {
+        "type": "obj",
+        "bbox": [
+          800,
+          100,
+          1000,
+          1000
+        ],
+        "desc": "Thick tropical undergrowth with ferns, large monstera leaves, and twisting vines; some leaves have a subtle purple glow from the energy barrier.",
+        "color_palette": [
+          "#234d20",
+          "#6b8e23",
+          "#4a6e2a",
+          "#2e4a62"
+        ]
+      },
+      {
+        "type": "obj",
+        "bbox": [
+          0,
+          1000,
+          100,
+          700
+        ],
+        "desc": "A large ancient tree trunk with rough bark, moss, and a few glowing mushrooms at its base.",
+        "color_palette": [
+          "#4a3b2c",
+          "#5c4a3a",
+          "#7a5c3a",
+          "#e67e22"
+        ]
+      }
+    ]
+  }
+}

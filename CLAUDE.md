@@ -6,6 +6,13 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 
 **No build tools.** ES modules loaded via `<script type="module">`. Serve with `python3 server.py` (auto-loads LLM credentials from `~/.config/llm-credentials.json`).
 
+## Project Structure
+
+```
+/                   — Frontend (vanilla JS app)
+/runpod/            — RunPod Serverless backend (Docker image + handler)
+```
+
 ## Architecture Rules
 
 1. Each module imports only from `state.js`, `events.js`, or browser APIs — **never from sibling feature modules**
@@ -50,3 +57,19 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
 - **Adding a new event?** → Add to this catalog, emit from source, listen in target
+
+## RunPod Backend (`runpod/`)
+
+Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Custom image: ComfyUI (latest) + KJNodes + rgthree + Ideogram-4 models |
+| `handler.py` | RunPod handler — accepts `import_json`, `width`, `height` → returns base64 images |
+| `workflow_template.json` | API-format ComfyUI workflow (17 nodes, stripped UI-only nodes) |
+| `client.py` | CLI for sending requests to the RunPod endpoint |
+| `example_prompt.json` | Sample prompt JSON for testing |
+
+**Build:** Push a git tag (e.g. `v1.0.8`) → RunPod Container Builder rebuilds. Dockerfile path: `runpod/Dockerfile`, build context: repo root.
+
+**API:** `POST /run` with `{ "input": { "import_json": "...", "width": 768, "height": 1152 } }` → returns `{ "output": { "images": [{ "filename", "type": "base64", "data" }] } }`
