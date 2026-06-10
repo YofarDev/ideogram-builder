@@ -7,6 +7,10 @@ export function initJsonBuilder() {
   on('canvas:reset', () => {
     document.getElementById('json-output').value = '';
   });
+
+  on('state:changed', () => generateJSON());
+
+  on('state:loaded', () => generateJSON());
 }
 
 export function generateJSON() {

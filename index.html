@@ -301,40 +301,81 @@
         /* Bounding boxes */
         .bounding-box {
             position: absolute;
-            border: 1.5px solid rgba(212, 168, 83, 0.5);
-            background: rgba(212, 168, 83, 0.06);
+            border: 1.5px solid rgba(212, 168, 83, 0.35);
+            background: rgba(212, 168, 83, 0.03);
             cursor: grab;
             box-sizing: border-box;
-            transition: box-shadow 0.2s, border-color 0.2s;
+            transition: box-shadow 0.2s, border-color 0.2s, background 0.2s, opacity 0.2s;
             z-index: 2;
         }
 
         .bounding-box:hover {
-            border-color: rgba(212, 168, 83, 0.75);
-            background: rgba(212, 168, 83, 0.1);
+            border-color: rgba(212, 168, 83, 0.6);
+            background: rgba(212, 168, 83, 0.07);
+        }
+
+        /* Dim unselected boxes when one is selected */
+        #canvas-wrapper.has-boxes .bounding-box:not(.selected) {
+            opacity: 0.55;
+        }
+
+        #canvas-wrapper.has-boxes .bounding-box:not(.selected):hover {
+            opacity: 0.85;
         }
 
         .bounding-box.selected {
-            border-color: var(--accent);
-            background: rgba(212, 168, 83, 0.12);
-            box-shadow: 0 0 16px rgba(212, 168, 83, 0.2), inset 0 0 16px rgba(212, 168, 83, 0.04);
+            border: 2px dashed var(--accent);
+            background: rgba(212, 168, 83, 0.08);
+            box-shadow:
+                0 0 0 1px rgba(212, 168, 83, 0.3),
+                0 0 20px rgba(212, 168, 83, 0.25);
             z-index: 10;
+            opacity: 1 !important;
+            animation: marchingAnts 0.6s linear infinite;
         }
+
+        @keyframes marchingAnts {
+            to { stroke-dashoffset: -16; }
+        }
+
+        /* Corner handles — visible only on selected box */
+        .bounding-box .corner-handle {
+            display: none;
+        }
+
+        .bounding-box.selected .corner-handle {
+            display: block;
+        }
+
+        .corner-handle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border: 1.5px solid var(--bg);
+            border-radius: 2px;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        .corner-handle.tl { top: -4px; left: -4px; }
+        .corner-handle.tr { top: -4px; right: -4px; }
+        .corner-handle.bl { bottom: -4px; left: -4px; }
+        .corner-handle.br { bottom: -4px; right: -4px; }
 
         .box-label {
             position: absolute;
             top: 4px;
             left: 6px;
             right: 6px;
+            bottom: 4px;
             font-size: 11px;
             line-height: 1.4;
             color: var(--text);
             pointer-events: none;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            opacity: 0.85;
             text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            opacity: 0.85;
         }
 
         .box-label:empty {
@@ -748,7 +789,7 @@
         }
 
         .input-group textarea {
-            resize: vertical;
+            resize: none;
             min-height: 48px;
         }
 
@@ -1029,15 +1070,19 @@
                 </div>
 
                 <div class="action-row">
-                    <button id="btn-generate-json" class="btn btn-primary">Generate JSON Prompt</button>
                     <button id="btn-load-json" class="btn btn-ghost">Load From JSON</button>
+                    <button id="btn-generate-image" class="btn btn-primary" style="padding:9px 16px;font-size:13px;font-weight:600;">Generate Image</button>
+                    <span id="generate-status" style="font-size:12px;color:var(--text-dim);margin-left:auto;align-self:center;"></span>
                 </div>
 
-                <textarea id="json-output" placeholder="JSON output will appear here after generating a prompt&#10;Or paste a JSON blob here and click Load From JSON"></textarea>
+                <textarea id="json-output" hidden></textarea>
             </div>
 
             <div class="tab-content" id="tab-gallery">
                 <div id="gallery-container">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+                        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;">📁 Open Output Folder</button>
+                    </div>
                     <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
                     <div class="gallery-grid" id="gallery-grid"></div>
                 </div>
@@ -1061,7 +1106,7 @@
                     </div>
                     <div class="input-group">
                         <label>High Level Description</label>
-                        <input type="text" id="high_level_description" placeholder="e.g. A serene landscape at dawn">
+                        <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
                     </div>
                     <div class="input-group">
                         <label>Aesthetics</label>
@@ -1081,7 +1126,7 @@
                     </div>
                     <div class="input-group">
                         <label>Background</label>
-                        <textarea id="background" placeholder="Describe the background environment"></textarea>
+                        <textarea id="background" rows="5" placeholder="Describe the background environment"></textarea>
                     </div>
                     <div class="input-group">
                         <label>Global Color Palette (max 16)</label>
@@ -1093,9 +1138,6 @@
                     </div>
                 </div>
             </div>
-
-            <button id="btn-generate-image" class="btn btn-primary btn-block" style="margin-top:12px;padding:12px 16px;font-size:14px;font-weight:600;">Generate Image</button>
-            <span id="generate-status" style="font-size:12px;color:var(--text-dim);display:block;text-align:center;margin-top:6px;"></span>
 
             <div class="panel" id="box-panel" style="display: none;">
                 <div class="panel-header">
@@ -1115,7 +1157,7 @@
                     </div>
                     <div class="input-group">
                         <label>Description</label>
-                        <textarea id="box-desc" placeholder="Describe this element"></textarea>
+                        <textarea id="box-desc" rows="5" placeholder="Describe this element"></textarea>
                     </div>
                     <div class="input-group">
                         <label>Box Color Palette (max 5)</label>

@@ -10,8 +10,17 @@ export function initGallery() {
     });
     renderGallery();
 
-    on('image:ready', ({ imageUrl }) => {
-        saveToGallery(imageUrl);
+    const btnOpen = document.getElementById('btn-open-output');
+    if (btnOpen) {
+        btnOpen.addEventListener('click', () => {
+            fetch('/api/open-output');
+        });
+    }
+
+    on('image:ready', ({ imageUrl, dataUrl, skipSave }) => {
+        if (skipSave) return;
+        saveToGallery(imageUrl, dataUrl);
+        if (dataUrl) saveToDisk(dataUrl, document.getElementById('json-output').value);
     });
 }
 
@@ -30,10 +39,27 @@ function getHistory() {
 }
 
 function saveHistory(items) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_ITEMS)));
+    const trimmed = items.slice(0, MAX_ITEMS);
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    } catch {
+        for (let i = trimmed.length - 1; i >= 1; i--) {
+            delete trimmed[i].full_image;
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+                return;
+            } catch {}
+        }
+        delete trimmed[0].full_image;
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        } catch {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+    }
 }
 
-function saveToGallery(imageUrl) {
+function saveToGallery(imageUrl, dataUrl) {
     const promptJson = document.getElementById('json-output').value;
     const aspectRatio = document.getElementById('aspect-ratio').value;
     const selected = document.getElementById('ai-model').value;
@@ -45,6 +71,7 @@ function saveToGallery(imageUrl) {
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             timestamp: Date.now(),
             thumbnail,
+            full_image: dataUrl || '',
             prompt_json: promptJson,
             aspect_ratio: aspectRatio,
             provider: provider || '',
@@ -134,6 +161,10 @@ function loadItem(item) {
         }
     }
 
+    if (item.full_image) {
+        emit('image:ready', { imageUrl: item.full_image, dataUrl: item.full_image, skipSave: true });
+    }
+
     if (item.prompt_json) {
         document.getElementById('json-output').value = item.prompt_json;
         try {
@@ -149,4 +180,14 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function saveToDisk(dataUrl, promptJson) {
+    try {
+        fetch('/api/save-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataUrl, promptJson: promptJson || '' }),
+        });
+    } catch {}
 }

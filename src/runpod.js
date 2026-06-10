@@ -71,10 +71,11 @@ export async function generateImage() {
 
         const imageData = images[0].data;
         const mime = images[0].filename?.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        const blob = await fetch(`data:${mime};base64,${imageData}`).then(r => r.blob());
+        const dataUrl = `data:${mime};base64,${imageData}`;
+        const blob = await fetch(dataUrl).then(r => r.blob());
         const imageUrl = URL.createObjectURL(blob);
 
-        emit('image:ready', { imageUrl });
+        emit('image:ready', { imageUrl, dataUrl });
         if (statusEl) statusEl.textContent = '';
     } catch (err) {
         console.error('RunPod error:', err);

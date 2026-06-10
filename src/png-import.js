@@ -14,11 +14,14 @@ export function initImport() {
 }
 
 export function loadFromPastedJSON() {
+  const input = prompt('Paste your JSON prompt:');
+  if (!input?.trim()) return;
   try {
-    const json = JSON.parse(document.getElementById('json-output').value);
+    const json = JSON.parse(input);
+    document.getElementById('json-output').value = JSON.stringify(json, null, 2);
     emit('state:loaded', { json });
   } catch (e) {
-    alert('Invalid JSON');
+    alert('Invalid JSON: ' + e.message);
   }
 }
 
@@ -41,8 +44,12 @@ async function importImage(file) {
 
     emit('canvas:rebuild');
 
-    // Show image on canvas
-    emit('image:ready', { imageUrl: img.src });
+    // Convert file to dataUrl for gallery/disk saving
+    const reader = new FileReader();
+    reader.onload = () => {
+      emit('image:ready', { imageUrl: img.src, dataUrl: reader.result });
+    };
+    reader.readAsDataURL(file);
 
     // Try PNG metadata extraction
     if (file.type === 'image/png') {

@@ -11,11 +11,15 @@ export function initSettings() {
     localStorage.setItem('ideogram_aspect_ratio', e.target.value);
   });
 
-  document.getElementById('mode_photo').addEventListener('change', () => setPhotoArtMode(MODE_PHOTO));
-  document.getElementById('mode_artstyle').addEventListener('change', () => setPhotoArtMode(MODE_ARTSTYLE));
+  document.getElementById('mode_photo').addEventListener('change', () => { setPhotoArtMode(MODE_PHOTO); emit('state:changed'); });
+  document.getElementById('mode_artstyle').addEventListener('change', () => { setPhotoArtMode(MODE_ARTSTYLE); emit('state:changed'); });
 
   ['box-mode', 'box-text', 'box-desc'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', updateBoxData);
+    document.getElementById(id).addEventListener('input', () => { updateBoxData(); emit('state:changed'); });
+  });
+
+  ['high_level_description', 'aesthetics', 'lighting', 'medium', 'art_style', 'background'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', () => emit('state:changed'));
   });
 
   on('box:selected', ({ id }) => {

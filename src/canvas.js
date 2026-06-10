@@ -48,7 +48,7 @@ export function initCanvas() {
 
 export function clearBoxes() {
   const canvas = document.getElementById('canvas-wrapper');
-  canvas.innerHTML = '';
+  canvas.querySelectorAll('.bounding-box').forEach(el => el.remove());
   state.boxes.length = 0;
   state.selectedBoxId = null;
   canvas.classList.add('empty-state');
@@ -74,6 +74,7 @@ export function deleteSelectedBox() {
     canvas.classList.add('empty-state');
     canvas.classList.remove('has-boxes');
   }
+  emit('state:changed');
 }
 
 export function initCanvasEvents() {
@@ -106,6 +107,12 @@ export function initCanvasEvents() {
       handle.className = 'resize-handle';
       currentBoxDOM.appendChild(handle);
 
+      for (const pos of ['tl', 'tr', 'bl', 'br']) {
+        const corner = document.createElement('div');
+        corner.className = `corner-handle ${pos}`;
+        currentBoxDOM.appendChild(corner);
+      }
+
       const label = document.createElement('span');
       label.className = 'box-label';
       currentBoxDOM.appendChild(label);
@@ -113,7 +120,7 @@ export function initCanvasEvents() {
       canvas.appendChild(currentBoxDOM);
       selectBox(box.id);
 
-    } else if (e.target.classList.contains('resize-handle')) {
+    } else if (e.target.classList.contains('resize-handle') || e.target.classList.contains('corner-handle')) {
       isResizing = true;
       currentBoxDOM = e.target.parentElement;
       selectBox(currentBoxDOM.id);
@@ -125,6 +132,34 @@ export function initCanvasEvents() {
       e.stopPropagation();
 
     } else if (e.target.classList.contains('bounding-box')) {
+      if (e.altKey) {
+        // Alt+click: cycle through overlapping boxes at click point
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.clientX - rect.left) / scale;
+        const py = (e.clientY - rect.top) / scale;
+
+        const overlapping = [...canvas.querySelectorAll('.bounding-box')].filter(box => {
+          const bx = parseFloat(box.style.left);
+          const by = parseFloat(box.style.top);
+          const bw = parseFloat(box.style.width);
+          const bh = parseFloat(box.style.height);
+          return px >= bx && px <= bx + bw && py >= by && py <= by + bh;
+        });
+
+        if (overlapping.length > 1) {
+          const currentIdx = overlapping.findIndex(b => b.id === state.selectedBoxId);
+          // Pick next below current, or bottom-most if current not in overlap
+          const nextIdx = currentIdx >= 0 && currentIdx < overlapping.length - 1
+            ? currentIdx + 1
+            : 0;
+          selectBox(overlapping[nextIdx].id);
+        } else if (overlapping.length === 1) {
+          selectBox(overlapping[0].id);
+        }
+        e.stopPropagation();
+        return;
+      }
+
       isDragging = true;
       currentBoxDOM = e.target;
       selectBox(currentBoxDOM.id);
@@ -184,12 +219,14 @@ export function initCanvasEvents() {
       } else {
         canvas.classList.remove('empty-state');
         canvas.classList.add('has-boxes');
+        emit('state:changed');
       }
     }
     isDrawing = false;
     isDragging = false;
     isResizing = false;
     currentBoxDOM = null;
+    emit('state:changed');
   });
 
   // --- Keyboard: Delete/Backspace removes selected box ---
@@ -254,6 +291,12 @@ export function initCanvasEvents() {
       const handle = document.createElement('div');
       handle.className = 'resize-handle';
       dom.appendChild(handle);
+
+      for (const pos of ['tl', 'tr', 'bl', 'br']) {
+        const corner = document.createElement('div');
+        corner.className = `corner-handle ${pos}`;
+        dom.appendChild(corner);
+      }
 
       const label = document.createElement('span');
       label.className = 'box-label';

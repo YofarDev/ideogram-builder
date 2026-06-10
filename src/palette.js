@@ -1,7 +1,7 @@
 // palette.js — Color palette management (global max 16, per-box max 5)
 
 import { state } from './state.js';
-import { on } from './events.js';
+import { on, emit } from './events.js';
 
 export function initPalette() {
   document.getElementById('btn-add-global-color').addEventListener('click', () => addColor('global'));
@@ -27,6 +27,7 @@ function addColor(type) {
     if (!state.globalPalette.includes(hex)) {
       state.globalPalette.push(hex);
       renderColors('global');
+      emit('state:changed');
     }
   } else if (type === 'box' && state.selectedBoxId !== null) {
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
@@ -35,6 +36,7 @@ function addColor(type) {
     if (!box.colors.includes(hex)) {
       box.colors.push(hex);
       renderColors('box');
+      emit('state:changed');
     }
   }
 }
@@ -43,11 +45,13 @@ function removeColor(type, hex) {
   if (type === 'global') {
     state.globalPalette = state.globalPalette.filter(c => c !== hex);
     renderColors('global');
+    emit('state:changed');
   } else if (type === 'box' && state.selectedBoxId !== null) {
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
     if (!box) return;
     box.colors = box.colors.filter(c => c !== hex);
     renderColors('box');
+    emit('state:changed');
   }
 }
 
