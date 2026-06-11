@@ -1,16 +1,49 @@
 // json-builder.js — Generate Ideogram4 JSON prompt from state
 
 import { state, MODE_PHOTO } from './state.js';
-import { on } from './events.js';
+import { on, emit } from './events.js';
+
+let isLoadingFromJSON = false;
 
 export function initJsonBuilder() {
   on('canvas:reset', () => {
+    console.log('[json-builder] canvas:reset — clearing textarea');
     document.getElementById('json-output').value = '';
   });
 
-  on('state:changed', () => generateJSON());
+  on('state:changed', () => {
+    console.log('[json-builder] state:changed → generateJSON');
+    if (!isLoadingFromJSON) generateJSON();
+  });
 
-  on('state:loaded', () => generateJSON());
+  on('state:loaded', () => {
+    console.log('[json-builder] state:loaded → generateJSON — hld:', document.getElementById('high_level_description').value.slice(0,40), 'medium:', document.getElementById('medium').value);
+    generateJSON();
+    console.log('[json-builder] after generateJSON — textarea:', document.getElementById('json-output').value.slice(0,80));
+  });
+
+  // Capture textarea value on pointerdown, before canvas pointerup
+  // can overwrite it via state:changed → generateJSON().
+  let capturedRaw = '';
+  document.getElementById('btn-load-json').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    capturedRaw = document.getElementById('json-output').value;
+  });
+
+  document.getElementById('btn-load-json').addEventListener('click', () => {
+    try {
+      const json = JSON.parse(capturedRaw);
+      if (!json.high_level_description && !json.style_description && !json.compositional_deconstruction) return;
+      isLoadingFromJSON = true;
+      emit('state:loaded', { json });
+      isLoadingFromJSON = false;
+      generateJSON();
+    } catch {
+      const btn = document.getElementById('btn-load-json');
+      btn.style.color = 'var(--danger)';
+      setTimeout(() => { btn.style.color = ''; }, 1200);
+    }
+  });
 
   document.getElementById('btn-copy-json').addEventListener('click', () => {
     const output = document.getElementById('json-output');
