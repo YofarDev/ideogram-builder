@@ -10,6 +10,9 @@ function updateDimensions() {
   const size = document.querySelector('.size-btn.active')?.dataset.size || '1';
   const [baseW, baseH] = sel.value.split('x').map(Number);
 
+  const oldWidth = state.canvas.width;
+  const oldHeight = state.canvas.height;
+
   if (size === '2') {
     const longSide = Math.max(baseW, baseH);
     const scale = 2048 / longSide;
@@ -21,7 +24,14 @@ function updateDimensions() {
   }
 
   document.getElementById('dim-display').textContent = `${state.canvas.width} × ${state.canvas.height}`;
-  emit('canvas:rebuild');
+
+  const hasBoxes = state.boxes.length > 0;
+  const dimsChanged = oldWidth !== state.canvas.width || oldHeight !== state.canvas.height;
+  if (hasBoxes && dimsChanged) {
+    emit('canvas:rebuild', { oldWidth, oldHeight });
+  } else {
+    emit('canvas:rebuild');
+  }
 }
 
 export function initSettings() {
@@ -47,6 +57,27 @@ export function initSettings() {
 
   ['high_level_description', 'aesthetics', 'lighting', 'medium', 'art_style', 'background'].forEach((id) => {
     document.getElementById(id).addEventListener('input', () => emit('state:changed'));
+  });
+
+  // Steps presets
+  document.querySelectorAll('input[name="steps"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.steps = parseInt(radio.value, 10);
+    });
+  });
+
+  // Seed input
+  const seedInput = document.getElementById('seed-input');
+  seedInput.addEventListener('input', () => {
+    state.seed = parseInt(seedInput.value, 10);
+    if (isNaN(state.seed)) state.seed = -1;
+  });
+
+  // Random seed button
+  document.getElementById('btn-random-seed').addEventListener('click', () => {
+    const randomSeed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    state.seed = randomSeed;
+    seedInput.value = randomSeed;
   });
 
   on('box:selected', ({ id }) => {

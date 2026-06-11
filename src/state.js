@@ -10,6 +10,8 @@ export const state = {
   selectedBoxId: null,
   boxCounter: 0,
   photoArtMode: MODE_ARTSTYLE,
+  steps: 20,
+  seed: -1,
 };
 
 export function getBox(id) {

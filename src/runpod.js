@@ -51,14 +51,24 @@ export async function generateImage() {
             'Content-Type': 'application/json',
         };
 
+        // Minify the JSON to match training distribution (compact separators)
+        let importJson;
+        try {
+            importJson = JSON.stringify(JSON.parse(jsonText), null, null);
+        } catch {
+            importJson = jsonText;
+        }
+
         const submitResp = await fetch(`${baseUrl}/run`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
                 input: {
-                    import_json: jsonText,
+                    import_json: importJson,
                     width: state.canvas.width,
                     height: state.canvas.height,
+                    steps: state.steps,
+                    seed: state.seed,
                 }
             }),
             signal: abortController.signal,

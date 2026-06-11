@@ -125,7 +125,7 @@ def get_image_data(filename, subfolder, image_type):
         return None
 
 
-def build_workflow(import_json, width, height):
+def build_workflow(import_json, width, height, steps=None, seed=None):
     wf = json.loads(json.dumps(WORKFLOW_TEMPLATE))
 
     wf["160"]["inputs"]["width"] = width
@@ -133,6 +133,11 @@ def build_workflow(import_json, width, height):
     wf["185"]["inputs"]["width"] = width
     wf["185"]["inputs"]["height"] = height
     wf["185"]["inputs"]["import_json"] = import_json
+
+    if steps is not None:
+        wf["190"]["inputs"]["steps"] = steps
+    if seed is not None and seed >= 0:
+        wf["197"]["inputs"]["seed"] = seed
 
     return wf
 
@@ -149,6 +154,8 @@ def handler(job):
 
     width = job_input.get("width", 1024)
     height = job_input.get("height", 1024)
+    steps = job_input.get("steps")
+    seed = job_input.get("seed")
 
     if not isinstance(width, int) or not isinstance(height, int):
         return {"error": "'width' and 'height' must be integers"}
@@ -158,7 +165,7 @@ def handler(job):
     if not check_server(f"http://{COMFY_HOST}/", COMFY_API_AVAILABLE_MAX_RETRIES, COMFY_API_AVAILABLE_INTERVAL_MS):
         return {"error": f"ComfyUI server ({COMFY_HOST}) not reachable after multiple retries."}
 
-    workflow = build_workflow(import_json, width, height)
+    workflow = build_workflow(import_json, width, height, steps=steps, seed=seed)
 
     ws = None
     client_id = str(uuid.uuid4())
