@@ -36,7 +36,6 @@ export function initGallery() {
         lastSaveTime = now;
         lastSaveDataUrl = dataUrl || '';
         saveToGallery(imageUrl, dataUrl, { source: source || 'generation', model: model || '' });
-        if (dataUrl) saveToDisk(dataUrl, document.getElementById('json-output').value);
     });
 }
 
@@ -89,9 +88,10 @@ function saveToGallery(imageUrl, dataUrl, meta = {}) {
     const [provider, model] = selected.includes('::') ? selected.split('::') : ['', selected];
 
     createThumbnail(imageUrl, (thumbnail) => {
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         const items = getHistory();
-        items.unshift({
-            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        const entry = {
+            id,
             timestamp: Date.now(),
             thumbnail,
             full_image: dataUrl || '',
@@ -100,8 +100,23 @@ function saveToGallery(imageUrl, dataUrl, meta = {}) {
             provider: provider || '',
             model: model || '',
             source: meta.source || 'generation',
-        });
+            disk_filename: '',
+        };
+        items.unshift(entry);
         saveHistory(items);
+
+        if (dataUrl) {
+            saveToDisk(dataUrl, promptJson).then(filename => {
+                if (filename) {
+                    const updated = getHistory();
+                    const item = updated.find(i => i.id === id);
+                    if (item) {
+                        item.disk_filename = filename;
+                        saveHistory(updated);
+                    }
+                }
+            });
+        }
     });
 }
 
@@ -194,8 +209,12 @@ function loadItem(item) {
         }
     }
 
+    const diskUrl = item.disk_filename ? `/output/${item.disk_filename}` : '';
+
     if (item.full_image) {
         emit('image:ready', { imageUrl: item.full_image, dataUrl: item.full_image, skipSave: true });
+    } else if (diskUrl) {
+        emit('image:ready', { imageUrl: diskUrl, dataUrl: '', skipSave: true });
     }
 
     if (item.prompt_json) {
@@ -206,10 +225,10 @@ function loadItem(item) {
         } catch {}
     }
 
-    if (!item.full_image && item.thumbnail) {
+    if (!item.full_image && !diskUrl && item.thumbnail) {
         emit('image:ready', { imageUrl: item.thumbnail, dataUrl: item.thumbnail, skipSave: true });
         showToast('Full-resolution image unavailable — showing thumbnail.', 'warning');
-    } else if (!item.full_image && !item.thumbnail) {
+    } else if (!item.full_image && !diskUrl && !item.thumbnail) {
         showToast('Image no longer available (storage limit was reached).', 'warning');
     }
 
@@ -223,21 +242,27 @@ function escapeHtml(str) {
 }
 
 function downloadImage(item) {
-    if (!item.full_image) return;
+    const diskUrl = item.disk_filename ? `/output/${item.disk_filename}` : '';
+    const url = item.full_image || diskUrl;
+    if (!url) return;
     const a = document.createElement('a');
-    a.href = item.full_image;
+    a.href = url;
     a.download = `ideogram_${item.id}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
 }
 
-function saveToDisk(dataUrl, promptJson) {
+async function saveToDisk(dataUrl, promptJson) {
     try {
-        fetch('/api/save-image', {
+        const res = await fetch('/api/save-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dataUrl, promptJson: promptJson || '' }),
         });
-    } catch {}
+        const data = await res.json();
+        return data.filename || '';
+    } catch {
+        return '';
+    }
 }

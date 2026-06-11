@@ -48,6 +48,7 @@ Cover foreground, midground, and background regions with spatial bboxes.
 ### TEXT handling
 
 For in-image text elements:
+- "name" must be the literal text content (e.g. "STOP", "Chapter 5", "2024"), or "Text" if unreadable
 - "visible_text" field holds literal characters verbatim — preserve diacritics, capitalization
 - Include: signs, labels, badges, brand names, numbers, titles
 - Use separate objects for visually distinct text blocks

@@ -79,6 +79,10 @@ def analyze(image: Image.Image, verbose: bool = False, debug=None) -> dict:
         parsed = _parse_json(response)
         if parsed is not None:
             parsed.setdefault("objects", [])
+            for obj in parsed.get("objects", []):
+                if "bbox" in obj and obj["bbox"] is not None:
+                    x1, y1, x2, y2 = obj["bbox"]
+                    obj["bbox"] = [y1, x1, y2, x2]
             if debug and debug.enabled:
                 debug.save_json("02_vlm/parsed.json", parsed)
             return parsed
