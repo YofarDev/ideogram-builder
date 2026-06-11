@@ -2,6 +2,7 @@
 
 import { state, nextBoxId } from './state.js';
 import { on, emit } from './events.js';
+import { showToast } from './toast.js';
 
 // Interaction state (module-scoped, not in global state)
 let isDrawing = false;
@@ -63,8 +64,23 @@ export function selectBox(id) {
   emit('box:selected', { id });
 }
 
+export function reorderBoxes() {
+  const canvas = document.getElementById('canvas-wrapper');
+  state.boxes.forEach((box, i) => {
+    const dom = document.getElementById(box.id);
+    if (dom) {
+      canvas.appendChild(dom);
+      dom.style.zIndex = box.id === state.selectedBoxId ? 10 : i + 2;
+    }
+  });
+}
+
 export function deleteSelectedBox() {
   if (!state.selectedBoxId) return;
+  const box = state.boxes.find(b => b.id === state.selectedBoxId);
+  const desc = box?.desc || box?.text || 'this box';
+  if (!confirm(`Delete "${desc}"? This cannot be undone.`)) return;
+
   const canvas = document.getElementById('canvas-wrapper');
   const dom = document.getElementById(state.selectedBoxId);
   if (dom) dom.remove();
@@ -94,6 +110,7 @@ export function initCanvasEvents() {
         id: nextBoxId(),
         x: startX, y: startY, w: 0, h: 0,
         mode: 'obj', text: '', desc: '', colors: [],
+        visible: true, locked: false,
       };
       state.boxes.push(box);
 
@@ -123,6 +140,8 @@ export function initCanvasEvents() {
     } else if (e.target.classList.contains('resize-handle') || e.target.classList.contains('corner-handle')) {
       isResizing = true;
       currentBoxDOM = e.target.parentElement;
+      const resizeBox = state.boxes.find(b => b.id === currentBoxDOM.id);
+      if (resizeBox?.locked) { isResizing = false; return; }
       selectBox(currentBoxDOM.id);
       const rect = canvas.getBoundingClientRect();
       dragStartX = (e.clientX - rect.left) / scale;
@@ -148,7 +167,6 @@ export function initCanvasEvents() {
 
         if (overlapping.length > 1) {
           const currentIdx = overlapping.findIndex(b => b.id === state.selectedBoxId);
-          // Pick next below current, or bottom-most if current not in overlap
           const nextIdx = currentIdx >= 0 && currentIdx < overlapping.length - 1
             ? currentIdx + 1
             : 0;
@@ -162,6 +180,8 @@ export function initCanvasEvents() {
 
       isDragging = true;
       currentBoxDOM = e.target;
+      const dragBox = state.boxes.find(b => b.id === currentBoxDOM.id);
+      if (dragBox?.locked) { isDragging = false; return; }
       selectBox(currentBoxDOM.id);
       const rect = canvas.getBoundingClientRect();
       dragStartX = (e.clientX - rect.left) / scale;
@@ -203,6 +223,12 @@ export function initCanvasEvents() {
     }
   });
 
+  // --- Pointer move on canvas: track if user actually dragged ---
+  let hasDragged = false;
+  canvas.addEventListener('pointermove', (e) => {
+    if (isDrawing) hasDragged = true;
+  });
+
   // --- Pointer up: finalize box ---
   window.addEventListener('pointerup', () => {
     if (isDrawing && currentBoxDOM) {
@@ -212,10 +238,11 @@ export function initCanvasEvents() {
       box.x = parseFloat(currentBoxDOM.style.left) || 0;
       box.y = parseFloat(currentBoxDOM.style.top) || 0;
 
-      if (box.w < 10 || box.h < 10) {
+      if (!hasDragged || box.w < 10 || box.h < 10) {
         canvas.removeChild(currentBoxDOM);
         state.boxes = state.boxes.filter(b => b.id !== box.id);
         selectBox(null);
+        if (hasDragged) showToast('Box too small — drag a larger area.', 'error');
       } else {
         canvas.classList.remove('empty-state');
         canvas.classList.add('has-boxes');
@@ -225,6 +252,7 @@ export function initCanvasEvents() {
     isDrawing = false;
     isDragging = false;
     isResizing = false;
+    hasDragged = false;
     currentBoxDOM = null;
     emit('state:changed');
   });
@@ -242,6 +270,19 @@ export function initCanvasEvents() {
   // --- Event listeners ---
 
   on('canvas:rebuild', () => initCanvas());
+
+  // --- Layer event listeners ---
+  on('layers:reordered', () => reorderBoxes());
+
+  on('box:visibility', ({ id, visible }) => {
+    const dom = document.getElementById(id);
+    if (dom) dom.style.display = visible ? '' : 'none';
+  });
+
+  on('box:lock', ({ id, locked }) => {
+    const dom = document.getElementById(id);
+    if (dom) dom.style.cursor = locked ? 'not-allowed' : 'grab';
+  });
 
   const overlay = document.getElementById('canvas-overlay');
   const opacityGroup = document.getElementById('opacity-group');
@@ -277,6 +318,7 @@ export function initCanvasEvents() {
         text: element.text ?? '',
         desc: element.desc,
         colors: element.color_palette ?? [],
+        visible: true, locked: false,
       };
       state.boxes.push(box);
 

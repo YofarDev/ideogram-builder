@@ -35,6 +35,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo) | events |
 | `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
 | `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
+| `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
 | `app.js` | Button wiring, init orchestration | all modules |
 
 ## Event Catalog
@@ -47,7 +48,10 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
-| `state:loaded` | `{ json }` | png-import, ai-enhancer | canvas (boxes), settings (form), palette (colors) |
+| `state:loaded` | `{ json }` | png-import, ai-enhancer | canvas (boxes), settings (form), palette (colors), layers (rebuild) |
+| `layers:reordered` | none | layers | canvas (reapply z-index) |
+| `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
+| `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
 
 ## Editing Guide
 
@@ -57,6 +61,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing RunPod generation?** → `src/runpod.js`
 - **Editing gallery/history?** → `src/gallery.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
+- **Editing layer panel?** → `src/layers.js`
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
 - **Adding a new event?** → Add to this catalog, emit from source, listen in target

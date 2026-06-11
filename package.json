@@ -1,0 +1,29 @@
+{
+  "name": "ideogram-builder",
+  "version": "1.0.0",
+  "description": "Visual prompt builder for [Ideogram4](https://ideogram.ai/) JSON image generation. Canvas-based bounding box editor with color palettes, ComfyUI integration, and PNG metadata import.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YofarDev/ideogram-builder.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/YofarDev/ideogram-builder/issues"
+  },
+  "homepage": "https://github.com/YofarDev/ideogram-builder#readme",
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.8"
+  }
+}

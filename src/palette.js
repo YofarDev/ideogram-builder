@@ -2,6 +2,7 @@
 
 import { state } from './state.js';
 import { on, emit } from './events.js';
+import { showToast } from './toast.js';
 
 export function initPalette() {
   document.getElementById('btn-add-global-color').addEventListener('click', () => addColor('global'));
@@ -23,7 +24,7 @@ function addColor(type) {
   const hex = picker.value.toUpperCase();
 
   if (type === 'global') {
-    if (state.globalPalette.length >= 16) return alert('Max 16 colors allowed.');
+    if (state.globalPalette.length >= 16) return showToast('Maximum 16 colors allowed.', 'error');
     if (!state.globalPalette.includes(hex)) {
       state.globalPalette.push(hex);
       renderColors('global');
@@ -32,7 +33,7 @@ function addColor(type) {
   } else if (type === 'box' && state.selectedBoxId !== null) {
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
     if (!box) return;
-    if (box.colors.length >= 5) return alert('Max 5 colors allowed per box.');
+    if (box.colors.length >= 5) return showToast('Maximum 5 colors per box.', 'error');
     if (!box.colors.includes(hex)) {
       box.colors.push(hex);
       renderColors('box');
@@ -66,8 +67,12 @@ function renderColors(type) {
     const swatch = document.createElement('div');
     swatch.className = 'swatch';
     swatch.style.backgroundColor = hex;
+    swatch.setAttribute('aria-label', `Remove color ${hex}`);
+    swatch.setAttribute('role', 'button');
+    swatch.setAttribute('tabindex', '0');
     swatch.innerHTML = '×';
     swatch.onclick = () => removeColor(type, hex);
+    swatch.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); removeColor(type, hex); } };
     container.appendChild(swatch);
   });
 }

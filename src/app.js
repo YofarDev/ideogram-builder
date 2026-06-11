@@ -4,10 +4,12 @@ import { initCanvas, initCanvasEvents, deleteSelectedBox } from './canvas.js';
 import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
 import { generateImage } from './runpod.js';
-import { initImport, loadFromPastedJSON } from './png-import.js';
+import { initImport, initJsonModal, openJsonModal } from './png-import.js';
 import { initSettings } from './settings.js';
 import { initAIEnhancer } from './ai-enhancer.js';
 import { initGallery } from './gallery.js';
+import { initLayers } from './layers.js';
+import { showToast } from './toast.js';
 
 // Initialize all modules
 initSettings();
@@ -15,14 +17,28 @@ initAIEnhancer();
 initPalette();
 initJsonBuilder();
 initCanvasEvents();
+initLayers();
 initImport();
+initJsonModal();
 initGallery();
 
 // Wire button handlers (no inline onclick in HTML)
-document.getElementById('btn-reset').addEventListener('click', () => initCanvas());
-document.getElementById('btn-load-json').addEventListener('click', () => loadFromPastedJSON());
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (state.boxes.length === 0 && !document.getElementById('json-output').value.trim()) {
+    initCanvas();
+    return;
+  }
+  if (confirm('Reset canvas? All boxes and settings will be lost.')) {
+    initCanvas();
+    showToast('Canvas reset.', 'info');
+  }
+});
+document.getElementById('btn-load-json').addEventListener('click', () => openJsonModal());
 document.getElementById('btn-generate-image').addEventListener('click', () => generateImage());
 document.getElementById('btn-delete-box').addEventListener('click', () => deleteSelectedBox());
+
+// Import state for reset confirmation
+import { state } from './state.js';
 
 // Initial render
 initCanvas();

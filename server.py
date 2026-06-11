@@ -25,8 +25,9 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 creds = json.loads(CREDENTIALS_PATH.read_text())
                 config = {}
-                config["deepseek"] = creds.get("deepseek", {})
-                config["runpod"] = creds.get("runpod", {})
+                for key in ("deepseek", "google", "openrouter", "mimo", "runpod"):
+                    if key in creds:
+                        config[key] = creds[key]
                 self.wfile.write(json.dumps(config).encode())
             except FileNotFoundError:
                 self.wfile.write(json.dumps({"error": "credentials file not found"}).encode())

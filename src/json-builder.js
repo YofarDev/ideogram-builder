@@ -11,6 +11,17 @@ export function initJsonBuilder() {
   on('state:changed', () => generateJSON());
 
   on('state:loaded', () => generateJSON());
+
+  document.getElementById('btn-copy-json').addEventListener('click', () => {
+    const output = document.getElementById('json-output');
+    if (!output.value.trim()) return;
+    navigator.clipboard.writeText(output.value).then(() => {
+      const btn = document.getElementById('btn-copy-json');
+      const original = btn.innerHTML;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      setTimeout(() => { btn.innerHTML = original; }, 1500);
+    });
+  });
 }
 
 export function generateJSON() {

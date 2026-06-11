@@ -51,19 +51,7 @@ export function initSettings() {
     } else {
       document.getElementById('art_style').value = json.style_description?.art_style || '';
       document.getElementById('mode_artstyle').checked = true;
-  setPhotoArtMode(MODE_ARTSTYLE);
-
-  const saved = localStorage.getItem('ideogram_aspect_ratio');
-  if (saved) {
-    const sel = document.getElementById('aspect-ratio');
-    if (sel.querySelector(`option[value="${saved}"]`)) {
-      sel.value = saved;
-      const [w, h] = saved.split('x').map(Number);
-      state.canvas.width = w;
-      state.canvas.height = h;
-      document.getElementById('dim-display').textContent = `${w} × ${h}`;
-    }
-  }
+      setPhotoArtMode(MODE_ARTSTYLE);
     }
   });
 

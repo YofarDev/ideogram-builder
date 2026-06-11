@@ -1,7 +1,9 @@
 import { state } from './state.js';
 import { emit } from './events.js';
+import { showToast } from './toast.js';
 
 let config = null;
+let abortController = null;
 
 async function getConfig() {
     if (config) return config;
@@ -11,24 +13,34 @@ async function getConfig() {
     return config;
 }
 
-export async function generateImage() {
+function setGenerating(active) {
     const btn = document.getElementById('btn-generate-image');
+    if (active) {
+        btn.disabled = true;
+        btn.textContent = 'Generating...';
+    } else {
+        btn.disabled = false;
+        btn.textContent = 'Generate Image';
+    }
+}
+
+export async function generateImage() {
     const statusEl = document.getElementById('generate-status');
     const jsonText = document.getElementById('json-output').value;
 
     if (!jsonText.trim()) {
-        alert('Generate or paste a JSON prompt first.');
+        showToast('Create a prompt first — draw boxes and fill the settings, or load JSON.', 'error');
         return;
     }
 
     const { api_key, endpoint_id } = await getConfig();
     if (!api_key || !endpoint_id) {
-        alert('RunPod not configured. Add runpod.api_key and runpod.endpoint_id to ~/.config/llm-credentials.json');
+        showToast('RunPod not configured. Add runpod.api_key and runpod.endpoint_id to ~/.config/llm-credentials.json', 'error');
         return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Generating...';
+    abortController = new AbortController();
+    setGenerating(true);
     if (statusEl) statusEl.textContent = 'Sending request...';
     emit('runpod:loading');
 
@@ -49,6 +61,7 @@ export async function generateImage() {
                     height: state.canvas.height,
                 }
             }),
+            signal: abortController.signal,
         });
 
         if (!submitResp.ok) {
@@ -78,12 +91,17 @@ export async function generateImage() {
         emit('image:ready', { imageUrl, dataUrl });
         if (statusEl) statusEl.textContent = '';
     } catch (err) {
-        console.error('RunPod error:', err);
-        if (statusEl) statusEl.textContent = 'Error: ' + err.message;
-        alert('Generation failed: ' + err.message);
+        if (err.name === 'AbortError') {
+            if (statusEl) statusEl.textContent = 'Cancelled';
+            showToast('Generation cancelled.', 'info');
+        } else {
+            console.error('RunPod error:', err);
+            if (statusEl) statusEl.textContent = 'Error: ' + err.message;
+            showToast('Generation failed: ' + err.message, 'error');
+        }
     } finally {
-        btn.disabled = false;
-        btn.textContent = 'Generate Image';
+        setGenerating(false);
+        abortController = null;
         emit('runpod:done');
     }
 }
@@ -93,9 +111,12 @@ async function pollStatus(baseUrl, headers, jobId, statusEl) {
     const timeout = 5 * 60 * 1000;
 
     while (Date.now() - startTime < timeout) {
-        if (statusEl) statusEl.textContent = `Generating... (${Math.round((Date.now() - startTime) / 1000)}s)`;
+        if (abortController?.signal.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        const resp = await fetch(`${baseUrl}/status/${jobId}`, { headers });
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        if (statusEl) statusEl.textContent = `Generating... (${elapsed}s)`;
+
+        const resp = await fetch(`${baseUrl}/status/${jobId}`, { headers, signal: abortController?.signal });
         if (!resp.ok) throw new Error(`Status check failed: ${resp.status}`);
 
         const result = await resp.json();
