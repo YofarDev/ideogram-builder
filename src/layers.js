@@ -14,6 +14,9 @@ export function initLayers() {
   on('state:loaded', () => renderLayers());
   on('canvas:reset', () => renderLayers());
 
+  const overlay = document.getElementById('canvas-overlay');
+  if (overlay) overlay.addEventListener('load', () => renderLayers());
+
   renderLayers();
 }
 
@@ -154,12 +157,25 @@ function buildThumbnail(box) {
   const thumb = document.createElement('div');
   thumb.className = 'layer-thumb';
 
-  const cw = state.canvas.width || 1;
-  const ch = state.canvas.height || 1;
-  const left = ((box.x / cw) * 100);
-  const top = ((box.y / ch) * 100);
-  const width = Math.max(4, (box.w / cw) * 100);
-  const height = Math.max(4, (box.h / ch) * 100);
+  // Try to show cropped image from overlay
+  const overlay = document.getElementById('canvas-overlay');
+  const hasImage = overlay?.src && overlay.classList.contains('visible') && overlay.complete && overlay.naturalWidth > 0;
+
+  if (hasImage) {
+    const dataUrl = cropToCanvasRegion(overlay, box);
+    if (dataUrl) {
+      thumb.style.backgroundImage = `url(${dataUrl})`;
+      thumb.style.backgroundSize = 'cover';
+      thumb.style.backgroundPosition = 'center';
+      return thumb;
+    }
+  }
+
+  // Fallback: position indicator
+  const left = ((box.x / 1000) * 100);
+  const top = ((box.y / 1000) * 100);
+  const width = Math.max(4, (box.w / 1000) * 100);
+  const height = Math.max(4, (box.h / 1000) * 100);
 
   const inner = document.createElement('div');
   inner.className = 'layer-thumb-inner';
@@ -168,13 +184,38 @@ function buildThumbnail(box) {
   inner.style.width = width + '%';
   inner.style.height = height + '%';
 
-  // Use first color or accent
   const color = box.colors?.[0] || 'var(--accent)';
   inner.style.borderColor = color;
   inner.style.background = color + '18';
 
   thumb.appendChild(inner);
   return thumb;
+}
+
+function cropToCanvasRegion(img, box) {
+  try {
+    const cw = state.canvas.width;
+    const ch = state.canvas.height;
+
+    const sx = (box.x / 1000) * cw;
+    const sy = (box.y / 1000) * ch;
+    const sw = (box.w / 1000) * cw;
+    const sh = (box.h / 1000) * ch;
+
+    if (sw < 2 || sh < 2) return null;
+
+    const canvas = document.createElement('canvas');
+    const size = 72;
+    canvas.width = size;
+    canvas.height = Math.max(1, size * (sh / sw));
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+    return canvas.toDataURL();
+  } catch {
+    return null;
+  }
 }
 
 

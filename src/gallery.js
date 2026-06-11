@@ -1,5 +1,6 @@
 import { on } from './events.js';
 import { emit } from './events.js';
+import { showToast } from './toast.js';
 
 const STORAGE_KEY = 'ideogram_history';
 const MAX_ITEMS = 30;
@@ -8,6 +9,14 @@ export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+    // Sync layout class with the initially active tab
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+        const tab = activeTab.dataset.tab;
+        const mc = document.querySelector('.main-content');
+        mc.classList.toggle('gallery-active', tab === 'gallery');
+        mc.classList.toggle('vision-active', tab === 'vision');
+    }
     renderGallery();
 
     const btnOpen = document.getElementById('btn-open-output');
@@ -17,9 +26,16 @@ export function initGallery() {
         });
     }
 
-    on('image:ready', ({ imageUrl, dataUrl, skipSave }) => {
+    let lastSaveTime = 0;
+    let lastSaveDataUrl = '';
+
+    on('image:ready', ({ imageUrl, dataUrl, skipSave, source, model }) => {
         if (skipSave) return;
-        saveToGallery(imageUrl, dataUrl);
+        const now = Date.now();
+        if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
+        lastSaveTime = now;
+        lastSaveDataUrl = dataUrl || '';
+        saveToGallery(imageUrl, dataUrl, { source: source || 'generation', model: model || '' });
         if (dataUrl) saveToDisk(dataUrl, document.getElementById('json-output').value);
     });
 }
@@ -31,6 +47,9 @@ function switchTab(tab) {
         b.setAttribute('aria-selected', isActive);
     });
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+    const mc = document.querySelector('.main-content');
+    mc.classList.toggle('gallery-active', tab === 'gallery');
+    mc.classList.toggle('vision-active', tab === 'vision');
     if (tab === 'gallery') renderGallery();
 }
 
@@ -63,11 +82,11 @@ function saveHistory(items) {
     }
 }
 
-function saveToGallery(imageUrl, dataUrl) {
+function saveToGallery(imageUrl, dataUrl, meta = {}) {
     const promptJson = document.getElementById('json-output').value;
     const aspectRatio = document.getElementById('aspect-ratio').value;
-    const selected = document.getElementById('ai-model').value;
-    const [provider, model] = (selected || '').split('::');
+    const selected = meta.model || document.getElementById('ai-model').value || '';
+    const [provider, model] = selected.includes('::') ? selected.split('::') : ['', selected];
 
     createThumbnail(imageUrl, (thumbnail) => {
         const items = getHistory();
@@ -80,6 +99,7 @@ function saveToGallery(imageUrl, dataUrl) {
             aspect_ratio: aspectRatio,
             provider: provider || '',
             model: model || '',
+            source: meta.source || 'generation',
         });
         saveHistory(items);
     });
@@ -134,6 +154,7 @@ function renderGallery() {
             ${item.thumbnail ? `<img src="${item.thumbnail}" alt="Generation">` : ''}
             <div class="gallery-card-info">
                 <div class="gallery-card-actions">
+                    ${item.source === 'vision' ? '<span class="gallery-card-badge vision">Vision</span>' : ''}
                     <button class="gallery-card-btn download" data-id="${item.id}" title="Download image">&darr;</button>
                     <button class="gallery-card-btn delete" data-id="${item.id}" title="Delete">&times;</button>
                 </div>
@@ -183,6 +204,13 @@ function loadItem(item) {
             const json = JSON.parse(item.prompt_json);
             emit('state:loaded', { json });
         } catch {}
+    }
+
+    if (!item.full_image && item.thumbnail) {
+        emit('image:ready', { imageUrl: item.thumbnail, dataUrl: item.thumbnail, skipSave: true });
+        showToast('Full-resolution image unavailable — showing thumbnail.', 'warning');
+    } else if (!item.full_image && !item.thumbnail) {
+        showToast('Image no longer available (storage limit was reached).', 'warning');
     }
 
     switchTab('editor');

@@ -28,25 +28,25 @@ export function generateJSON() {
   const canvasW = state.canvas.width;
   const canvasH = state.canvas.height;
 
-  // Sync box positions from DOM → state
+  // Sync box positions from DOM → state (normalize to 0-1000)
   state.boxes.forEach((box) => {
     const dom = document.getElementById(box.id);
     if (dom) {
-      box.x = parseFloat(dom.style.left);
-      box.y = parseFloat(dom.style.top);
-      box.w = parseFloat(dom.style.width);
-      box.h = parseFloat(dom.style.height);
+      box.x = (parseFloat(dom.style.left) / canvasW) * 1000;
+      box.y = (parseFloat(dom.style.top) / canvasH) * 1000;
+      box.w = (parseFloat(dom.style.width) / canvasW) * 1000;
+      box.h = (parseFloat(dom.style.height) / canvasH) * 1000;
     }
   });
 
-  // Normalize coordinates 0–1000
-  const norm = (val, max) => Math.min(1000, Math.max(0, Math.round((val / max) * 1000)));
+  // Values already in 0-1000, just clamp
+  const clamp = (v) => Math.min(1000, Math.max(0, Math.round(v)));
 
   const elements = state.boxes.map((box) => {
-    const x1 = norm(box.x, canvasW);
-    const y1 = norm(box.y, canvasH);
-    const x2 = norm(box.x + box.w, canvasW);
-    const y2 = norm(box.y + box.h, canvasH);
+    const x1 = clamp(box.x);
+    const y1 = clamp(box.y);
+    const x2 = clamp(box.x + box.w);
+    const y2 = clamp(box.y + box.h);
 
     const el = { type: box.mode, bbox: [y1, x1, y2, x2] };
     if (box.mode === 'text') el.text = box.text;

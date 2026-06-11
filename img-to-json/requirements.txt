@@ -1,0 +1,5 @@
+mlx
+mlx-vlm>=0.4.3
+Pillow
+numpy
+colorthief

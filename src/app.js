@@ -4,11 +4,12 @@ import { initCanvas, initCanvasEvents, deleteSelectedBox } from './canvas.js';
 import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
 import { generateImage } from './runpod.js';
-import { initImport, initJsonModal, openJsonModal } from './png-import.js';
+import { initImport } from './png-import.js';
 import { initSettings } from './settings.js';
 import { initAIEnhancer } from './ai-enhancer.js';
 import { initGallery } from './gallery.js';
 import { initLayers } from './layers.js';
+import { initVision } from './vision.js';
 import { showToast } from './toast.js';
 
 // Initialize all modules
@@ -19,8 +20,8 @@ initJsonBuilder();
 initCanvasEvents();
 initLayers();
 initImport();
-initJsonModal();
 initGallery();
+initVision();
 
 // Wire button handlers (no inline onclick in HTML)
 document.getElementById('btn-reset').addEventListener('click', () => {
@@ -33,7 +34,6 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     showToast('Canvas reset.', 'info');
   }
 });
-document.getElementById('btn-load-json').addEventListener('click', () => openJsonModal());
 document.getElementById('btn-generate-image').addEventListener('click', () => generateImage());
 document.getElementById('btn-delete-box').addEventListener('click', () => deleteSelectedBox());
 document.getElementById('btn-config').addEventListener('click', () => fetch('/api/open-config'));

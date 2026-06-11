@@ -13,6 +13,36 @@ let startX = 0, startY = 0;
 let dragStartX = 0, dragStartY = 0;
 let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 
+function renderBoxes() {
+  state.boxes.forEach(box => {
+    const dom = document.getElementById(box.id);
+    if (dom) {
+      dom.style.left = (box.x / 1000 * state.canvas.width) + 'px';
+      dom.style.top = (box.y / 1000 * state.canvas.height) + 'px';
+      dom.style.width = (box.w / 1000 * state.canvas.width) + 'px';
+      dom.style.height = (box.h / 1000 * state.canvas.height) + 'px';
+    }
+  });
+}
+
+function resizeCanvas() {
+  const canvas = document.getElementById('canvas-wrapper');
+  const container = document.querySelector('.canvas-container');
+  const { width, height } = state.canvas;
+
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
+
+  state.canvas.scale = height > 800 ? 800 / height : 1;
+  canvas.style.transformOrigin = 'top left';
+  canvas.style.transform = `scale(${state.canvas.scale})`;
+
+  const padY = 32;
+  container.style.height = (height * state.canvas.scale + padY) + 'px';
+
+  renderBoxes();
+}
+
 export function initCanvas() {
   const canvas = document.getElementById('canvas-wrapper');
   const container = document.querySelector('.canvas-container');
@@ -108,7 +138,9 @@ export function initCanvasEvents() {
 
       const box = {
         id: nextBoxId(),
-        x: startX, y: startY, w: 0, h: 0,
+        x: (startX / state.canvas.width) * 1000,
+        y: (startY / state.canvas.height) * 1000,
+        w: 0, h: 0,
         mode: 'obj', text: '', desc: '', colors: [],
         visible: true, locked: false,
       };
@@ -233,10 +265,11 @@ export function initCanvasEvents() {
   window.addEventListener('pointerup', () => {
     if (isDrawing && currentBoxDOM) {
       const box = state.boxes.find(b => b.id === currentBoxDOM.id);
-      box.w = parseFloat(currentBoxDOM.style.width) || 0;
-      box.h = parseFloat(currentBoxDOM.style.height) || 0;
-      box.x = parseFloat(currentBoxDOM.style.left) || 0;
-      box.y = parseFloat(currentBoxDOM.style.top) || 0;
+      const cw = state.canvas.width, ch = state.canvas.height;
+      box.w = ((parseFloat(currentBoxDOM.style.width) || 0) / cw) * 1000;
+      box.h = ((parseFloat(currentBoxDOM.style.height) || 0) / ch) * 1000;
+      box.x = ((parseFloat(currentBoxDOM.style.left) || 0) / cw) * 1000;
+      box.y = ((parseFloat(currentBoxDOM.style.top) || 0) / ch) * 1000;
 
       if (!hasDragged || box.w < 10 || box.h < 10) {
         canvas.removeChild(currentBoxDOM);
@@ -269,7 +302,13 @@ export function initCanvasEvents() {
 
   // --- Event listeners ---
 
-  on('canvas:rebuild', () => initCanvas());
+  on('canvas:rebuild', (data) => {
+    if (data?.oldWidth && state.boxes.length > 0) {
+      resizeCanvas();
+    } else {
+      initCanvas();
+    }
+  });
 
   // --- Layer event listeners ---
   on('layers:reordered', () => reorderBoxes());
@@ -290,6 +329,8 @@ export function initCanvasEvents() {
   on('image:ready', ({ imageUrl }) => {
     overlay.src = imageUrl;
     overlay.classList.add('visible');
+    overlay.style.opacity = '0.4';
+    opacitySlider.value = '40';
     opacityGroup.style.display = 'flex';
   });
 
@@ -304,11 +345,7 @@ export function initCanvasEvents() {
     clearBoxes();
     const elements = json.compositional_deconstruction?.elements || [];
     elements.forEach((element) => {
-      const bbox = [...element.bbox];
-      bbox[0] = (bbox[0] / 1000) * state.canvas.height;
-      bbox[2] = (bbox[2] / 1000) * state.canvas.height;
-      bbox[1] = (bbox[1] / 1000) * state.canvas.width;
-      bbox[3] = (bbox[3] / 1000) * state.canvas.width;
+      const bbox = element.bbox;
 
       const box = {
         id: nextBoxId(),
@@ -325,10 +362,11 @@ export function initCanvasEvents() {
       const dom = document.createElement('div');
       dom.className = 'bounding-box';
       dom.id = box.id;
-      dom.style.left = box.x + 'px';
-      dom.style.top = box.y + 'px';
-      dom.style.width = box.w + 'px';
-      dom.style.height = box.h + 'px';
+      const cw = state.canvas.width, ch = state.canvas.height;
+      dom.style.left = (box.x / 1000 * cw) + 'px';
+      dom.style.top = (box.y / 1000 * ch) + 'px';
+      dom.style.width = (box.w / 1000 * cw) + 'px';
+      dom.style.height = (box.h / 1000 * ch) + 'px';
 
       const handle = document.createElement('div');
       handle.className = 'resize-handle';

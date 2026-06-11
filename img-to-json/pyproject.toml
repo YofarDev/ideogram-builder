@@ -1,0 +1,15 @@
+[project]
+name = "ideogram4-captioner"
+version = "0.1.0"
+description = "Image → Ideogram4 JSON caption pipeline using Qwen3-VL + SAM on Apple Silicon"
+requires-python = ">=3.11"
+dependencies = [
+    "mlx",
+    "mlx-vlm>=0.4.3",
+    "Pillow",
+    "numpy",
+    "colorthief",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
