@@ -36,6 +36,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 document.getElementById('btn-load-json').addEventListener('click', () => openJsonModal());
 document.getElementById('btn-generate-image').addEventListener('click', () => generateImage());
 document.getElementById('btn-delete-box').addEventListener('click', () => deleteSelectedBox());
+document.getElementById('btn-config').addEventListener('click', () => fetch('/api/open-config'));
 
 // Import state for reset confirmation
 import { state } from './state.js';

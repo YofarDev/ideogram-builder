@@ -133,13 +133,21 @@ function renderGallery() {
         card.innerHTML = `
             ${item.thumbnail ? `<img src="${item.thumbnail}" alt="Generation">` : ''}
             <div class="gallery-card-info">
-                <button class="gallery-card-delete" data-id="${item.id}" title="Delete">&times;</button>
+                <div class="gallery-card-actions">
+                    <button class="gallery-card-btn download" data-id="${item.id}" title="Download image">&darr;</button>
+                    <button class="gallery-card-btn delete" data-id="${item.id}" title="Delete">&times;</button>
+                </div>
                 <div class="gallery-card-date">${dateStr}</div>
                 <div class="gallery-card-prompt">${escapeHtml(desc)}</div>
             </div>
         `;
 
-        card.querySelector('.gallery-card-delete').addEventListener('click', (e) => {
+        card.querySelector('.gallery-card-btn.download').addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadImage(item);
+        });
+
+        card.querySelector('.gallery-card-btn.delete').addEventListener('click', (e) => {
             e.stopPropagation();
             deleteItem(item.id);
         });
@@ -184,6 +192,16 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function downloadImage(item) {
+    if (!item.full_image) return;
+    const a = document.createElement('a');
+    a.href = item.full_image;
+    a.download = `ideogram_${item.id}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 function saveToDisk(dataUrl, promptJson) {

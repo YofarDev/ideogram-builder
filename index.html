@@ -128,6 +128,35 @@
             white-space: nowrap;
         }
 
+        .size-toggle {
+            display: flex;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .size-btn {
+            font-family: var(--font-body);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 5px 8px;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            line-height: 1;
+        }
+
+        .size-btn:hover {
+            color: var(--text);
+        }
+
+        .size-btn.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
         /* Select */
         select {
             font-family: var(--font-body);
@@ -485,6 +514,9 @@
 
         .gallery-card-info {
             padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
 
         .gallery-card-date {
@@ -511,18 +543,28 @@
             font-style: italic;
         }
 
-        .gallery-card-delete {
-            float: right;
+        .gallery-card-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .gallery-card-btn {
             background: none;
             border: none;
             color: var(--text-dim);
             cursor: pointer;
-            font-size: 14px;
-            padding: 0 2px;
+            font-size: 13px;
+            padding: 0 3px;
             line-height: 1;
+            transition: color 0.15s;
         }
 
-        .gallery-card-delete:hover {
+        .gallery-card-btn.download:hover {
+            color: var(--accent);
+        }
+
+        .gallery-card-btn.delete:hover {
             color: var(--danger);
         }
 
@@ -586,7 +628,23 @@
 
         .ai-model-select:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 6px;
+            line-height: 1;
+            border-radius: var(--radius-sm);
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .icon-btn:hover {
+            color: var(--accent);
+            border-color: var(--border-strong);
         }
 
 
@@ -1526,9 +1584,11 @@
                     <option value="720x1280">9:16 &mdash; Tall</option>
                     <option value="1152x768">3:2 &mdash; Photo</option>
                     <option value="768x1152">2:3 &mdash; Photo Portrait</option>
-                    <option value="1344x576">21:9 &mdash; Ultrawide</option>
-                    <option value="576x1344">9:21 &mdash; Cinema Tall</option>
                 </select>
+                <div class="size-toggle">
+                    <button class="size-btn active" data-size="1">1M</button>
+                    <button class="size-btn" data-size="2">2M</button>
+                </div>
             </div>
             <span class="dim-display" id="dim-display">1024 × 1024</span>
                 <div class="ar-group" id="opacity-group" style="display:none;">
@@ -1553,6 +1613,7 @@
                         <select id="ai-model" class="ai-model-select">
                             <option value="">Loading...</option>
                         </select>
+                        <button id="btn-config" class="icon-btn" title="Open credentials file">&#9881;</button>
                     </div>
                     <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
                     <div class="ai-actions">

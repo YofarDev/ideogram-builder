@@ -1,14 +1,41 @@
 import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
 import { on, emit } from './events.js';
 
+function round16(v) {
+  return Math.round(v / 16) * 16;
+}
+
+function updateDimensions() {
+  const sel = document.getElementById('aspect-ratio');
+  const size = document.querySelector('.size-btn.active')?.dataset.size || '1';
+  const [baseW, baseH] = sel.value.split('x').map(Number);
+
+  if (size === '2') {
+    const longSide = Math.max(baseW, baseH);
+    const scale = 2048 / longSide;
+    state.canvas.width = round16(baseW * scale);
+    state.canvas.height = round16(baseH * scale);
+  } else {
+    state.canvas.width = baseW;
+    state.canvas.height = baseH;
+  }
+
+  document.getElementById('dim-display').textContent = `${state.canvas.width} × ${state.canvas.height}`;
+  emit('canvas:rebuild');
+}
+
 export function initSettings() {
-  document.getElementById('aspect-ratio').addEventListener('change', (e) => {
-    const [w, h] = e.target.value.split('x').map(Number);
-    state.canvas.width = w;
-    state.canvas.height = h;
-    document.getElementById('dim-display').textContent = `${w} × ${h}`;
-    emit('canvas:rebuild');
-    localStorage.setItem('ideogram_aspect_ratio', e.target.value);
+  document.getElementById('aspect-ratio').addEventListener('change', () => {
+    localStorage.setItem('ideogram_aspect_ratio', document.getElementById('aspect-ratio').value);
+    updateDimensions();
+  });
+
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateDimensions();
+    });
   });
 
   document.getElementById('mode_photo').addEventListener('change', () => { setPhotoArtMode(MODE_PHOTO); emit('state:changed'); });

@@ -43,6 +43,25 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True}).encode())
+        elif self.path == "/api/open-config":
+            CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            if not CREDENTIALS_PATH.exists():
+                CREDENTIALS_PATH.write_text(json.dumps({
+                    "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": "", "default_model": "", "models": [""]},
+                    "google": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": "", "default_model": "", "models": [""]},
+                    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "default_model": "", "models": [""]},
+                    "mimo": {"base_url": "https://api.xiaomimimo.com/v1", "api_key": "", "default_model": "", "models": [""]},
+                }, indent=2))
+            if sys.platform == "darwin":
+                subprocess.Popen(["open", str(CREDENTIALS_PATH)])
+            elif sys.platform == "win32":
+                os.startfile(str(CREDENTIALS_PATH))
+            else:
+                subprocess.Popen(["xdg-open", str(CREDENTIALS_PATH)])
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True}).encode())
         else:
             super().do_GET()
 
