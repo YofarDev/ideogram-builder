@@ -76,7 +76,7 @@
   },
   "183": {
     "inputs": {
-      "model_name": "diffusion_models/ideogram4_fp8_scaled.safetensors",
+      "model_name": "ideogram4_fp8_scaled.safetensors",
       "weight_dtype": "default",
       "compute_dtype": "default",
       "patch_cublaslinear": false,
@@ -90,7 +90,7 @@
   },
   "187": {
     "inputs": {
-      "model_name": "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors",
+      "model_name": "ideogram4_unconditional_fp8_scaled.safetensors",
       "weight_dtype": "default",
       "compute_dtype": "default",
       "patch_cublaslinear": false,
@@ -113,7 +113,7 @@
   },
   "98:9": {
     "inputs": {
-      "vae_name": "vae/flux2-vae.safetensors"
+      "vae_name": "flux2-vae.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
@@ -337,7 +337,7 @@
   },
   "98:14": {
     "inputs": {
-      "clip_name": "text_encoders/qwen3vl_8b_fp8_scaled.safetensors",
+      "clip_name": "qwen3vl_8b_fp8_scaled.safetensors",
       "type": "ideogram4",
       "device": "default"
     },
