@@ -289,6 +289,15 @@ def handler(job):
     except ValueError as e:
         return {"error": str(e)}
 
+    if resolved_loras:
+        summary = ", ".join(
+            f"{l['filename']} (main={l['strengths'].get('positive', 1.0)}, uncond={l['strengths'].get('unconditional', 1.0)})"
+            for l in resolved_loras
+        )
+        print(f"worker-ideogram4 - LoRAs active: {summary}")
+    else:
+        print(f"worker-ideogram4 - No LoRAs active (pass-through)")
+
     workflow = build_workflow(import_json, width, height, preset, seed, resolved_loras)
 
     ws = None
