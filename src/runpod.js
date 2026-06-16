@@ -67,7 +67,12 @@ export async function generateImage() {
                     import_json: importJson,
                     width: state.canvas.width,
                     height: state.canvas.height,
-                    steps: state.steps,
+                    preset: state.preset,
+                    loras: state.loras.map(l => ({
+                        filename: l.filename,
+                        source_url: l.source_url,
+                        strengths: l.strengths,
+                    })),
                     seed: state.seed,
                 }
             }),

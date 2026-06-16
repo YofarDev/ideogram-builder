@@ -36,6 +36,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
 | `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
 | `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
+| `lora.js` | LoRA library (localStorage), selection, override application | state, events |
 | `app.js` | Button wiring, init orchestration | all modules |
 
 ## Event Catalog
@@ -52,6 +53,8 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `layers:reordered` | none | layers | canvas (reapply z-index) |
 | `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
 | `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
+| `lora:selected` | `{ overrides }` | lora | settings (snapshot form + apply overrides) |
+| `lora:cleared` | none | lora | settings (restore snapshot) |
 
 ## Editing Guide
 
@@ -73,8 +76,9 @@ Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Custom image: ComfyUI (latest) + KJNodes + rgthree + Ideogram-4 models |
-| `handler.py` | RunPod handler — accepts `import_json`, `width`, `height` → returns base64 images |
-| `workflow_template.json` | API-format ComfyUI workflow (17 nodes, stripped UI-only nodes) |
+| `handler.py` | RunPod handler — accepts `import_json`, `width`, `height`, `preset`, `loras` → returns base64 images |
+| `workflow_template_lora.json` | API-format ComfyUI workflow (lora-capable: rgthree Power Lora Loader, step presets). Live base, copied to `/workflow_template.json` in the image |
+| `workflow_template.json` | Original 17-node workflow — dormant fallback, not copied into the image |
 | `client.py` | CLI for sending requests to the RunPod endpoint |
 | `example_prompt.json` | Sample prompt JSON for testing |
 

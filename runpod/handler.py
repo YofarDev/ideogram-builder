@@ -3,6 +3,7 @@ from runpod.serverless.utils import rp_upload
 import json
 import urllib.request
 import urllib.parse
+import re
 import time
 import os
 import requests
@@ -32,6 +33,9 @@ COMFY_HOST = "127.0.0.1:8188"
 REFRESH_WORKER = os.environ.get("REFRESH_WORKER", "false").lower() == "true"
 
 WORKFLOW_TEMPLATE_PATH = "/workflow_template.json"
+
+LORAS_DIR = "/comfyui/models/loras"
+PRESET_INDEX = {"Quality": 1, "Default": 2, "Turbo": 3}
 
 with open(WORKFLOW_TEMPLATE_PATH) as f:
     WORKFLOW_TEMPLATE = json.load(f)
@@ -125,19 +129,133 @@ def get_image_data(filename, subfolder, image_type):
         return None
 
 
-def build_workflow(import_json, width, height, steps=None, seed=None):
+def _sanitize_filename(raw_name):
+    """Derive a safe lora filename from a URL basename. Stays in LORAS_DIR."""
+    name = os.path.basename(urllib.parse.urlparse(raw_name).path)
+    name = re.sub(r"[^A-Za-z0-9._-]", "_", name)
+    if not name:
+        name = "lora.safetensors"
+    if not name.endswith(".safetensors"):
+        name += ".safetensors"
+    return name
+
+
+def _resolve_unique_path(filename):
+    """Avoid collisions: foo.safetensors → foo_2.safetensors if exists."""
+    if not os.path.exists(os.path.join(LORAS_DIR, filename)):
+        return filename
+    stem, ext = os.path.splitext(filename)
+    i = 2
+    while True:
+        candidate = f"{stem}_{i}{ext}"
+        if not os.path.exists(os.path.join(LORAS_DIR, candidate)):
+            return candidate
+        i += 1
+
+
+def _download_lora(source_url, filename):
+    """Download a lora from source_url into LORAS_DIR atomically. Raises on failure."""
+    # Accept the HF "blob" viewer URL and convert to the direct file URL
+    source_url = source_url.replace("/blob/", "/resolve/")
+    os.makedirs(LORAS_DIR, exist_ok=True)
+    dest = os.path.join(LORAS_DIR, filename)
+    tmp = dest + ".tmp"
+    try:
+        with requests.get(source_url, stream=True, timeout=120, allow_redirects=True) as r:
+            if r.status_code == 404:
+                raise ValueError(f"Lora not found (404): {source_url}")
+            if r.status_code == 403:
+                raise ValueError(f"Lora access denied (403, public repos only): {source_url}")
+            r.raise_for_status()
+            with open(tmp, "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+        os.replace(tmp, dest)
+    except requests.Timeout:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise ValueError(f"Lora download timed out (>120s): {source_url}")
+    except requests.RequestException as e:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise ValueError(f"Lora download failed: {e}")
+    return dest
+
+
+def ensure_loras(loras):
+    """Pre-flight: make sure every requested lora exists locally. Returns
+    [{filename, strength}] populated for the workflow, or raises ValueError."""
+    resolved = []
+    seen_filenames = {}
+    for lora in loras or []:
+        filename = lora.get("filename")
+        source_url = lora.get("source_url")
+        if not filename:
+            if not source_url:
+                raise ValueError("Lora entry missing both filename and source_url")
+            filename = _sanitize_filename(source_url)
+
+        dest = os.path.join(LORAS_DIR, filename)
+        realpath = os.path.realpath(dest)
+        if not realpath.startswith(os.path.realpath(LORAS_DIR) + os.sep):
+            raise ValueError(f"Unsafe lora filename rejected: {filename}")
+
+        if not os.path.exists(dest):
+            if not source_url:
+                raise ValueError(f"Lora '{filename}' not present and no source_url given")
+            filename = _resolve_unique_path(filename)
+            print(f"worker-ideogram4 - Downloading lora {filename} from {source_url}")
+            _download_lora(source_url, filename)
+
+        # Track per-file resolved name for the Power Lora Loader nodes
+        seen_filenames[lora.get("filename") or source_url] = filename
+        resolved.append({
+            "filename": filename,
+            "strengths": lora.get("strengths") or {},
+        })
+    return resolved
+
+
+def _populate_lora_loader(wf, node_id, loras, strength_key):
+    """Fill a Power Lora Loader (rgthree) node with lora_1..n entries."""
+    inputs = wf[node_id]["inputs"]
+    # Drop any pre-existing lora_N slots from the template
+    for key in list(inputs.keys()):
+        if key.startswith("lora_"):
+            del inputs[key]
+    for i, lora in enumerate(loras, start=1):
+        inputs[f"lora_{i}"] = {
+            "on": True,
+            "lora": lora["filename"],
+            "strength": lora["strengths"].get(strength_key, 1.0),
+        }
+    if not loras:
+        inputs["lora_1"] = {"on": False, "lora": "", "strength": 1.0}
+
+
+def build_workflow(import_json, width, height, preset, seed, loras):
     wf = json.loads(json.dumps(WORKFLOW_TEMPLATE))
 
-    wf["160"]["inputs"]["width"] = width
-    wf["160"]["inputs"]["height"] = height
-    wf["185"]["inputs"]["width"] = width
-    wf["185"]["inputs"]["height"] = height
-    wf["185"]["inputs"]["import_json"] = import_json
+    # Width / height: sever ResolutionSelector, inject as literals
+    wf["98:27"]["inputs"]["value"] = width
+    wf["98:28"]["inputs"]["value"] = height
 
-    if steps is not None:
-        wf["190"]["inputs"]["steps"] = steps
+    # Prompt: full import_json as raw text
+    wf["188"]["inputs"]["value"] = import_json
+
+    # Seed
     if seed is not None and seed >= 0:
-        wf["197"]["inputs"]["seed"] = seed
+        wf["160"]["inputs"]["seed"] = seed
+
+    # Step preset (Quality/Default/Turbo → mu/std/num_steps)
+    if preset in PRESET_INDEX:
+        wf["98:156"]["inputs"]["choice"] = preset
+        wf["98:156"]["inputs"]["index"] = PRESET_INDEX[preset]
+
+    # Loras: main model (positive strength) + unconditional model
+    _populate_lora_loader(wf, "166", loras, "positive")
+    _populate_lora_loader(wf, "177", loras, "unconditional")
 
     return wf
 
@@ -154,8 +272,9 @@ def handler(job):
 
     width = job_input.get("width", 1024)
     height = job_input.get("height", 1024)
-    steps = job_input.get("steps")
+    preset = job_input.get("preset", "Default")
     seed = job_input.get("seed")
+    loras = job_input.get("loras") or []
 
     if not isinstance(width, int) or not isinstance(height, int):
         return {"error": "'width' and 'height' must be integers"}
@@ -165,7 +284,12 @@ def handler(job):
     if not check_server(f"http://{COMFY_HOST}/", COMFY_API_AVAILABLE_MAX_RETRIES, COMFY_API_AVAILABLE_INTERVAL_MS):
         return {"error": f"ComfyUI server ({COMFY_HOST}) not reachable after multiple retries."}
 
-    workflow = build_workflow(import_json, width, height, steps=steps, seed=seed)
+    try:
+        resolved_loras = ensure_loras(loras)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    workflow = build_workflow(import_json, width, height, preset, seed, resolved_loras)
 
     ws = None
     client_id = str(uuid.uuid4())

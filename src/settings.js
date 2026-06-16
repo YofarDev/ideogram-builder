@@ -59,11 +59,44 @@ export function initSettings() {
     document.getElementById(id).addEventListener('input', () => emit('state:changed'));
   });
 
-  // Steps presets
+  // Step preset (Turbo / Default / Quality) — drives mu/std/num_steps in the workflow
   document.querySelectorAll('input[name="steps"]').forEach(radio => {
     radio.addEventListener('change', () => {
-      state.steps = parseInt(radio.value, 10);
+      if (radio.dataset.preset) state.preset = radio.dataset.preset;
     });
+  });
+
+  // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
+  let loraSnapshot = null;
+  const OVERRIDE_FIELDS = ['aesthetics', 'lighting', 'medium', 'art_style'];
+
+  on('lora:selected', ({ overrides }) => {
+    loraSnapshot = {};
+    OVERRIDE_FIELDS.forEach(id => {
+      loraSnapshot[id] = document.getElementById(id).value;
+    });
+    loraSnapshot.photoArtMode = state.photoArtMode;
+
+    if (overrides && typeof overrides === 'object') {
+      Object.entries(overrides).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val != null) el.value = val;
+      });
+      // art_style only emits in ARTSTYLE mode → force it so the override survives
+      if ('art_style' in overrides) setPhotoArtMode(MODE_ARTSTYLE);
+    }
+    emit('state:changed');
+  });
+
+  on('lora:cleared', () => {
+    if (!loraSnapshot) return;
+    OVERRIDE_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = loraSnapshot[id];
+    });
+    setPhotoArtMode(loraSnapshot.photoArtMode);
+    loraSnapshot = null;
+    emit('state:changed');
   });
 
   // Seed input

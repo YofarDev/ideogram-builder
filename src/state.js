@@ -10,7 +10,8 @@ export const state = {
   selectedBoxId: null,
   boxCounter: 0,
   photoArtMode: MODE_ARTSTYLE,
-  steps: 20,
+  preset: 'Default',
+  loras: [],
   seed: -1,
 };
 

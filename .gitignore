@@ -6,3 +6,6 @@ node_modules/
 .gemini
 .impeccable/*
 .opencode
+
+# LoRA weights — fetched on-demand by the worker, never committed
+runpod/loras/*.safetensors

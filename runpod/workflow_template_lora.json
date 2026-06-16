@@ -1,0 +1,497 @@
+{
+  "37": {
+    "inputs": {
+      "aspect_ratio": "2:3 (Portrait Photo)",
+      "megapixels": 1.5,
+      "multiple": 8
+    },
+    "class_type": "ResolutionSelector",
+    "_meta": {
+      "title": "Resolution Selector"
+    }
+  },
+  "159": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "98:13",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "160": {
+    "inputs": {
+      "seed": 150545843452601
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "166": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "kiki_lora_v1.safetensors",
+        "strength": 1
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "183",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Main Model Lora"
+    }
+  },
+  "177": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "kiki_lora_v1.safetensors",
+        "strength": 0.5
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "187",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Unconditional Model Lora"
+    }
+  },
+  "183": {
+    "inputs": {
+      "model_name": "diffusion_models/ideogram4_fp8_scaled.safetensors",
+      "weight_dtype": "default",
+      "compute_dtype": "default",
+      "patch_cublaslinear": false,
+      "sage_attention": "disabled",
+      "enable_fp16_accumulation": false
+    },
+    "class_type": "DiffusionModelLoaderKJ",
+    "_meta": {
+      "title": "Diffusion Model Loader KJ"
+    }
+  },
+  "187": {
+    "inputs": {
+      "model_name": "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors",
+      "weight_dtype": "default",
+      "compute_dtype": "default",
+      "patch_cublaslinear": false,
+      "sage_attention": "disabled",
+      "enable_fp16_accumulation": false
+    },
+    "class_type": "DiffusionModelLoaderKJ",
+    "_meta": {
+      "title": "Diffusion Model Loader KJ"
+    }
+  },
+  "188": {
+    "inputs": {
+      "value": "{\n  \"high_level_description\": \"A young girl with dark hair and a red bow rides a broomstick over a coastal town, carrying a black cat in a sack. She holds a sign with text. Below is a cityscape with red rooftops, a large green dome, and a blue bay with boats.\",\n  \"style_description\": {\n    \"aesthetics\": \"vibrant, whimsical, cartoonish\",\n    \"lighting\": \"bright daylight with clear blue sky and white clouds\",\n    \"art_style\": \"Studio Ghibli style\",\n    \"medium\": \"anime_screencap\",\n    \"color_palette\": [\n      \"#88B1A8\",\n      \"#0E769F\",\n      \"#3E665F\",\n      \"#2E96AF\",\n      \"#273B55\",\n      \"#AB776A\"\n    ]\n  },\n  \"compositional_deconstruction\": {\n    \"background\": \"A coastal town with red-tiled roofs and European-style buildings. A large green dome is prominent in the foreground. A wide blue bay with numerous white sailboats separates the town from rolling green hills in the distance under a clear blue sky with scattered white clouds.\",\n    \"elements\": [\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          100,\n          380,\n          420,\n          650\n        ],\n        \"desc\": \"A young girl with short dark hair tied with a red bow, wearing a dark purple outfit with red shoes. She is seated on a broomstick, holding it with her right hand and a sign with her left. Her posture is upright and focused as she flies forward.\",\n        \"color_palette\": [\n          \"#248AAA\",\n          \"#2E2B50\",\n          \"#1F1F1F\",\n          \"#AE5F53\",\n          \"#CEBBA9\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          190,\n          550,\n          350,\n          820\n        ],\n        \"desc\": \"A sleek black cat with a long tail, sitting upright in a brown sack slung over the girl's back. The cat has pointed ears and appears alert, looking forward as it rides along with the girl.\",\n        \"color_palette\": [\n          \"#158AAA\",\n          \"#CF8971\",\n          \"#20253B\",\n          \"#181818\",\n          \"#372F5C\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          240,\n          30,\n          350,\n          420\n        ],\n        \"desc\": \"A long wooden broomstick with a wide, fluffy yellow bristle end. The handle is smooth and light brown, extending diagonally from the girl's right hand toward the upper left of the image. It appears sturdy and well-used for flying.\",\n        \"color_palette\": [\n          \"#1F96B2\",\n          \"#CEBFA1\",\n          \"#9C8D79\",\n          \"#32545C\",\n          \"#592E41\"\n        ]\n      },\n      {\n        \"type\": \"text\",\n        \"bbox\": [\n          300,\n          360,\n          400,\n          460\n        ],\n        \"text\": \"IDEOGRAM4 IMAGE LORA\",\n        \"desc\": \"A small rectangular wooden sign with a light brown surface and dark brown border. It is held by the girl's left hand and has text printed in black capital letters. The sign is angled slightly downward.\",\n        \"color_palette\": [\n          \"#3795AB\",\n          \"#D7BFA5\",\n          \"#37303D\",\n          \"#836452\",\n          \"#AC9482\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          500,\n          0,\n          990,\n          350\n        ],\n        \"desc\": \"A large, rounded dome with a green patina, likely copper or bronze, showing signs of weathering. It has a small lantern-like structure on top with a pointed finial. The dome is in the foreground, partially framing the lower left of the image.\",\n        \"color_palette\": [\n          \"#68A498\",\n          \"#3B736F\",\n          \"#28464A\",\n          \"#0F4D72\",\n          \"#978486\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          500,\n          0,\n          750,\n          1000\n        ],\n        \"desc\": \"A densely built coastal town with numerous buildings featuring red-tiled roofs and varied architectural styles. Some buildings have chimneys and steeples. The town is situated along the edge of a large bay, with streets and open spaces visible between structures.\",\n        \"color_palette\": [\n          \"#0F4B71\",\n          \"#1E595D\",\n          \"#429987\",\n          \"#8AA6A5\",\n          \"#8F6A72\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          550,\n          100,\n          700,\n          900\n        ],\n        \"desc\": \"A wide, calm bay with deep blue water, dotted with numerous white sailboats and motorboats of various sizes. The boats are scattered across the water, some clustered near the shore, others further out. The water reflects the sky and surrounding land.\",\n        \"color_palette\": [\n          \"#0B5078\",\n          \"#1F4F4F\",\n          \"#849C9C\",\n          \"#338871\",\n          \"#966771\"\n        ]\n      },\n      {\n        \"type\": \"obj\",\n        \"bbox\": [\n          400,\n          0,\n          550,\n          1000\n        ],\n        \"desc\": \"Rolling green hills covered in trees and vegetation, stretching across the horizon behind the town and bay. Above is a clear, bright blue sky with a few scattered white clouds, indicating fair weather and a sunny day.\",\n        \"color_palette\": [\n          \"#90BFBF\",\n          \"#4CA3A2\",\n          \"#1D6873\",\n          \"#B4A277\",\n          \"#981F37\"\n        ]\n      }\n    ]\n  }\n}"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Text String (Multiline)"
+    }
+  },
+  "98:9": {
+    "inputs": {
+      "vae_name": "vae/flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "98:11": {
+    "inputs": {
+      "width": [
+        "98:31",
+        1
+      ],
+      "height": [
+        "98:32",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    }
+  },
+  "98:12": {
+    "inputs": {
+      "noise": [
+        "98:18",
+        0
+      ],
+      "guider": [
+        "98:155",
+        0
+      ],
+      "sampler": [
+        "98:16",
+        0
+      ],
+      "sigmas": [
+        "98:161",
+        0
+      ],
+      "latent_image": [
+        "98:11",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "98:13": {
+    "inputs": {
+      "samples": [
+        "98:12",
+        0
+      ],
+      "vae": [
+        "98:9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "98:27": {
+    "inputs": {
+      "value": [
+        "37",
+        0
+      ]
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Int (Width)"
+    }
+  },
+  "98:28": {
+    "inputs": {
+      "value": [
+        "37",
+        1
+      ]
+    },
+    "class_type": "PrimitiveInt",
+    "_meta": {
+      "title": "Int (Height)"
+    }
+  },
+  "98:31": {
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": [
+        "98:27",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "98:32": {
+    "inputs": {
+      "expression": "max(((a + 15) // 16) * 16, 256)",
+      "values.a": [
+        "98:28",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "98:144": {
+    "inputs": {
+      "value": [
+        "98:145",
+        0
+      ]
+    },
+    "class_type": "ComfyNumberConvert",
+    "_meta": {
+      "title": "Convert Number"
+    }
+  },
+  "98:145": {
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "mu"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {
+      "title": "Extract Text from JSON"
+    }
+  },
+  "98:146": {
+    "inputs": {
+      "value": [
+        "98:150",
+        0
+      ]
+    },
+    "class_type": "ComfyNumberConvert",
+    "_meta": {
+      "title": "Convert Number"
+    }
+  },
+  "98:148": {
+    "inputs": {
+      "string": [
+        "98:147",
+        0
+      ],
+      "find": "'",
+      "replace": "\""
+    },
+    "class_type": "StringReplace",
+    "_meta": {
+      "title": "Replace Text"
+    }
+  },
+  "98:149": {
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "num_steps"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {
+      "title": "Extract Text from JSON"
+    }
+  },
+  "98:150": {
+    "inputs": {
+      "json_string": [
+        "98:148",
+        0
+      ],
+      "key": "std"
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {
+      "title": "Extract Text from JSON"
+    }
+  },
+  "98:156": {
+    "inputs": {
+      "choice": "Turbo",
+      "index": 2,
+      "option1": "Quality",
+      "option2": "Default",
+      "option3": "Turbo",
+      "option4": ""
+    },
+    "class_type": "CustomCombo",
+    "_meta": {
+      "title": "Custom Combo"
+    }
+  },
+  "98:147": {
+    "inputs": {
+      "json_string": "{\n  \"Quality\": {\n    \"num_steps\": 48,\n    \"mu\": 0.0,\n    \"std\": 1.5,\n    \"preset_id\": \"V4_QUALITY_48\"\n  },\n  \"Default\": {\n    \"num_steps\": 20,\n    \"mu\": 0.0,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_DEFAULT_20\"\n  },\n  \"Turbo\": {\n    \"num_steps\": 12,\n    \"mu\": 0.5,\n    \"std\": 1.75,\n    \"preset_id\": \"V4_TURBO_12\"\n  }\n}",
+      "key": [
+        "98:156",
+        0
+      ]
+    },
+    "class_type": "JsonExtractString",
+    "_meta": {
+      "title": "Extract Text from JSON"
+    }
+  },
+  "98:14": {
+    "inputs": {
+      "clip_name": "text_encoders/qwen3vl_8b_fp8_scaled.safetensors",
+      "type": "ideogram4",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "98:10": {
+    "inputs": {
+      "conditioning": [
+        "98:167",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "98:167": {
+    "inputs": {
+      "text": [
+        "188",
+        0
+      ],
+      "clip": [
+        "98:14",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "98:161": {
+    "inputs": {
+      "steps": 2,
+      "start_at_sigma": 1,
+      "end_at_sigma": 0.98,
+      "spacing": "linear",
+      "sigmas": [
+        "98:172",
+        0
+      ]
+    },
+    "class_type": "ExtendIntermediateSigmas",
+    "_meta": {
+      "title": "ExtendIntermediateSigmas"
+    }
+  },
+  "98:151": {
+    "inputs": {
+      "value": [
+        "98:149",
+        0
+      ]
+    },
+    "class_type": "ComfyNumberConvert",
+    "_meta": {
+      "title": "Convert Number"
+    }
+  },
+  "98:157": {
+    "inputs": {
+      "cfg": 3.5,
+      "start_percent": 0.7,
+      "end_percent": 1,
+      "model": [
+        "98:171",
+        0
+      ]
+    },
+    "class_type": "CFGOverride",
+    "_meta": {
+      "title": "CFG Override"
+    }
+  },
+  "98:172": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": [
+        "98:151",
+        1
+      ],
+      "denoise": 1,
+      "model": [
+        "98:171",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "98:16": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "98:18": {
+    "inputs": {
+      "noise_seed": [
+        "160",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "98:171": {
+    "inputs": {
+      "shift": 7,
+      "model": [
+        "166",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    }
+  },
+  "98:155": {
+    "inputs": {
+      "cfg": 7,
+      "model": [
+        "98:157",
+        0
+      ],
+      "positive": [
+        "98:167",
+        0
+      ],
+      "model_negative": [
+        "177",
+        0
+      ],
+      "negative": [
+        "98:10",
+        0
+      ]
+    },
+    "class_type": "DualModelGuider",
+    "_meta": {
+      "title": "Dual Model CFG Guider"
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { initAIEnhancer } from './ai-enhancer.js';
 import { initGallery } from './gallery.js';
 import { initLayers } from './layers.js';
 import { initVision } from './vision.js';
+import { initLora } from './lora.js';
 import { showToast } from './toast.js';
 
 // Initialize all modules
@@ -22,6 +23,7 @@ initLayers();
 initImport();
 initGallery();
 initVision();
+initLora();
 
 // Wire button handlers (no inline onclick in HTML)
 document.getElementById('btn-reset').addEventListener('click', () => {

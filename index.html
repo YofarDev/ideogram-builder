@@ -2015,11 +2015,11 @@
                         <div class="input-group">
                             <label>Steps</label>
                             <div class="pill-group">
-                                <input type="radio" id="steps_turbo" name="steps" value="12">
+                                <input type="radio" id="steps_turbo" name="steps" value="12" data-preset="Turbo">
                                 <label for="steps_turbo" class="pill-label">Turbo</label>
-                                <input type="radio" id="steps_default" name="steps" value="20" checked>
+                                <input type="radio" id="steps_default" name="steps" value="20" data-preset="Default" checked>
                                 <label for="steps_default" class="pill-label">Default</label>
-                                <input type="radio" id="steps_quality" name="steps" value="48">
+                                <input type="radio" id="steps_quality" name="steps" value="48" data-preset="Quality">
                                 <label for="steps_quality" class="pill-label">Quality</label>
                             </div>
                         </div>
@@ -2028,6 +2028,33 @@
                             <div class="seed-row" style="display:flex;gap:6px;align-items:center;">
                                 <input type="number" id="seed-input" value="-1" style="flex:1;" placeholder="-1 = random">
                                 <button id="btn-random-seed" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;" title="Random seed">🎲</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
+                            <select id="lora-select" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
+                            <div style="display:flex;gap:6px;margin-top:6px;">
+                                <button id="lora-use" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Use</button>
+                                <button id="lora-clear" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;">Clear</button>
+                                <button id="lora-delete" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Delete</button>
+                            </div>
+                            <div style="display:flex;gap:8px;margin-top:8px;">
+                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;">
+                                    Main <span id="lora-positive-val" style="opacity:0.6;">1.00</span>
+                                    <input type="range" id="lora-positive" min="0" max="2" step="0.05" value="1" disabled>
+                                </label>
+                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;">
+                                    Uncond <span id="lora-unconditional-val" style="opacity:0.6;">0.50</span>
+                                    <input type="range" id="lora-unconditional" min="0" max="2" step="0.05" value="0.5" disabled>
+                                </label>
+                            </div>
+                            <input type="text" id="lora-art-style" placeholder="art_style override (e.g. Studio Ghibli style)" style="width:100%;margin-top:6px;" disabled>
+                            <input type="text" id="lora-aesthetics" placeholder="aesthetics override" style="width:100%;margin-top:4px;" disabled>
+                            <input type="text" id="lora-medium" placeholder="medium override (e.g. anime_screencap)" style="width:100%;margin-top:4px;" disabled>
+                            <div style="display:flex;gap:6px;margin-top:8px;">
+                                <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
+                                <input type="text" id="lora-new-label" placeholder="label" style="width:90px;">
+                                <button id="lora-add" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;">+</button>
                             </div>
                         </div>
                     </div>
