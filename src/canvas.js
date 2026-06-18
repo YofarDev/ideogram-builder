@@ -33,7 +33,8 @@ function resizeCanvas() {
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
 
-  state.canvas.scale = height > 800 ? 800 / height : 1;
+  const maxH = state.canvas.maxDisplayHeight ?? 800;
+  state.canvas.scale = height > maxH ? maxH / height : 1;
   canvas.style.transformOrigin = 'top left';
   canvas.style.transform = `scale(${state.canvas.scale})`;
 
@@ -51,7 +52,8 @@ export function initCanvas() {
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
 
-  state.canvas.scale = height > 800 ? 800 / height : 1;
+  const maxH = state.canvas.maxDisplayHeight ?? 800;
+  state.canvas.scale = height > maxH ? maxH / height : 1;
   canvas.style.transformOrigin = 'top left';
   canvas.style.transform = `scale(${state.canvas.scale})`;
 
@@ -309,6 +311,8 @@ export function initCanvasEvents() {
       initCanvas();
     }
   });
+
+  on('canvas:relayout', () => resizeCanvas());
 
   // --- Layer event listeners ---
   on('layers:reordered', () => reorderBoxes());
