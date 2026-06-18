@@ -1837,6 +1837,55 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* Fullscreen drawing mode — toggled via #tab-editor.draw-fullscreen */
+        #btn-exit-fullscreen { display: none; }
+
+        #tab-editor.draw-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            overflow: auto;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 12px;
+            box-sizing: border-box;
+        }
+
+        #tab-editor.draw-fullscreen .editor-toolbar {
+            margin-bottom: 0;
+            flex-shrink: 0;
+        }
+
+        #tab-editor.draw-fullscreen .gen-only,
+        #tab-editor.draw-fullscreen #global-settings-panel {
+            display: none;
+        }
+
+        #tab-editor.draw-fullscreen #btn-enter-fullscreen { display: none; }
+        #tab-editor.draw-fullscreen #btn-exit-fullscreen { display: inline-flex; }
+
+        #tab-editor.draw-fullscreen .main-content {
+            flex: 1;
+            min-height: 0;
+            align-items: stretch;
+        }
+
+        #tab-editor.draw-fullscreen .left-col {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        #tab-editor.draw-fullscreen .canvas-container {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
