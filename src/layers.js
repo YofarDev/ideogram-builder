@@ -17,6 +17,9 @@ export function initLayers() {
   const overlay = document.getElementById('canvas-overlay');
   if (overlay) overlay.addEventListener('load', () => renderLayers());
 
+  const addBtn = document.getElementById('btn-add-layer');
+  if (addBtn) addBtn.addEventListener('click', () => emit('box:create'));
+
   renderLayers();
 }
 
@@ -61,6 +64,11 @@ function buildRow(box) {
   // Name + badge
   const info = document.createElement('div');
   info.className = 'layer-info';
+
+  const dot = document.createElement('span');
+  dot.className = 'layer-color-dot';
+  dot.style.background = box.color || 'var(--accent)';
+  info.appendChild(dot);
 
   const name = document.createElement('span');
   name.className = 'layer-name';
@@ -184,7 +192,7 @@ function buildThumbnail(box) {
   inner.style.width = width + '%';
   inner.style.height = height + '%';
 
-  const color = box.colors?.[0] || 'var(--accent)';
+  const color = box.color || box.colors?.[0] || 'var(--accent)';
   inner.style.borderColor = color;
   inner.style.background = color + '18';
 
