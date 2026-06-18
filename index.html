@@ -1851,7 +1851,7 @@
     <div class="main-content">
         <div class="left-col">
             <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
-                <div class="editor-toolbar">
+                <div class="editor-toolbar" id="editor-toolbar">
                     <div class="ar-group">
                         <label>Aspect</label>
                         <select id="aspect-ratio">
@@ -1875,8 +1875,12 @@
                     </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
+                    <button id="btn-enter-fullscreen" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                    </button>
+                    <button id="btn-exit-fullscreen" class="btn btn-secondary">Exit Fullscreen</button>
                 </div>
-                <div class="ai-section">
+                <div class="ai-section gen-only">
                     <div class="ai-header">
                         <span class="ai-label">AI Prompt</span>
                         <select id="ai-model" class="ai-model-select">
@@ -1895,12 +1899,12 @@
                     <div id="canvas-wrapper" role="application" aria-label="Bounding box editor canvas"><img id="canvas-overlay" alt="Generated image overlay"></div>
                 </div>
 
-                <div class="action-row" style="position:relative;">
+                <div class="action-row gen-only" style="position:relative;">
                     <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
                     <span id="generate-status" class="generate-status"></span>
                 </div>
 
-                <div class="json-section">
+                <div class="json-section gen-only">
                     <div class="json-header">
                         <span class="json-title">Prompt JSON</span>
                         <div class="json-header-actions">
@@ -1990,7 +1994,7 @@
         </div>
 
         <div class="right-col">
-            <div class="panel">
+            <div class="panel" id="global-settings-panel">
                 <div class="panel-header">
                     <h3>Global Settings</h3>
                 </div>
