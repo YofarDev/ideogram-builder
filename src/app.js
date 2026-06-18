@@ -56,7 +56,7 @@ function applyFullscreenHeight() {
 
 function setFullscreen(on) {
   state.ui.drawFullscreen = on;
-  document.getElementById('tab-editor').classList.toggle('draw-fullscreen', on);
+  document.querySelector('.main-content').classList.toggle('draw-fullscreen', on);
   if (on) {
     applyFullscreenHeight();
   } else {

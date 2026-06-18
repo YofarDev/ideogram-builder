@@ -46,6 +46,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `box:selected` | `{ id }` or `null` | canvas | settings (form), palette (colors) |
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |
 | `canvas:rebuild` | none | png-import | canvas (calls initCanvas) |
+| `canvas:relayout` | none | app | canvas (calls resizeCanvas) |
 | `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
