@@ -1,6 +1,6 @@
 // canvas.js — Canvas init, bounding box draw/drag/resize/select
 
-import { state, nextBoxId } from './state.js';
+import { state, nextBoxId, randomLayerColor } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 
@@ -23,6 +23,35 @@ function renderBoxes() {
       dom.style.height = (box.h / 1000 * state.canvas.height) + 'px';
     }
   });
+}
+
+function createBoxDOM(box, { selected = false } = {}) {
+  const dom = document.createElement('div');
+  dom.className = 'bounding-box' + (selected ? ' selected' : '');
+  dom.id = box.id;
+  const cw = state.canvas.width, ch = state.canvas.height;
+  dom.style.left = (box.x / 1000 * cw) + 'px';
+  dom.style.top = (box.y / 1000 * ch) + 'px';
+  dom.style.width = (box.w / 1000 * cw) + 'px';
+  dom.style.height = (box.h / 1000 * ch) + 'px';
+  if (box.color) dom.style.setProperty('--box-color', box.color);
+
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  dom.appendChild(handle);
+
+  for (const pos of ['tl', 'tr', 'bl', 'br']) {
+    const corner = document.createElement('div');
+    corner.className = `corner-handle ${pos}`;
+    dom.appendChild(corner);
+  }
+
+  const label = document.createElement('span');
+  label.className = 'box-label';
+  label.textContent = box.text || box.desc || '';
+  dom.appendChild(label);
+
+  return dom;
 }
 
 function resizeCanvas() {
@@ -144,30 +173,12 @@ export function initCanvasEvents() {
         y: (startY / state.canvas.height) * 1000,
         w: 0, h: 0,
         mode: 'obj', text: '', desc: '', colors: [],
+        color: randomLayerColor(),
         visible: true, locked: false,
       };
       state.boxes.push(box);
 
-      currentBoxDOM = document.createElement('div');
-      currentBoxDOM.className = 'bounding-box selected';
-      currentBoxDOM.id = box.id;
-      currentBoxDOM.style.left = startX + 'px';
-      currentBoxDOM.style.top = startY + 'px';
-
-      const handle = document.createElement('div');
-      handle.className = 'resize-handle';
-      currentBoxDOM.appendChild(handle);
-
-      for (const pos of ['tl', 'tr', 'bl', 'br']) {
-        const corner = document.createElement('div');
-        corner.className = `corner-handle ${pos}`;
-        currentBoxDOM.appendChild(corner);
-      }
-
-      const label = document.createElement('span');
-      label.className = 'box-label';
-      currentBoxDOM.appendChild(label);
-
+      currentBoxDOM = createBoxDOM(box, { selected: true });
       canvas.appendChild(currentBoxDOM);
       selectBox(box.id);
 
@@ -314,6 +325,31 @@ export function initCanvasEvents() {
 
   on('canvas:relayout', () => resizeCanvas());
 
+  on('box:create', () => {
+    const box = {
+      id: nextBoxId(),
+      x: 375, y: 375, w: 250, h: 250,
+      mode: 'obj', text: '', desc: '', colors: [],
+      color: randomLayerColor(),
+      visible: true, locked: false,
+    };
+    state.boxes.push(box);
+    const dom = createBoxDOM(box, { selected: true });
+    canvas.appendChild(dom);
+    canvas.classList.remove('empty-state');
+    canvas.classList.add('has-boxes');
+    selectBox(box.id);
+    emit('state:changed');
+  });
+
+  on('box:geometry', () => renderBoxes());
+
+  on('box:color', ({ id }) => {
+    const box = state.boxes.find(b => b.id === id);
+    const dom = document.getElementById(id);
+    if (box && dom) dom.style.setProperty('--box-color', box.color);
+  });
+
   // --- Layer event listeners ---
   on('layers:reordered', () => reorderBoxes());
 
@@ -359,34 +395,12 @@ export function initCanvasEvents() {
         text: element.text ?? '',
         desc: element.desc,
         colors: element.color_palette ?? [],
+        color: randomLayerColor(),
         visible: true, locked: false,
       };
       state.boxes.push(box);
 
-      const dom = document.createElement('div');
-      dom.className = 'bounding-box';
-      dom.id = box.id;
-      const cw = state.canvas.width, ch = state.canvas.height;
-      dom.style.left = (box.x / 1000 * cw) + 'px';
-      dom.style.top = (box.y / 1000 * ch) + 'px';
-      dom.style.width = (box.w / 1000 * cw) + 'px';
-      dom.style.height = (box.h / 1000 * ch) + 'px';
-
-      const handle = document.createElement('div');
-      handle.className = 'resize-handle';
-      dom.appendChild(handle);
-
-      for (const pos of ['tl', 'tr', 'bl', 'br']) {
-        const corner = document.createElement('div');
-        corner.className = `corner-handle ${pos}`;
-        dom.appendChild(corner);
-      }
-
-      const label = document.createElement('span');
-      label.className = 'box-label';
-      label.textContent = box.text || box.desc || '';
-      dom.appendChild(label);
-
+      const dom = createBoxDOM(box);
       canvas.appendChild(dom);
     });
     if (state.boxes.length > 0) {
