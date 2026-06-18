@@ -42,8 +42,12 @@ export function initSettings() {
 
   document.querySelectorAll('.size-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.size-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       updateDimensions();
     });
   });

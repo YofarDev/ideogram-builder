@@ -10,20 +10,39 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f0d0a;
-            --surface: #1a1714;
-            --surface-2: #221f1b;
-            --border: rgba(212, 168, 83, 0.1);
-            --border-strong: rgba(212, 168, 83, 0.2);
-            --text: #e8e0d4;
-            --text-muted: #8a7f73;
-            --text-dim: #5c554a;
-            --text-label: #b0a494;
-            --accent: #d4a853;
-            --accent-dim: rgba(212, 168, 83, 0.12);
-            --accent-glow: rgba(212, 168, 83, 0.25);
-            --danger: #c1694f;
-            --danger-dim: rgba(193, 105, 79, 0.15);
+            /* Neutrals — warm darkroom undertones (OKLCH, tinted toward accent hue) */
+            --bg: oklch(14.5% 0.008 75);            /* deep warm black */
+            --surface: oklch(21.5% 0.008 65);       /* panel base */
+            --surface-2: oklch(26% 0.008 70);       /* well / inset */
+            --text: oklch(90% 0.022 75);            /* warm cream */
+            --text-label: oklch(70% 0.022 70);      /* field labels */
+            --text-muted: oklch(56% 0.022 65);      /* secondary text — 4.7:1 on bg */
+            --text-dim: oklch(63% 0.025 70);        /* tertiary text — lifted to 5.4:1 on bg (WCAG AA) */
+            --text-faint: oklch(48% 0.02 70);       /* decorative only, never body copy */
+
+            /* Accent — darkroom gold */
+            --accent: oklch(74% 0.115 80);
+            --accent-hover: oklch(78% 0.115 82);
+            --accent-dim: oklch(74% 0.115 80 / 0.12);
+            --accent-glow: oklch(74% 0.115 80 / 0.25);
+            --on-accent: oklch(14.5% 0.008 75);     /* text on gold fills */
+
+            /* Danger — burnt sienna */
+            --danger: oklch(56% 0.13 50);
+            --danger-dim: oklch(56% 0.13 50 / 0.15);
+
+            /* Lines & shadows — tinted, never pure black/white */
+            --hairline: oklch(74% 0.115 80 / 0.10);
+            --hairline-strong: oklch(74% 0.115 80 / 0.20);
+            --hairline-hover: oklch(74% 0.115 80 / 0.35);
+            --shadow-weak: 0 1px 3px oklch(10% 0.008 75 / 0.35);
+            --shadow-strong: 0 4px 20px oklch(10% 0.008 75 / 0.5);
+            --selection: oklch(74% 0.115 80 / 0.3);
+
+            /* Backwards-compatible aliases (keep existing rules working) */
+            --border: var(--hairline);
+            --border-strong: var(--hairline-strong);
+
             --radius: 8px;
             --radius-sm: 5px;
             --font-display: 'DM Serif Display', Georgia, serif;
@@ -40,8 +59,8 @@
             font-family: var(--font-body);
             background: var(--bg);
             background-image:
-                radial-gradient(ellipse at 85% 15%, rgba(212, 168, 83, 0.04) 0%, transparent 60%),
-                radial-gradient(ellipse at 20% 85%, rgba(193, 105, 79, 0.025) 0%, transparent 50%);
+                radial-gradient(ellipse at 85% 15%, oklch(74% 0.115 80 / 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 20% 85%, oklch(56% 0.13 50 / 0.025) 0%, transparent 50%);
             color: var(--text);
             min-height: 100vh;
             display: flex;
@@ -55,14 +74,14 @@
         }
 
         ::selection {
-            background: rgba(212, 168, 83, 0.3);
+            background: var(--selection);
             color: var(--text);
         }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(212, 168, 83, 0.2); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(212, 168, 83, 0.35); }
+        ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--hairline-hover); }
 
         /* Toolbar */
         .toolbar {
@@ -70,10 +89,8 @@
             align-items: center;
             gap: 24px;
             padding: 12px 20px;
-            background: rgba(26, 23, 20, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--hairline);
             border-radius: var(--radius);
         }
 
@@ -139,7 +156,8 @@
             font-family: var(--font-body);
             font-size: 11px;
             font-weight: 500;
-            padding: 5px 8px;
+            padding: 9px 12px;
+            min-height: 24px;
             background: none;
             border: none;
             color: var(--text-dim);
@@ -177,8 +195,9 @@
             min-width: 160px;
         }
 
-        select:hover { border-color: rgba(212, 168, 83, 0.35); }
-        select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+        select:hover { border-color: var(--hairline-hover); }
+        select:focus,
+        select:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); outline: none; }
 
         /* Buttons */
         .btn {
@@ -196,30 +215,30 @@
 
         .btn-primary {
             background: var(--accent);
-            color: #0f0d0a;
+            color: var(--on-accent);
             border-color: var(--accent);
         }
         .btn-primary:hover {
-            background: #ddb85e;
-            border-color: #ddb85e;
-            box-shadow: 0 0 16px rgba(212, 168, 83, 0.25);
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+            box-shadow: 0 0 16px var(--accent-glow);
         }
 
         .btn-secondary {
             background: transparent;
             color: var(--text-muted);
-            border-color: var(--border-strong);
+            border-color: var(--hairline-strong);
         }
         .btn-secondary:hover {
             color: var(--text);
-            border-color: rgba(212, 168, 83, 0.35);
-            background: rgba(212, 168, 83, 0.06);
+            border-color: var(--hairline-hover);
+            background: var(--accent-dim);
         }
 
         .btn-ghost {
             background: transparent;
             color: var(--accent);
-            border-color: rgba(212, 168, 83, 0.25);
+            border-color: var(--hairline-hover);
         }
         .btn-ghost:hover {
             background: var(--accent-dim);
@@ -229,7 +248,7 @@
         .btn-danger {
             background: transparent;
             color: var(--danger);
-            border-color: rgba(193, 105, 79, 0.3);
+            border-color: var(--danger-dim);
         }
         .btn-danger:hover {
             background: var(--danger-dim);
@@ -303,9 +322,9 @@
         }
 
         #canvas-wrapper {
-            background-image: radial-gradient(circle, rgba(212, 168, 83, 0.08) 1px, transparent 1px);
+            background-image: radial-gradient(circle, var(--accent-dim) 1px, transparent 1px);
             background-size: 24px 24px;
-            background-color: #0f0d0a;
+            background-color: var(--bg);
             position: relative;
             transform-origin: top left;
             overflow: hidden;
@@ -352,7 +371,7 @@
         /* Bounding boxes */
         .bounding-box {
             position: absolute;
-            border: 1.5px solid var(--box-color, rgba(212, 168, 83, 0.35));
+            border: 1.5px solid var(--box-color, var(--hairline-hover));
             background: color-mix(in srgb, var(--box-color, var(--accent)) 14%, transparent);
             cursor: grab;
             box-sizing: border-box;
@@ -361,7 +380,7 @@
         }
 
         .bounding-box:hover {
-            border-color: var(--box-color, rgba(212, 168, 83, 0.6));
+            border-color: var(--box-color, var(--accent));
             background: color-mix(in srgb, var(--box-color, var(--accent)) 24%, transparent);
         }
 
@@ -383,6 +402,7 @@
             z-index: 10;
             opacity: 1 !important;
         }
+
         /* Per-layer identity color dot + box geometry editors */
         .layer-color-dot {
             width: 10px;
@@ -447,7 +467,6 @@
             flex-shrink: 0;
         }
 
-
         /* Corner handles — visible only on selected box */
         .bounding-box .corner-handle {
             display: none;
@@ -468,6 +487,13 @@
             pointer-events: none;
         }
 
+        /* Larger invisible hit area for resize handles so they meet touch minimums */
+        .resize-handle::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+        }
+
         .corner-handle.tl { top: -4px; left: -4px; }
         .corner-handle.tr { top: -4px; right: -4px; }
         .corner-handle.bl { bottom: -4px; left: -4px; }
@@ -484,7 +510,7 @@
             color: var(--text);
             pointer-events: none;
             overflow: hidden;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            text-shadow: 0 1px 3px oklch(10% 0.008 75 / 0.6);
             opacity: 0.85;
         }
 
@@ -502,7 +528,7 @@
             right: -5px;
             bottom: -5px;
             cursor: nwse-resize;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            box-shadow: var(--shadow-weak);
             transition: transform 0.15s;
             z-index: 3;
         }
@@ -628,7 +654,8 @@
             color: var(--text-dim);
             cursor: pointer;
             font-size: 13px;
-            padding: 0 3px;
+            padding: 6px 8px;
+            min-height: 24px;
             line-height: 1;
             transition: color 0.15s;
         }
@@ -643,10 +670,8 @@
 
         /* AI Prompt Section */
         .ai-section {
-            background: rgba(26, 23, 20, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--hairline);
             border-radius: var(--radius);
             padding: 14px 16px;
         }
@@ -709,7 +734,8 @@
             color: var(--text-dim);
             cursor: pointer;
             font-size: 16px;
-            padding: 4px 6px;
+            padding: 8px 10px;
+            min-height: 24px;
             line-height: 1;
             border-radius: var(--radius-sm);
             transition: color 0.15s, border-color 0.15s;
@@ -812,7 +838,9 @@
         }
 
         #json-output:focus {
-            outline: none;
+            outline: 2px solid var(--accent);
+            outline-offset: -2px;
+            border-radius: var(--radius-sm);
         }
 
         #json-output::placeholder {
@@ -844,29 +872,18 @@
 
         /* Panels */
         .panel {
-            background: rgba(26, 23, 20, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--hairline);
             border-radius: var(--radius);
             overflow: hidden;
         }
 
         .panel-header {
             padding: 14px 16px 10px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--hairline);
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .panel-header::before {
-            content: '';
-            width: 3px;
-            height: 16px;
-            background: var(--accent);
-            border-radius: 2px;
-            flex-shrink: 0;
         }
 
         .panel-header h3 {
@@ -1009,7 +1026,7 @@
             border: 2px solid var(--bg);
             margin-top: -6px;
             cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            box-shadow: var(--shadow-weak);
             transition: transform 0.15s;
         }
 
@@ -1082,9 +1099,9 @@
         }
 
         .swatch {
-            width: 26px;
-            height: 26px;
-            border: 1px solid rgba(255,255,255,0.1);
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--hairline-strong);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1097,10 +1114,15 @@
         }
 
         .swatch:hover {
-            color: rgba(255,255,255,0.85);
+            color: var(--text);
             transform: scale(1.15);
-            box-shadow: 0 0 12px rgba(0,0,0,0.3);
-            border-color: rgba(255,255,255,0.3);
+            box-shadow: var(--shadow-strong);
+            border-color: var(--text);
+        }
+
+        .swatch:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
         }
 
         /* Pill Toggle */
@@ -1139,18 +1161,21 @@
 
         .pill-group input[type="radio"]:checked + .pill-label {
             background: var(--accent);
-            color: #0f0d0a;
+            color: var(--on-accent);
         }
 
         .pill-group input[type="radio"]:not(:checked) + .pill-label:hover {
             color: var(--text);
-            background: rgba(212, 168, 83, 0.06);
+            background: var(--accent-dim);
         }
 
         /* Panel section groups */
         .panel-section {
             padding: 12px 0;
-            border-bottom: 1px solid var(--border);
+            border: none;
+            border-bottom: 1px solid var(--hairline);
+            margin: 0;
+            min-width: 0;
         }
 
         .panel-section:first-child {
@@ -1169,6 +1194,7 @@
             letter-spacing: 0.08em;
             color: var(--text-muted);
             margin-bottom: 10px;
+            padding: 0;
         }
 
         /* Toast notifications */
@@ -1188,20 +1214,20 @@
             padding: 10px 16px;
             border-radius: var(--radius-sm);
             background: var(--surface-2);
-            border: 1px solid var(--border-strong);
+            border: 1px solid var(--hairline-strong);
             color: var(--text);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            box-shadow: var(--shadow-strong);
             animation: toastIn 0.2s ease-out;
             max-width: 360px;
         }
 
         .toast.toast-error {
-            border-color: rgba(193, 105, 79, 0.4);
+            border-color: var(--danger-dim);
             color: var(--danger);
         }
 
         .toast.toast-success {
-            border-color: rgba(212, 168, 83, 0.3);
+            border-color: var(--hairline-hover);
             color: var(--accent);
         }
 
@@ -1219,90 +1245,7 @@
             to { opacity: 0; transform: translateY(8px); }
         }
 
-        /* JSON load modal */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            z-index: 900;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-overlay.open {
-            display: flex;
-        }
-
-        .modal {
-            background: var(--surface);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius);
-            padding: 20px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .modal-header h3 {
-            font-family: var(--font-display);
-            font-size: 16px;
-            font-weight: 400;
-            color: var(--text);
-        }
-
-        .modal-close-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 20px;
-            cursor: pointer;
-            padding: 2px 8px;
-            border-radius: var(--radius-sm);
-            transition: color 0.15s, background 0.15s;
-            line-height: 1;
-        }
-
-        .modal-close-btn:hover {
-            color: var(--text);
-            background: rgba(255,255,255,0.05);
-        }
-
-        .modal textarea {
-            width: 100%;
-            min-height: 140px;
-            font-family: 'DM Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
-            font-size: 11.5px;
-            line-height: 1.6;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 12px;
-            resize: vertical;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .modal textarea:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-dim);
-        }
-
-        .modal textarea::placeholder {
-            color: var(--text-dim);
-            font-style: italic;
-        }
+        /* JSON load modal — removed (dead code). JSON load is inline via #btn-load-json. */
 
         /* JSON header action buttons */
         .json-header-actions {
@@ -1316,7 +1259,8 @@
             border: none;
             color: var(--text-dim);
             cursor: pointer;
-            padding: 4px 6px;
+            padding: 8px 10px;
+            min-height: 24px;
             border-radius: 3px;
             transition: color 0.15s, background 0.15s;
             display: flex;
@@ -1346,29 +1290,18 @@
 
         /* JSON Section */
         .json-section {
-            background: rgba(26, 23, 20, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--hairline);
             border-radius: var(--radius);
             overflow: hidden;
         }
 
         .json-header {
             padding: 10px 16px 8px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--hairline);
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .json-header::before {
-            content: '';
-            width: 3px;
-            height: 14px;
-            background: var(--accent);
-            border-radius: 2px;
-            flex-shrink: 0;
         }
 
         .json-title {
@@ -1441,6 +1374,19 @@
         .layer-row.drag-over {
             border-top: 2px solid var(--accent);
             padding-top: 3px;
+        }
+
+        /* Visually hidden but accessible to screen readers */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         /* Grip handle */
@@ -1522,7 +1468,8 @@
             border: none;
             cursor: pointer;
             font-size: 13px;
-            padding: 2px 4px;
+            padding: 6px 8px;
+            min-height: 24px;
             border-radius: 3px;
             line-height: 1;
             transition: background 0.15s, opacity 0.15s;
@@ -1567,11 +1514,10 @@
             align-items: center;
             gap: 12px;
             padding: 10px 16px;
-            background: rgba(26, 23, 20, 0.6);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--hairline);
             border-radius: var(--radius);
             margin-bottom: 12px;
-        }
         }
 
         .vision-section {
@@ -1590,8 +1536,8 @@
             align-items: center;
             gap: 12px;
             padding: 12px 20px;
-            border-bottom: 1px solid var(--border);
-            background: rgba(26, 23, 20, 0.6);
+            border-bottom: 1px solid var(--hairline);
+            background: var(--surface);
         }
 
         .vision-toolbar-label {
@@ -1974,25 +1920,25 @@
             <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
                 <div class="editor-toolbar" id="editor-toolbar">
                     <div class="ar-group">
-                        <label>Aspect</label>
+                        <label for="aspect-ratio">Aspect</label>
                         <select id="aspect-ratio">
-                            <option value="1024x1024">1:1 &mdash; Square</option>
-                            <option value="1152x864">4:3 &mdash; Classic</option>
-                            <option value="864x1152">3:4 &mdash; Portrait</option>
-                            <option value="1280x720">16:9 &mdash; Widescreen</option>
-                            <option value="720x1280">9:16 &mdash; Tall</option>
-                            <option value="1152x768">3:2 &mdash; Photo</option>
-                            <option value="768x1152">2:3 &mdash; Photo Portrait</option>
+                            <option value="1024x1024">1:1, Square</option>
+                            <option value="1152x864">4:3, Classic</option>
+                            <option value="864x1152">3:4, Portrait</option>
+                            <option value="1280x720">16:9, Widescreen</option>
+                            <option value="720x1280">9:16, Tall</option>
+                            <option value="1152x768">3:2, Photo</option>
+                            <option value="768x1152">2:3, Photo Portrait</option>
                         </select>
-                        <div class="size-toggle">
-                            <button class="size-btn active" data-size="1">1M</button>
-                            <button class="size-btn" data-size="2">2M</button>
+                        <div class="size-toggle" role="group" aria-label="Resolution tier">
+                            <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
+                            <button class="size-btn" data-size="2" aria-pressed="false">2M</button>
                         </div>
                     </div>
-                    <span class="dim-display" id="dim-display">1024 × 1024</span>
+                    <span class="dim-display" id="dim-display" aria-live="polite">1024 × 1024</span>
                     <div class="ar-group" id="opacity-group" style="display:none;">
-                        <label>Overlay</label>
-                        <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;">
+                        <label for="overlay-opacity">Overlay</label>
+                        <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;" aria-valuetext="40 percent">
                     </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
@@ -2004,39 +1950,42 @@
                 <div class="ai-section gen-only">
                     <div class="ai-header">
                         <span class="ai-label">AI Prompt</span>
+                        <label class="sr-only" for="ai-model">AI model</label>
                         <select id="ai-model" class="ai-model-select">
                             <option value="">Loading...</option>
                         </select>
-                        <button id="btn-config" class="icon-btn" title="Open credentials file">&#9881;</button>
+                        <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
                     </div>
+                    <label class="sr-only" for="ai-prompt">AI prompt</label>
                     <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
                     <div class="ai-actions">
                         <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
-                        <span id="ai-status" class="ai-status"></span>
+                        <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
                     </div>
                 </div>
 
                 <div class="canvas-container">
-                    <div id="canvas-wrapper" role="application" aria-label="Bounding box editor canvas"><img id="canvas-overlay" alt="Generated image overlay"></div>
+                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the panel."><img id="canvas-overlay" alt=""></div>
                 </div>
 
                 <div class="action-row gen-only" style="position:relative;">
                     <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
-                    <span id="generate-status" class="generate-status"></span>
+                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
                 </div>
 
                 <div class="json-section gen-only">
                     <div class="json-header">
                         <span class="json-title">Prompt JSON</span>
                         <div class="json-header-actions">
-                            <button id="btn-load-json" class="json-action-btn" title="Apply JSON to editor">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                             </button>
-                            <button id="btn-copy-json" class="json-action-btn" title="Copy JSON">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                            <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                             </button>
                         </div>
                     </div>
+                    <label class="sr-only" for="json-output">Prompt JSON output</label>
                     <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
                 </div>
             </div>
@@ -2055,18 +2004,19 @@
                 <div class="vision-section" id="vision-section">
                     <div class="vision-toolbar" id="vision-model-row">
                         <span class="vision-toolbar-label">Vision Model</span>
+                        <label class="sr-only" for="vision-model">Vision model</label>
                         <select id="vision-model" class="ai-model-select"></select>
-                        <button id="btn-vision-config" class="icon-btn" title="Open credentials file">&#9881;</button>
+                        <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
                     </div>
-                    <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;" role="note">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <span>No vision models configured. Add <code>vision</code> to your <a href="#" onclick="fetch('/api/open-config'); return false;">credentials file</a>.</span>
                     </div>
                     <div class="vision-body">
                         <div class="vision-info">
                             <h2 class="vision-heading">Image to Prompt</h2>
                             <p class="vision-subtitle">Upload an image to analyze its structure, colors, and composition. We'll generate a complete Ideogram prompt you can refine in the editor.</p>
-                            <div class="vision-formats">
+                            <div class="vision-formats" aria-hidden="true">
                                 <span class="vision-format-tag">JPEG</span>
                                 <span class="vision-format-tag">PNG</span>
                                 <span class="vision-format-tag">WebP</span>
@@ -2087,26 +2037,26 @@
                             </div>
                         </div>
                         <div class="vision-upload">
-                            <div class="vision-dropzone" id="vision-dropzone">
-                                <div class="vision-dropzone-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <div class="vision-dropzone" id="vision-dropzone" role="button" tabindex="0" aria-label="Drop an image here, or click to browse">
+                                <div class="vision-dropzone-icon" aria-hidden="true">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                 </div>
                                 <span class="vision-dropzone-text">Drop an image here, or click to browse</span>
-                                <span class="vision-dropzone-hint">Max 2048px — auto-downscaled</span>
+                                <span class="vision-dropzone-hint">Max 2048px, auto-downscaled</span>
                                 <input type="file" id="vision-file-input" accept="image/*" hidden>
                             </div>
                             <div class="vision-preview" id="vision-preview">
                                 <div class="vision-preview-frame">
-                                    <img id="vision-preview-img" alt="Selected image">
+                                    <img id="vision-preview-img" alt="">
                                 </div>
                                 <button class="vision-preview-change" id="vision-change-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                                     Choose a different image
                                 </button>
                             </div>
                             <div class="vision-actions" id="vision-actions">
                                 <button id="btn-vision-process" class="btn btn-primary" disabled>Process Image</button>
-                                <span id="vision-status" class="vision-status"></span>
+                                <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
                             </div>
                         </div>
                     </div>
@@ -2120,11 +2070,11 @@
                     <h3>Global Settings</h3>
                 </div>
                 <div class="panel-body">
-                    <div class="panel-section">
-                        <div class="panel-section-title">Generation</div>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Generation</legend>
                         <div class="input-group">
-                            <label>Speed</label>
-                            <div class="pill-group">
+                            <span id="steps-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Speed</span>
+                            <div class="pill-group" role="radiogroup" aria-labelledby="steps-label">
                                 <input type="radio" id="steps_turbo" name="steps" value="12" data-preset="Turbo">
                                 <label for="steps_turbo" class="pill-label">Turbo</label>
                                 <input type="radio" id="steps_default" name="steps" value="20" data-preset="Default" checked>
@@ -2134,7 +2084,7 @@
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
+                            <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
                             <select id="lora-select" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
                             <div style="display:flex;gap:6px;margin-top:6px;">
                                 <button id="lora-use" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Use</button>
@@ -2142,48 +2092,53 @@
                                 <button id="lora-delete" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Delete</button>
                             </div>
                             <div style="display:flex;gap:8px;margin-top:8px;">
-                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;">
+                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;" for="lora-positive">
                                     Main <span id="lora-positive-val" style="opacity:0.6;">1.00</span>
-                                    <input type="range" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled>
+                                    <input type="range" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled aria-describedby="lora-positive-val">
                                 </label>
-                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;">
+                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;" for="lora-unconditional">
                                     Uncond <span id="lora-unconditional-val" style="opacity:0.6;">0.50</span>
-                                    <input type="range" id="lora-unconditional" min="0" max="2" step="0.1" value="0.5" disabled>
+                                    <input type="range" id="lora-unconditional" min="0" max="2" step="0.1" value="0.5" disabled aria-describedby="lora-unconditional-val">
                                 </label>
                             </div>
+                            <label class="sr-only" for="lora-art-style">art_style override</label>
                             <input type="text" id="lora-art-style" placeholder="art_style override (e.g. Studio Ghibli style)" style="width:100%;margin-top:6px;" disabled>
+                            <label class="sr-only" for="lora-aesthetics">aesthetics override</label>
                             <input type="text" id="lora-aesthetics" placeholder="aesthetics override" style="width:100%;margin-top:4px;" disabled>
+                            <label class="sr-only" for="lora-medium">medium override</label>
                             <input type="text" id="lora-medium" placeholder="medium override (e.g. anime_screencap)" style="width:100%;margin-top:4px;" disabled>
                             <div style="display:flex;gap:6px;margin-top:8px;">
+                                <label class="sr-only" for="lora-new-url">New LoRA URL</label>
                                 <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
+                                <label class="sr-only" for="lora-new-label">New LoRA label</label>
                                 <input type="text" id="lora-new-label" placeholder="label" style="width:90px;">
-                                <button id="lora-add" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;">+</button>
+                                <button id="lora-add" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;" aria-label="Add LoRA">+</button>
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>Seed</label>
+                            <label for="seed-input">Seed</label>
                             <div class="seed-row">
                                 <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
-                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed">🎲</button>
+                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
                             </div>
                         </div>
-                    </div>
-                    <div class="panel-section">
-                        <div class="panel-section-title">Composition</div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Composition</legend>
                         <div class="input-group">
-                            <label>High Level Description</label>
+                            <label for="high_level_description">High Level Description</label>
                             <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
                         </div>
                         <div class="input-group">
-                            <label>Background</label>
+                            <label for="background">Background</label>
                             <textarea id="background" rows="3" placeholder="Describe the background environment"></textarea>
                         </div>
-                    </div>
-                    <div class="panel-section">
-                        <div class="panel-section-title">Style</div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Style</legend>
                         <div class="input-group">
-                            <label>Mode</label>
-                            <div class="pill-group">
+                            <span id="mode-group-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Mode</span>
+                            <div class="pill-group" role="radiogroup" aria-labelledby="mode-group-label">
                                 <input type="radio" id="mode_photo" name="art_mode" value="photo">
                                 <label for="mode_photo" class="pill-label">Photo</label>
                                 <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
@@ -2191,40 +2146,41 @@
                             </div>
                         </div>
                         <div class="input-group">
-                            <label>Aesthetics</label>
+                            <label for="aesthetics">Aesthetics</label>
                             <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
                         </div>
                         <div class="input-group">
-                            <label>Lighting</label>
+                            <label for="lighting">Lighting</label>
                             <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
                         </div>
                         <div class="input-group">
-                            <label>Medium</label>
+                            <label for="medium">Medium</label>
                             <input type="text" id="medium">
                         </div>
                         <div class="input-group">
-                            <label id="mode_label">Art Style</label>
+                            <label id="mode_label" for="art_style">Art Style</label>
                             <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
                         </div>
-                    </div>
-                    <div class="panel-section">
-                        <div class="panel-section-title">Color</div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Color</legend>
                         <div class="input-group">
-                            <label>Global Palette (max 16)</label>
+                            <span id="global-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Global Palette (max 16)</span>
                             <div class="color-input-row">
-                                <input type="color" id="global-color-picker" value="#d4a853">
+                                <label class="sr-only" for="global-color-picker">Global palette color</label>
+                                <input type="color" id="global-color-picker" value="#d4a853" aria-labelledby="global-palette-label">
                                 <button id="btn-add-global-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
                             </div>
                             <div id="global-colors" class="color-list"></div>
                         </div>
-                    </div>
+                    </fieldset>
                 </div>
             </div>
 
             <div class="panel" id="layers-panel">
                 <div class="panel-header">
                     <h3>Layers</h3>
-                    <span class="layer-count" id="layer-count">0</span>
+                    <span class="layer-count" id="layer-count" aria-label="Layer count">0</span>
                     <button id="btn-add-layer" type="button" class="icon-btn" style="margin-left:auto;padding:4px 10px;" aria-label="Add new layer" title="Add new layer">+</button>
                 </div>
                 <div id="layers-list" class="layers-list"></div>
@@ -2236,18 +2192,18 @@
                 </div>
                 <div class="panel-body">
                     <div class="input-group">
-                        <label>Element Type</label>
+                        <label for="box-mode">Element Type</label>
                         <select id="box-mode" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;">
                             <option value="obj">Object</option>
                             <option value="text">Text</option>
                         </select>
                     </div>
                     <div class="input-group" id="text-input-group" style="display: none;">
-                        <label>Text Content</label>
+                        <label for="box-text">Text Content</label>
                         <input type="text" id="box-text" placeholder="Enter text to render">
                     </div>
                     <div class="input-group">
-                        <label>Description</label>
+                        <label for="box-desc">Description</label>
                         <textarea id="box-desc" rows="5" placeholder="Describe this element"></textarea>
                     </div>
                     <div class="input-group">
@@ -2267,9 +2223,10 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <label>Box Color Palette (max 5)</label>
+                        <span id="box-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Box Color Palette (max 5)</span>
                         <div class="color-input-row">
-                            <input type="color" id="box-color-picker" value="#d4a853">
+                            <label class="sr-only" for="box-color-picker">Box palette color</label>
+                            <input type="color" id="box-color-picker" value="#d4a853" aria-labelledby="box-palette-label">
                             <button id="btn-add-box-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
                         </div>
                         <div id="box-colors" class="color-list"></div>

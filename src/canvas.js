@@ -12,6 +12,57 @@ let currentBoxDOM = null;
 let startX = 0, startY = 0;
 let dragStartX = 0, dragStartY = 0;
 let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
+let hasDragged = false;
+let activeRect = null; // cached once per interaction
+
+// Window-scoped pointermove handler — attached lazily on pointerdown,
+// detached on pointerup, so we don't run getBoundingClientRect on every
+// mouse twitch across the page.
+function windowPointerMove(e) {
+  if (!activeRect) return;
+  const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
+  const currentY = (e.clientY - activeRect.top) / state.canvas.scale;
+
+  if (isDragging && currentBoxDOM) {
+    currentBoxDOM.style.left = (initialBoxX + currentX - dragStartX) + 'px';
+    currentBoxDOM.style.top = (initialBoxY + currentY - dragStartY) + 'px';
+  } else if (isResizing && currentBoxDOM) {
+    currentBoxDOM.style.width = Math.max(10, initialBoxW + currentX - dragStartX) + 'px';
+    currentBoxDOM.style.height = Math.max(10, initialBoxH + currentY - dragStartY) + 'px';
+  }
+}
+
+function windowPointerUp() {
+  if (isDrawing && currentBoxDOM) {
+    const box = state.boxes.find(b => b.id === currentBoxDOM.id);
+    const cw = state.canvas.width, ch = state.canvas.height;
+    box.w = ((parseFloat(currentBoxDOM.style.width) || 0) / cw) * 1000;
+    box.h = ((parseFloat(currentBoxDOM.style.height) || 0) / ch) * 1000;
+    box.x = ((parseFloat(currentBoxDOM.style.left) || 0) / cw) * 1000;
+    box.y = ((parseFloat(currentBoxDOM.style.top) || 0) / ch) * 1000;
+
+    if (!hasDragged || box.w < 10 || box.h < 10) {
+      currentBoxDOM.remove();
+      state.boxes = state.boxes.filter(b => b.id !== box.id);
+      selectBox(null);
+      if (hasDragged) showToast('Box too small, drag a larger area.', 'error');
+    } else {
+      const canvas = document.getElementById('canvas-wrapper');
+      canvas.classList.remove('empty-state');
+      canvas.classList.add('has-boxes');
+      emit('state:changed');
+    }
+  }
+  isDrawing = false;
+  isDragging = false;
+  isResizing = false;
+  hasDragged = false;
+  currentBoxDOM = null;
+  activeRect = null;
+  window.removeEventListener('pointermove', windowPointerMove);
+  window.removeEventListener('pointerup', windowPointerUp);
+  emit('state:changed');
+}
 
 function renderBoxes() {
   state.boxes.forEach(box => {
@@ -160,12 +211,15 @@ export function initCanvasEvents() {
   // --- Pointer down: start drawing, dragging, or resizing ---
   canvas.addEventListener('pointerdown', (e) => {
     const scale = state.canvas.scale;
+    activeRect = canvas.getBoundingClientRect();
+    // Always cache rect + arm window listeners for the duration of the interaction
+    window.addEventListener('pointermove', windowPointerMove);
+    window.addEventListener('pointerup', windowPointerUp);
 
     if (e.target === canvas) {
       isDrawing = true;
-      const rect = canvas.getBoundingClientRect();
-      startX = (e.clientX - rect.left) / scale;
-      startY = (e.clientY - rect.top) / scale;
+      startX = (e.clientX - activeRect.left) / scale;
+      startY = (e.clientY - activeRect.top) / scale;
 
       const box = {
         id: nextBoxId(),
@@ -188,9 +242,8 @@ export function initCanvasEvents() {
       const resizeBox = state.boxes.find(b => b.id === currentBoxDOM.id);
       if (resizeBox?.locked) { isResizing = false; return; }
       selectBox(currentBoxDOM.id);
-      const rect = canvas.getBoundingClientRect();
-      dragStartX = (e.clientX - rect.left) / scale;
-      dragStartY = (e.clientY - rect.top) / scale;
+      dragStartX = (e.clientX - activeRect.left) / scale;
+      dragStartY = (e.clientY - activeRect.top) / scale;
       initialBoxW = parseFloat(currentBoxDOM.style.width);
       initialBoxH = parseFloat(currentBoxDOM.style.height);
       e.stopPropagation();
@@ -198,9 +251,8 @@ export function initCanvasEvents() {
     } else if (e.target.classList.contains('bounding-box')) {
       if (e.altKey) {
         // Alt+click: cycle through overlapping boxes at click point
-        const rect = canvas.getBoundingClientRect();
-        const px = (e.clientX - rect.left) / scale;
-        const py = (e.clientY - rect.top) / scale;
+        const px = (e.clientX - activeRect.left) / scale;
+        const py = (e.clientY - activeRect.top) / scale;
 
         const overlapping = [...canvas.querySelectorAll('.bounding-box')].filter(box => {
           const bx = parseFloat(box.style.left);
@@ -228,20 +280,20 @@ export function initCanvasEvents() {
       const dragBox = state.boxes.find(b => b.id === currentBoxDOM.id);
       if (dragBox?.locked) { isDragging = false; return; }
       selectBox(currentBoxDOM.id);
-      const rect = canvas.getBoundingClientRect();
-      dragStartX = (e.clientX - rect.left) / scale;
-      dragStartY = (e.clientY - rect.top) / scale;
+      dragStartX = (e.clientX - activeRect.left) / scale;
+      dragStartY = (e.clientY - activeRect.top) / scale;
       initialBoxX = parseFloat(currentBoxDOM.style.left);
       initialBoxY = parseFloat(currentBoxDOM.style.top);
       e.stopPropagation();
     }
   });
 
-  // --- Pointer move on canvas: update drawing ---
+  // --- Pointer move on canvas: live drawing + drag detection ---
+  // Single listener (previously duplicated).
   canvas.addEventListener('pointermove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const currentX = (e.clientX - rect.left) / state.canvas.scale;
-    const currentY = (e.clientY - rect.top) / state.canvas.scale;
+    if (!activeRect) return;
+    const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
+    const currentY = (e.clientY - activeRect.top) / state.canvas.scale;
 
     if (isDrawing && currentBoxDOM) {
       const w = currentX - startX;
@@ -250,57 +302,8 @@ export function initCanvasEvents() {
       currentBoxDOM.style.height = Math.abs(h) + 'px';
       currentBoxDOM.style.left = (w < 0 ? currentX : startX) + 'px';
       currentBoxDOM.style.top = (h < 0 ? currentY : startY) + 'px';
+      hasDragged = true;
     }
-  });
-
-  // --- Pointer move on window: update dragging/resizing ---
-  window.addEventListener('pointermove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const currentX = (e.clientX - rect.left) / state.canvas.scale;
-    const currentY = (e.clientY - rect.top) / state.canvas.scale;
-
-    if (isDragging && currentBoxDOM) {
-      currentBoxDOM.style.left = (initialBoxX + currentX - dragStartX) + 'px';
-      currentBoxDOM.style.top = (initialBoxY + currentY - dragStartY) + 'px';
-    } else if (isResizing && currentBoxDOM) {
-      currentBoxDOM.style.width = Math.max(10, initialBoxW + currentX - dragStartX) + 'px';
-      currentBoxDOM.style.height = Math.max(10, initialBoxH + currentY - dragStartY) + 'px';
-    }
-  });
-
-  // --- Pointer move on canvas: track if user actually dragged ---
-  let hasDragged = false;
-  canvas.addEventListener('pointermove', (e) => {
-    if (isDrawing) hasDragged = true;
-  });
-
-  // --- Pointer up: finalize box ---
-  window.addEventListener('pointerup', () => {
-    if (isDrawing && currentBoxDOM) {
-      const box = state.boxes.find(b => b.id === currentBoxDOM.id);
-      const cw = state.canvas.width, ch = state.canvas.height;
-      box.w = ((parseFloat(currentBoxDOM.style.width) || 0) / cw) * 1000;
-      box.h = ((parseFloat(currentBoxDOM.style.height) || 0) / ch) * 1000;
-      box.x = ((parseFloat(currentBoxDOM.style.left) || 0) / cw) * 1000;
-      box.y = ((parseFloat(currentBoxDOM.style.top) || 0) / ch) * 1000;
-
-      if (!hasDragged || box.w < 10 || box.h < 10) {
-        canvas.removeChild(currentBoxDOM);
-        state.boxes = state.boxes.filter(b => b.id !== box.id);
-        selectBox(null);
-        if (hasDragged) showToast('Box too small — drag a larger area.', 'error');
-      } else {
-        canvas.classList.remove('empty-state');
-        canvas.classList.add('has-boxes');
-        emit('state:changed');
-      }
-    }
-    isDrawing = false;
-    isDragging = false;
-    isResizing = false;
-    hasDragged = false;
-    currentBoxDOM = null;
-    emit('state:changed');
   });
 
   // --- Keyboard: Delete/Backspace removes selected box ---

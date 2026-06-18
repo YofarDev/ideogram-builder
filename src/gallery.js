@@ -166,12 +166,12 @@ function renderGallery() {
         }
 
         card.innerHTML = `
-            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="Generation">` : ''}
+            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="" loading="lazy" decoding="async">` : ''}
             <div class="gallery-card-info">
                 <div class="gallery-card-actions">
                     ${item.source === 'vision' ? '<span class="gallery-card-badge vision">Vision</span>' : ''}
-                    <button class="gallery-card-btn download" data-id="${item.id}" title="Download image">&darr;</button>
-                    <button class="gallery-card-btn delete" data-id="${item.id}" title="Delete">&times;</button>
+                    <button class="gallery-card-btn download" data-id="${item.id}" title="Download image" aria-label="Download image"><span aria-hidden="true">&darr;</span></button>
+                    <button class="gallery-card-btn delete" data-id="${item.id}" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="gallery-card-date">${dateStr}</div>
                 <div class="gallery-card-prompt">${escapeHtml(desc)}</div>
