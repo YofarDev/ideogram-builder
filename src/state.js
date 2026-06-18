@@ -4,7 +4,7 @@ export const MODE_PHOTO = 0;
 export const MODE_ARTSTYLE = 1;
 
 export const state = {
-  canvas: { width: 1024, height: 1024, scale: 1 },
+  canvas: { width: 1024, height: 1024, scale: 1, maxDisplayHeight: 800 },
   boxes: [],
   globalPalette: [],
   selectedBoxId: null,
@@ -13,6 +13,7 @@ export const state = {
   preset: 'Default',
   loras: [],
   seed: -1,
+  ui: { drawFullscreen: false },
 };
 
 export function getBox(id) {
