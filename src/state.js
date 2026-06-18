@@ -23,3 +23,11 @@ export function getBox(id) {
 export function nextBoxId() {
   return 'box_' + state.boxCounter++;
 }
+
+// Identity color for layers — golden-ratio hue spacing keeps consecutive boxes distinct.
+let layerColorSeed = Math.floor(Math.random() * 360);
+export function randomLayerColor() {
+  const hue = (layerColorSeed * 137.508) % 360;
+  layerColorSeed++;
+  return `hsl(${hue.toFixed(0)}, 70%, 62%)`;
+}
