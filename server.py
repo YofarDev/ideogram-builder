@@ -5,7 +5,7 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlparse
@@ -289,6 +289,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    httpd = HTTPServer(("", PORT), Handler)
+    httpd = ThreadingHTTPServer(("", PORT), Handler)
     print(f"Ideogram Builder — http://localhost:{PORT}")
     httpd.serve_forever()

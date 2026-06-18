@@ -171,7 +171,7 @@ function updateEntry(field, value) {
   if (!entry) return;
   if (field === 'positive' || field === 'unconditional') {
     entry.strengths[field] = parseFloat(value);
-    document.getElementById(`${field}-val`).textContent = entry.strengths[field].toFixed(2);
+    document.getElementById(`lora-${field}-val`).textContent = entry.strengths[field].toFixed(2);
   } else {
     entry.overrides[field] = value;
   }
