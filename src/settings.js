@@ -1,4 +1,4 @@
-import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
+import { state, MODE_PHOTO, MODE_ARTSTYLE, randomLayerColor } from './state.js';
 import { on, emit } from './events.js';
 
 function round16(v) {
@@ -123,9 +123,47 @@ export function initSettings() {
       document.getElementById('box-text').value = box.text;
       document.getElementById('box-desc').value = box.desc;
       document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
+      populateGeometry(box);
+      const swatch = document.getElementById('box-color-swatch');
+      if (swatch) swatch.style.background = box.color || 'var(--accent)';
     } else {
       boxPanel.style.display = 'none';
     }
+  });
+
+  // X/Y/W/H pixel editors → normalized box coords
+  ['box-x', 'box-y', 'box-w', 'box-h'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', () => {
+      if (!state.selectedBoxId) return;
+      const box = state.boxes.find(b => b.id === state.selectedBoxId);
+      if (!box) return;
+      const v = parseFloat(document.getElementById(id).value);
+      if (isNaN(v)) return;
+      const cw = state.canvas.width, ch = state.canvas.height;
+      if (id === 'box-x') box.x = (v / cw) * 1000;
+      else if (id === 'box-y') box.y = (v / ch) * 1000;
+      else if (id === 'box-w') box.w = Math.max(1, (v / cw) * 1000);
+      else if (id === 'box-h') box.h = Math.max(1, (v / ch) * 1000);
+      emit('box:geometry', { id: box.id });
+    });
+  });
+
+  document.getElementById('btn-reroll-color').addEventListener('click', () => {
+    if (!state.selectedBoxId) return;
+    const box = state.boxes.find(b => b.id === state.selectedBoxId);
+    if (!box) return;
+    box.color = randomLayerColor();
+    const swatch = document.getElementById('box-color-swatch');
+    if (swatch) swatch.style.background = box.color;
+    emit('box:color', { id: box.id });
+    emit('state:changed');
+  });
+
+  // Keep X/Y/W/H in sync after canvas drag/resize
+  on('state:changed', () => {
+    if (!state.selectedBoxId) return;
+    const box = state.boxes.find(b => b.id === state.selectedBoxId);
+    if (box) populateGeometry(box);
   });
 
   on('state:loaded', ({ json }) => {
@@ -172,4 +210,12 @@ function updateBoxData() {
 
   const label = document.getElementById(state.selectedBoxId)?.querySelector('.box-label');
   if (label) label.textContent = box.text || box.desc || '';
+}
+
+function populateGeometry(box) {
+  const cw = state.canvas.width, ch = state.canvas.height;
+  document.getElementById('box-x').value = Math.round((box.x / 1000) * cw);
+  document.getElementById('box-y').value = Math.round((box.y / 1000) * ch);
+  document.getElementById('box-w').value = Math.round((box.w / 1000) * cw);
+  document.getElementById('box-h').value = Math.round((box.h / 1000) * ch);
 }
