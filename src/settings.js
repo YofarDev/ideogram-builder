@@ -84,7 +84,7 @@ export function initSettings() {
     });
   });
 
-  // Turbo strength — persisted, disabled when engine=v1
+  // Turbo strength — persisted, disabled when workflow=v1 (Classic)
   const savedTurboStrength = localStorage.getItem('ideogram_turbo_strength');
   if (savedTurboStrength !== null) {
     const val = parseFloat(savedTurboStrength);
