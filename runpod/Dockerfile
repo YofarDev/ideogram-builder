@@ -27,8 +27,11 @@ RUN wget -q -O /comfyui/models/vae/flux2-vae.safetensors https://huggingface.co/
 # Dockerfile lives in runpod/ but build context is repo root
 # Copy custom handler and the lora-capable workflow template (live base).
 # The original workflow_template.json is kept in the repo as a dormant fallback.
-RUN mkdir -p /comfyui/models/loras
+RUN mkdir -p /comfyui/models/loras/ideogram4/control
+RUN wget -q -O /comfyui/models/loras/ideogram4/control/ideogram_4_turbotime_v1.safetensors \
+    https://huggingface.co/ostris/ideogram_4_turbotime_lora/resolve/main/ideogram_4_turbotime_v1.safetensors
 COPY runpod/handler.py /handler.py
-COPY runpod/workflow_template_lora.json /workflow_template.json
+COPY runpod/workflow_template_lora_turbo.json /workflow_template_turbo.json
+COPY runpod/workflow_template_lora.json /workflow_template_lora.json
 
 CMD ["/start.sh"]
