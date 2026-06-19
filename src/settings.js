@@ -70,16 +70,17 @@ export function initSettings() {
     });
   });
 
-  // Engine / workflow selection — v20 (turbotime) vs v1 (dual-model fallback)
-  const savedEngine = localStorage.getItem('ideogram_workflow');
-  if (savedEngine === 'v1') {
-    document.getElementById('engine_v1').checked = true;
+  // Workflow engine — Turbo (turbotime) vs Classic (v1 dual-model). Toggle lives in the top toolbar.
+  const savedWorkflow = localStorage.getItem('ideogram_workflow');
+  if (savedWorkflow === 'v1') {
+    document.getElementById('workflow-classic').checked = true;
     state.workflow = 'v1';
   }
-  document.querySelectorAll('input[name="engine"]').forEach(radio => {
+  document.querySelectorAll('input[name="workflow"]').forEach(radio => {
     radio.addEventListener('change', () => {
       state.workflow = radio.value;
       localStorage.setItem('ideogram_workflow', radio.value);
+      syncTurboStrengthDisabled();
     });
   });
 
@@ -100,17 +101,13 @@ export function initSettings() {
     localStorage.setItem('ideogram_turbo_strength', val.toString());
   });
 
-  // Enable/disable turbo strength slider when engine toggle changes
+  // Enable/disable turbo strength slider based on current workflow
   function syncTurboStrengthDisabled() {
     const slider = document.getElementById('turbo-strength');
     if (!slider) return;
     slider.disabled = state.workflow !== 'turbo';
   }
   syncTurboStrengthDisabled();
-  // Re-sync whenever engine changes
-  document.querySelectorAll('input[name="engine"]').forEach(radio => {
-    radio.addEventListener('change', syncTurboStrengthDisabled);
-  });
 
   // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
   let loraSnapshot = null;

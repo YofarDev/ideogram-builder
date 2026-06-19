@@ -1508,6 +1508,13 @@
             max-width: 100%;
         }
 
+        /* The workflow toggle lives in the toolbar (a sibling of .main-content),
+           so we use :has() to hide it on Gallery/Vision tabs where it's irrelevant. */
+        body:has(.main-content.gallery-active) .workflow-toggle,
+        body:has(.main-content.vision-active) .workflow-toggle {
+            display: none;
+        }
+
         /* Editor sub-toolbar */
         .editor-toolbar {
             display: flex;
@@ -1913,6 +1920,13 @@
         <button class="tab-btn active" data-tab="editor" role="tab" aria-selected="true" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
+        <div class="toolbar-spacer"></div>
+        <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
+            <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
+            <label for="workflow-turbo" class="pill-label">Turbo</label>
+            <input type="radio" id="workflow-classic" name="workflow" value="v1">
+            <label for="workflow-classic" class="pill-label">Classic</label>
+        </div>
     </header>
 
     <div class="main-content">
@@ -2081,15 +2095,6 @@
                                 <label for="steps_default" class="pill-label">Default</label>
                                 <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
                                 <label for="steps_quality" class="pill-label">Quality</label>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <span style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Engine</span>
-                            <div class="pill-group" role="radiogroup" aria-label="Engine">
-                                <input type="radio" id="engine_v20" name="engine" value="turbo" checked>
-                                <label for="engine_v20" class="pill-label">Turbo</label>
-                                <input type="radio" id="engine_v1" name="engine" value="v1">
-                                <label for="engine_v1" class="pill-label">Standard</label>
                             </div>
                         </div>
                         <div class="input-group">
