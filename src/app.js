@@ -85,7 +85,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('resize', () => {
-  if (!state.ui.drawFullscreen) return;
-  applyFullscreenHeight();
+  if (state.ui.drawFullscreen) applyFullscreenHeight();
   emit('canvas:relayout');
 });

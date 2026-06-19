@@ -80,34 +80,34 @@ export function initSettings() {
     radio.addEventListener('change', () => {
       state.workflow = radio.value;
       localStorage.setItem('ideogram_workflow', radio.value);
-      syncTurboStrengthDisabled();
+      syncTurboStrengthVisibility();
     });
   });
 
-  // Turbo strength — persisted, disabled when workflow=v1 (Classic)
+  // Turbo strength — persisted; the whole row is hidden when workflow != turbo (Classic)
   const savedTurboStrength = localStorage.getItem('ideogram_turbo_strength');
   if (savedTurboStrength !== null) {
     const val = parseFloat(savedTurboStrength);
     if (!isNaN(val)) {
       state.turboStrength = val;
       document.getElementById('turbo-strength').value = val;
-      document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
     }
   }
   document.getElementById('turbo-strength').addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
-    state.turboStrength = val;
-    document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
-    localStorage.setItem('ideogram_turbo_strength', val.toString());
+    if (!isNaN(val)) {
+      state.turboStrength = val;
+      localStorage.setItem('ideogram_turbo_strength', val.toString());
+    }
   });
 
-  // Enable/disable turbo strength slider based on current workflow
-  function syncTurboStrengthDisabled() {
-    const slider = document.getElementById('turbo-strength');
-    if (!slider) return;
-    slider.disabled = state.workflow !== 'turbo';
+  // Show/hide the Turbo Strength row based on the current workflow
+  function syncTurboStrengthVisibility() {
+    const group = document.getElementById('turbo-strength-group');
+    if (!group) return;
+    group.style.display = state.workflow === 'turbo' ? '' : 'none';
   }
-  syncTurboStrengthDisabled();
+  syncTurboStrengthVisibility();
 
   // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
   let loraSnapshot = null;

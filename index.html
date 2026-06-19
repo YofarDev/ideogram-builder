@@ -55,6 +55,10 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: var(--font-body);
             background: var(--bg);
@@ -62,7 +66,8 @@
                 radial-gradient(ellipse at 85% 15%, oklch(74% 0.115 80 / 0.04) 0%, transparent 60%),
                 radial-gradient(ellipse at 20% 85%, oklch(56% 0.13 50 / 0.025) 0%, transparent 50%);
             color: var(--text);
-            min-height: 100vh;
+            height: 100%;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             padding: 16px;
@@ -293,12 +298,14 @@
             align-items: stretch;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
         }
 
         .left-sidebar {
             width: 300px;
             flex-shrink: 0;
             overflow-y: auto;
+            min-height: 0;
         }
 
         .center-col {
@@ -308,6 +315,7 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            overflow: hidden;
         }
 
         .right-sidebar {
@@ -317,6 +325,7 @@
             flex-direction: column;
             gap: 12px;
             min-height: 0;
+            overflow-y: auto;
         }
 
         .fullscreen-rail {
@@ -338,19 +347,26 @@
             display: flex;
         }
 
-        /* Canvas container */
+        /* Gallery/Vision tabs scroll internally when active (center column never page-scrolls) */
+        #tab-gallery.active,
+        #tab-vision.active {
+            display: block;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        /* Canvas container — exact size + centering applied inline by canvas.js
+           (width/height = scaled canvas + padding). margin:auto centers it in #tab-editor. */
         .canvas-container {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 16px;
             overflow: hidden;
-            min-height: 200px;
             line-height: 0;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
+            margin: auto;
+            flex-shrink: 0;
         }
 
         #canvas-wrapper {
@@ -969,6 +985,49 @@
             font-size: 14px;
             padding: 0 10px;
             line-height: 1;
+        }
+
+        /* Compact LoRA controls — picker + strength + add/delete on one row */
+        .lora-controls {
+            display: flex;
+            gap: 6px;
+            align-items: stretch;
+        }
+
+        .lora-strength-wrap {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            gap: 2px;
+        }
+
+        .lora-strength-wrap input[type="number"] {
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+        }
+
+        .lora-add-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .lora-add-row input[type="text"] {
+            font-family: var(--font-body);
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
         }
 
         .input-group textarea {
@@ -1815,11 +1874,25 @@
 
         /* Responsive */
         @media (max-width: 900px) {
+            html, body {
+                height: auto;
+            }
+            body {
+                overflow: auto;
+            }
             .main-content {
                 flex-direction: column;
+                overflow: visible;
             }
             .left-sidebar, .right-sidebar {
                 width: 100%;
+                overflow-y: visible;
+            }
+            .center-col {
+                overflow: visible;
+            }
+            .canvas-container {
+                margin: 0;
             }
             .toolbar {
                 flex-wrap: wrap;
@@ -1981,42 +2054,31 @@
                                 <label for="steps_quality" class="pill-label">Quality</label>
                             </div>
                         </div>
-                        <div class="input-group">
+                        <div class="input-group" id="turbo-strength-group">
                             <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
-                                Turbo Strength <span id="turbo-strength-val" style="opacity:0.6;">0.80</span>
+                                Turbo Strength
                             </label>
-                            <input type="range" id="turbo-strength" min="0" max="2" step="0.05" value="0.8">
-                            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px;">
-                                <span>0</span>
-                                <span>2</span>
-                            </div>
+                            <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8" style="width:80px;">
                         </div>
                         <div class="input-group">
                             <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
-                            <select id="lora-select" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
-                            <div style="display:flex;gap:6px;margin-top:6px;">
-                                <button id="lora-use" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Use</button>
-                                <button id="lora-clear" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;">Clear</button>
-                                <button id="lora-delete" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Delete</button>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-top:8px;">
-                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;" for="lora-positive">
-                                    Main <span id="lora-positive-val" style="opacity:0.6;">1.00</span>
-                                    <input type="range" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled aria-describedby="lora-positive-val">
+                            <div class="lora-controls">
+                                <select id="lora-select" style="flex:1;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
+                                <label class="lora-strength-wrap" for="lora-positive">
+                                    <span class="lora-strength-label">Strength</span>
+                                    <input type="number" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled style="width:54px;">
                                 </label>
+                                <button id="lora-add" type="button" class="icon-btn" title="Add LoRA by URL" aria-label="Add LoRA" style="padding:6px 10px;">+</button>
+                                <button id="lora-delete" type="button" class="icon-btn" title="Delete selected LoRA" aria-label="Delete selected LoRA" disabled style="padding:6px 10px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
                             </div>
-                            <label class="sr-only" for="lora-art-style">art_style override</label>
-                            <input type="text" id="lora-art-style" placeholder="art_style override (e.g. Studio Ghibli style)" style="width:100%;margin-top:6px;" disabled>
-                            <label class="sr-only" for="lora-aesthetics">aesthetics override</label>
-                            <input type="text" id="lora-aesthetics" placeholder="aesthetics override" style="width:100%;margin-top:4px;" disabled>
-                            <label class="sr-only" for="lora-medium">medium override</label>
-                            <input type="text" id="lora-medium" placeholder="medium override (e.g. anime_screencap)" style="width:100%;margin-top:4px;" disabled>
-                            <div style="display:flex;gap:6px;margin-top:8px;">
+                            <div id="lora-add-row" class="lora-add-row" style="display:none;margin-top:6px;gap:6px;">
                                 <label class="sr-only" for="lora-new-url">New LoRA URL</label>
                                 <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
                                 <label class="sr-only" for="lora-new-label">New LoRA label</label>
-                                <input type="text" id="lora-new-label" placeholder="label" style="width:90px;">
-                                <button id="lora-add" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;" aria-label="Add LoRA">+</button>
+                                <input type="text" id="lora-new-label" placeholder="label" style="width:80px;">
+                                <button id="lora-add-confirm" type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:11px;">Add</button>
                             </div>
                         </div>
                         <div class="input-group">

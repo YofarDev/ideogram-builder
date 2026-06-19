@@ -105,7 +105,10 @@ function createBoxDOM(box, { selected = false } = {}) {
   return dom;
 }
 
-function resizeCanvas() {
+// Fit the canvas into the available center-column space, keeping aspect ratio.
+// Sets the wrapper's transform scale and the container's exact size; the container
+// is centered in #tab-editor via margin:auto. Pointer math still uses state.canvas.scale.
+function applyCanvasScale() {
   const canvas = document.getElementById('canvas-wrapper');
   const container = document.querySelector('.canvas-container');
   const { width, height } = state.canvas;
@@ -113,33 +116,36 @@ function resizeCanvas() {
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
 
-  const maxH = state.canvas.maxDisplayHeight ?? 800;
-  state.canvas.scale = height > maxH ? maxH / height : 1;
+  // Available space inside the editor tab (center column), minus the sub-toolbar + gap + container padding
+  const editor = document.getElementById('tab-editor');
+  const toolbar = document.getElementById('editor-toolbar');
+  const padX = 32, padY = 32, gap = 12;
+  const availW = Math.max(0, (editor ? editor.clientWidth : 0) - padX);
+  const availH = Math.max(0, (editor ? editor.clientHeight : 0) - (toolbar ? toolbar.offsetHeight : 0) - gap - padY);
+
+  const fitW = width > 0 ? availW / width : 1;
+  const fitH = height > 0 ? availH / height : 1;
+  let scale = Math.min(fitW, fitH, 1);
+  if (!(scale > 0)) scale = 1;
+  state.canvas.scale = scale;
+
   canvas.style.transformOrigin = 'top left';
-  canvas.style.transform = `scale(${state.canvas.scale})`;
+  canvas.style.transform = `scale(${scale})`;
 
-  const padY = 32;
-  container.style.height = (height * state.canvas.scale + padY) + 'px';
+  container.style.width = (width * scale + padX) + 'px';
+  container.style.height = (height * scale + padY) + 'px';
+}
 
+function resizeCanvas() {
+  applyCanvasScale();
   renderBoxes();
 }
 
 export function initCanvas() {
   const canvas = document.getElementById('canvas-wrapper');
-  const container = document.querySelector('.canvas-container');
   const { width, height } = state.canvas;
 
-  canvas.style.width = width + 'px';
-  canvas.style.height = height + 'px';
-
-  const maxH = state.canvas.maxDisplayHeight ?? 800;
-  state.canvas.scale = height > maxH ? maxH / height : 1;
-  canvas.style.transformOrigin = 'top left';
-  canvas.style.transform = `scale(${state.canvas.scale})`;
-
-  // Collapse dead space from CSS transform
-  const padY = 32; // 16px padding × 2
-  container.style.height = (height * state.canvas.scale + padY) + 'px';
+  applyCanvasScale();
 
   canvas.style.backgroundImage = '';
   canvas.style.backgroundSize = '';
