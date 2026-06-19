@@ -167,7 +167,7 @@ function deleteSelected() {
 function updateEntry(field, value) {
   const entry = getEntry(selectedId);
   if (!entry) return;
-  if (field === 'positive' || field === 'unconditional') {
+  if (field === 'positive') {
     entry.strengths[field] = parseFloat(value);
     document.getElementById(`lora-${field}-val`).textContent = entry.strengths[field].toFixed(2);
   } else {
