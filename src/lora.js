@@ -78,15 +78,13 @@ function loadConfigIntoPanel(entry) {
   setConfigEnabled(true);
   document.getElementById('lora-positive').value = entry.strengths.positive;
   document.getElementById('lora-positive-val').textContent = entry.strengths.positive.toFixed(2);
-  document.getElementById('lora-unconditional').value = entry.strengths.unconditional;
-  document.getElementById('lora-unconditional-val').textContent = entry.strengths.unconditional.toFixed(2);
   document.getElementById('lora-art-style').value = entry.overrides.art_style || '';
   document.getElementById('lora-aesthetics').value = entry.overrides.aesthetics || '';
   document.getElementById('lora-medium').value = entry.overrides.medium || '';
 }
 
 function setConfigEnabled(enabled) {
-  ['lora-positive', 'lora-unconditional', 'lora-art-style', 'lora-aesthetics', 'lora-medium',
+  ['lora-positive', 'lora-art-style', 'lora-aesthetics', 'lora-medium',
    'lora-use', 'lora-delete'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = !enabled;
@@ -204,9 +202,7 @@ export function initLora() {
   document.getElementById('lora-add').addEventListener('click', addFromUrl);
   document.getElementById('lora-delete').addEventListener('click', deleteSelected);
 
-  ['positive', 'unconditional'].forEach(f => {
-    document.getElementById(`lora-${f}`).addEventListener('input', (e) => updateEntry(f, e.target.value));
-  });
+  document.getElementById('lora-positive').addEventListener('input', (e) => updateEntry('positive', e.target.value));
 
   // element id → entry override key (art_style has a dash in the DOM id)
   const overrideFields = { 'lora-art-style': 'art_style', 'lora-aesthetics': 'aesthetics', 'lora-medium': 'medium' };
