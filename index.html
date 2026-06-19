@@ -1924,6 +1924,58 @@
 
         .main-content.draw-fullscreen #btn-enter-fullscreen { display: none; }
         .main-content.draw-fullscreen #btn-exit-fullscreen { display: inline-flex; }
+
+        /* Generate modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: oklch(14.5% 0.012 60 / 0.72);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay[hidden] {
+            display: none;
+        }
+
+        .modal-card {
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-strong);
+            width: min(620px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 20px;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--accent);
+        }
+
+        .modal-card .ai-header { margin: 0; }
+        .modal-card textarea { resize: vertical; }
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
     </style>
 </head>
 <body>
@@ -2091,37 +2143,15 @@
                     </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
-                    <button id="btn-open-generate" class="btn btn-primary gen-only" type="button" style="margin-left:auto;">Generate</button>
+                    <button id="btn-open-generate" class="btn btn-primary gen-only" type="button">Generate</button>
                     <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
                     </button>
                     <button id="btn-exit-fullscreen" type="button" class="btn btn-secondary">Exit Fullscreen</button>
                 </div>
 
-                <div class="ai-section gen-only">
-                    <div class="ai-header">
-                        <span class="ai-label">AI Prompt</span>
-                        <label class="sr-only" for="ai-model">AI model</label>
-                        <select id="ai-model" class="ai-model-select">
-                            <option value="">Loading...</option>
-                        </select>
-                        <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
-                    </div>
-                    <label class="sr-only" for="ai-prompt">AI prompt</label>
-                    <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
-                    <div class="ai-actions">
-                        <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
-                        <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
-                    </div>
-                </div>
-
                 <div class="canvas-container">
                     <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in fullscreen mode."><img id="canvas-overlay" alt=""></div>
-                </div>
-
-                <div class="action-row gen-only" style="position:relative;">
-                    <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
-                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
                 </div>
             </div>
 
@@ -2276,6 +2306,35 @@
                     </div>
                     <button id="btn-delete-box" class="btn btn-danger btn-block" style="margin-top:8px;">Delete Box</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="generate-modal" class="modal-overlay" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
+            <div class="modal-header">
+                <h3 id="generate-modal-title">Generate</h3>
+                <button id="btn-close-generate" type="button" class="icon-btn" aria-label="Close" title="Close (Esc)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="ai-header">
+                <span class="ai-label">AI Prompt</span>
+                <label class="sr-only" for="ai-model">AI model</label>
+                <select id="ai-model" class="ai-model-select">
+                    <option value="">Loading...</option>
+                </select>
+                <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+            </div>
+            <label class="sr-only" for="ai-prompt">AI prompt</label>
+            <textarea id="ai-prompt" rows="6" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+            <div class="ai-actions">
+                <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
+                <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
+                <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
             </div>
         </div>
     </div>
