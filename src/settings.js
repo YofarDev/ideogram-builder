@@ -83,6 +83,35 @@ export function initSettings() {
     });
   });
 
+  // Turbo strength — persisted, disabled when engine=v1
+  const savedTurboStrength = localStorage.getItem('ideogram_turbo_strength');
+  if (savedTurboStrength !== null) {
+    const val = parseFloat(savedTurboStrength);
+    if (!isNaN(val)) {
+      state.turboStrength = val;
+      document.getElementById('turbo-strength').value = val;
+      document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
+    }
+  }
+  document.getElementById('turbo-strength').addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    state.turboStrength = val;
+    document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
+    localStorage.setItem('ideogram_turbo_strength', val.toString());
+  });
+
+  // Enable/disable turbo strength slider when engine toggle changes
+  function syncTurboStrengthDisabled() {
+    const slider = document.getElementById('turbo-strength');
+    if (!slider) return;
+    slider.disabled = state.workflow !== 'turbo';
+  }
+  syncTurboStrengthDisabled();
+  // Re-sync whenever engine changes
+  document.querySelectorAll('input[name="engine"]').forEach(radio => {
+    radio.addEventListener('change', syncTurboStrengthDisabled);
+  });
+
   // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
   let loraSnapshot = null;
   const OVERRIDE_FIELDS = ['aesthetics', 'lighting', 'medium', 'art_style'];

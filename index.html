@@ -2093,6 +2093,16 @@
                             </div>
                         </div>
                         <div class="input-group">
+                            <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
+                                Turbo Strength <span id="turbo-strength-val" style="opacity:0.6;">0.80</span>
+                            </label>
+                            <input type="range" id="turbo-strength" min="0" max="2" step="0.05" value="0.8">
+                            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px;">
+                                <span>0</span>
+                                <span>2</span>
+                            </div>
+                        </div>
+                        <div class="input-group">
                             <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
                             <select id="lora-select" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
                             <div style="display:flex;gap:6px;margin-top:6px;">

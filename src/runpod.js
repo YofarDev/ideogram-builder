@@ -69,6 +69,7 @@ export async function generateImage() {
                     height: state.canvas.height,
                     preset: state.preset,
                     workflow: state.workflow,
+                    turbo_strength: state.turboStrength,
                     loras: state.loras.map(l => ({
                         filename: l.filename,
                         source_url: l.source_url,

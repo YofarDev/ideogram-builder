@@ -12,6 +12,7 @@ export const state = {
   photoArtMode: MODE_ARTSTYLE,
   preset: 'Default',
   workflow: 'v20',
+  turboStrength: 0.8,
   loras: [],
   seed: -1,
   ui: { drawFullscreen: false },
