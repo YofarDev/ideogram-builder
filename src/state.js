@@ -11,6 +11,7 @@ export const state = {
   boxCounter: 0,
   photoArtMode: MODE_ARTSTYLE,
   preset: 'Default',
+  workflow: 'v20',
   loras: [],
   seed: -1,
   ui: { drawFullscreen: false },
