@@ -16,6 +16,7 @@ export function initGallery() {
         const mc = document.querySelector('.main-content');
         mc.classList.toggle('gallery-active', tab === 'gallery');
         mc.classList.toggle('vision-active', tab === 'vision');
+        mc.classList.toggle('prompt-active', tab === 'prompt');
     }
     renderGallery();
 
@@ -49,6 +50,7 @@ function switchTab(tab) {
     const mc = document.querySelector('.main-content');
     mc.classList.toggle('gallery-active', tab === 'gallery');
     mc.classList.toggle('vision-active', tab === 'vision');
+    mc.classList.toggle('prompt-active', tab === 'prompt');
     if (tab === 'gallery') renderGallery();
 }
 

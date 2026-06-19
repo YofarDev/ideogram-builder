@@ -41,16 +41,6 @@ document.getElementById('btn-generate-image').addEventListener('click', () => ge
 document.getElementById('btn-delete-box').addEventListener('click', () => deleteSelectedBox());
 document.getElementById('btn-config').addEventListener('click', () => fetch('/api/open-config'));
 
-// --- Generate modal ---
-const generateModal = document.getElementById('generate-modal');
-function openGenerateModal() { generateModal.hidden = false; document.getElementById('ai-prompt').focus(); }
-function closeGenerateModal() { generateModal.hidden = true; }
-document.getElementById('btn-open-generate').addEventListener('click', openGenerateModal);
-document.getElementById('btn-close-generate').addEventListener('click', closeGenerateModal);
-generateModal.addEventListener('click', (e) => { if (e.target === generateModal) closeGenerateModal(); });
-// Close the modal when an image is ready so the result (overlaid on the canvas) is visible
-on('image:ready', () => closeGenerateModal());
-
 // Import state for reset confirmation
 import { state } from './state.js';
 
@@ -79,9 +69,7 @@ document.getElementById('btn-enter-fullscreen').addEventListener('click', () => 
 document.getElementById('btn-exit-fullscreen').addEventListener('click', () => setFullscreen(false));
 
 window.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape') return;
-  if (!generateModal.hidden) closeGenerateModal();
-  else if (state.ui.drawFullscreen) setFullscreen(false);
+  if (e.key === 'Escape' && state.ui.drawFullscreen) setFullscreen(false);
 });
 
 window.addEventListener('resize', () => {

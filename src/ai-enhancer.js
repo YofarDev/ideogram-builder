@@ -234,6 +234,8 @@ async function enhancePrompt() {
     delete json.aspect_ratio;
     document.getElementById('json-output').value = JSON.stringify(json, null, 2);
     emit('state:loaded', { json });
+    // Switch to editor tab so the user sees the populated canvas
+    document.querySelector('.tab-btn[data-tab="editor"]')?.click();
     showStatus('Prompt enhanced successfully', 'success');
 
   } catch (err) {

@@ -347,9 +347,10 @@
             display: flex;
         }
 
-        /* Gallery/Vision tabs scroll internally when active (center column never page-scrolls) */
+        /* Gallery/Vision/Prompt tabs scroll internally when active (center column never page-scrolls) */
         #tab-gallery.active,
-        #tab-vision.active {
+        #tab-vision.active,
+        #tab-prompt.active {
             display: block;
             flex: 1;
             min-height: 0;
@@ -839,7 +840,7 @@
         /* JSON output */
         #json-output {
             width: 100%;
-            height: 200px;
+            flex: 1;
             font-family: 'DM Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
             font-size: 11.5px;
             line-height: 1.6;
@@ -987,47 +988,134 @@
             line-height: 1;
         }
 
-        /* Compact LoRA controls — picker + strength + add/delete on one row */
-        .lora-controls {
-            display: flex;
-            gap: 6px;
-            align-items: stretch;
-        }
-
-        .lora-strength-wrap {
+        /* LoRA Card Chips — compact tag-based layout */
+        .lora-card-list {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            font-size: 10px;
-            color: var(--text-muted);
-            gap: 2px;
+            gap: 4px;
         }
 
-        .lora-strength-wrap input[type="number"] {
-            font-family: var(--font-body);
-            font-size: 13px;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 6px 8px;
-            outline: none;
-        }
-
-        .lora-add-row {
+        .lora-card {
             display: flex;
             align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            position: relative;
         }
 
-        .lora-add-row input[type="text"] {
-            font-family: var(--font-body);
+        .lora-card:hover {
+            border-color: var(--hairline-hover);
+        }
+
+        .lora-card.active {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .lora-card-name {
+            font-family: var(--font-display);
             font-size: 12px;
             color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 6px 8px;
-            outline: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+            line-height: 1.3;
+        }
+
+        .lora-card:not(.active) .lora-card-name {
+            color: var(--text-muted);
+        }
+
+        .lora-card-strength {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.2s, width 0.2s;
+        }
+
+        .lora-card.active .lora-card-strength {
+            opacity: 1;
+            width: 80px;
+        }
+
+        .lora-card-strength-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .lora-card-strength input[type="range"] {
+            flex: 1;
+            min-width: 0;
+            height: 3px;
+            accent-color: var(--accent);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .lora-card-strength input[type="range"]::-webkit-slider-runnable-track {
+            height: 3px;
+            background: var(--hairline-strong);
+            border-radius: 2px;
+        }
+
+        .lora-card-strength input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg);
+            margin-top: -5px;
+            cursor: pointer;
+            box-shadow: var(--shadow-weak);
+        }
+
+        .lora-card-strength input[type="range"]::-moz-range-track {
+            height: 3px;
+            background: var(--hairline-strong);
+            border-radius: 2px;
+            border: none;
+        }
+
+        .lora-card-strength input[type="range"]::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg);
+            cursor: pointer;
+        }
+
+        .lora-card-strength-value {
+            font-family: var(--font-body);
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-dim);
+            min-width: 20px;
+            text-align: right;
+        }
+
+        .lora-empty {
+            font-size: 11px;
+            color: var(--text-faint);
+            font-style: italic;
+            padding: 4px 0;
+            letter-spacing: 0.01em;
         }
 
         .input-group textarea {
@@ -1350,6 +1438,10 @@
             background: var(--surface);
             border: 1px solid var(--hairline);
             border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
             overflow: hidden;
         }
 
@@ -1552,14 +1644,17 @@
 
         .main-content.gallery-active .left-sidebar,
         .main-content.vision-active .left-sidebar,
+        .main-content.prompt-active .left-sidebar,
         .main-content.gallery-active .right-sidebar,
-        .main-content.vision-active .right-sidebar {
+        .main-content.vision-active .right-sidebar,
+        .main-content.prompt-active .right-sidebar {
             display: none;
         }
 
         /* The workflow toggle lives in the toolbar (a sibling of .main-content),
            so we use :has() to hide it on Gallery/Vision tabs where it's irrelevant. */
         body:has(.main-content.gallery-active) .workflow-toggle,
+        body:has(.main-content.prompt-active) .workflow-toggle,
         body:has(.main-content.vision-active) .workflow-toggle {
             display: none;
         }
@@ -1857,6 +1952,110 @@
             min-height: 18px;
         }
 
+        /* Prompt Tab — focused natural language to JSON */
+        .prompt-section {
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            min-height: 420px;
+        }
+
+        .prompt-toolbar {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--hairline);
+            background: var(--surface);
+        }
+
+        .prompt-model-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prompt-label {
+            font-family: var(--font-display);
+            font-size: 14px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .prompt-model-row .ai-model-select {
+            flex: 0 1 240px;
+        }
+
+        .prompt-body {
+            flex: 1;
+            display: flex;
+            padding: 32px 40px;
+        }
+
+        .prompt-input-section {
+            max-width: 720px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .prompt-textarea-wrap {
+            position: relative;
+        }
+
+        .prompt-textarea-wrap textarea {
+            width: 100%;
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            outline: none;
+            resize: vertical;
+            min-height: 200px;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .prompt-textarea-wrap textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim), inset 0 0 0 1px var(--accent-dim);
+        }
+
+        .prompt-textarea-wrap textarea::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .prompt-textarea-wrap textarea:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .prompt-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .prompt-hints {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .prompt-hints span {
+            font-size: 11px;
+            color: var(--text-faint);
+            font-style: italic;
+            letter-spacing: 0.01em;
+        }
+
         /* Responsive — stack columns on narrow screens */
         @media (max-width: 900px) {
             .vision-body {
@@ -2022,8 +2221,9 @@
     <header class="toolbar">
         <div class="toolbar-brand">Ideogram <em>Builder</em></div>
         <button class="tab-btn active" data-tab="editor" role="tab" aria-selected="true" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
-        <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
+        <button class="tab-btn" data-tab="prompt" role="tab" aria-selected="false" aria-controls="tab-prompt" id="tab-btn-prompt">Prompt</button>
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
+        <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <div class="toolbar-spacer"></div>
         <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
             <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
@@ -2060,27 +2260,10 @@
                             </label>
                             <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8" style="width:80px;">
                         </div>
-                        <div class="input-group">
-                            <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
-                            <div class="lora-controls">
-                                <select id="lora-select" style="flex:1;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
-                                <label class="lora-strength-wrap" for="lora-positive">
-                                    <span class="lora-strength-label">Strength</span>
-                                    <input type="number" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled style="width:54px;">
-                                </label>
-                                <button id="lora-add" type="button" class="icon-btn" title="Add LoRA by URL" aria-label="Add LoRA" style="padding:6px 10px;">+</button>
-                                <button id="lora-delete" type="button" class="icon-btn" title="Delete selected LoRA" aria-label="Delete selected LoRA" disabled style="padding:6px 10px;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                </button>
+                            <div class="input-group lora-section">
+                                <label>LoRA</label>
+                                <div class="lora-card-list" id="lora-list"></div>
                             </div>
-                            <div id="lora-add-row" class="lora-add-row" style="display:none;margin-top:6px;gap:6px;">
-                                <label class="sr-only" for="lora-new-url">New LoRA URL</label>
-                                <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
-                                <label class="sr-only" for="lora-new-label">New LoRA label</label>
-                                <input type="text" id="lora-new-label" placeholder="label" style="width:80px;">
-                                <button id="lora-add-confirm" type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:11px;">Add</button>
-                            </div>
-                        </div>
                         <div class="input-group">
                             <label for="seed-input">Seed</label>
                             <div class="seed-row">
@@ -2171,7 +2354,8 @@
                     </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
-                    <button id="btn-open-generate" class="btn btn-primary gen-only" type="button">Generate</button>
+                    <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
+                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
                     <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
                     </button>
@@ -2180,6 +2364,37 @@
 
                 <div class="canvas-container">
                     <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in fullscreen mode."><img id="canvas-overlay" alt=""></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-prompt" role="tabpanel" aria-labelledby="tab-btn-prompt">
+                <div class="prompt-section">
+                    <div class="prompt-toolbar">
+                        <div class="prompt-model-row">
+                            <span class="prompt-label">AI Model</span>
+                            <label class="sr-only" for="ai-model">AI model</label>
+                            <select id="ai-model" class="ai-model-select">
+                                <option value="">Loading...</option>
+                            </select>
+                            <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+                        </div>
+                    </div>
+                    <div class="prompt-body">
+                        <div class="prompt-input-section">
+                            <label class="sr-only" for="ai-prompt">Describe the image</label>
+                            <div class="prompt-textarea-wrap">
+                                <textarea id="ai-prompt" rows="8" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+                            </div>
+                            <div class="prompt-actions">
+                                <button id="btn-ai-enhance" class="btn btn-primary" style="padding:10px 28px;font-size:14px;">AI Enhance</button>
+                                <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
+                            </div>
+                            <div class="prompt-hints">
+                                <span>Describe subjects, style, composition, lighting</span>
+                                <span>JSON loads into the editor automatically</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2338,34 +2553,7 @@
         </div>
     </div>
 
-    <div id="generate-modal" class="modal-overlay" hidden>
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
-            <div class="modal-header">
-                <h3 id="generate-modal-title">Generate</h3>
-                <button id="btn-close-generate" type="button" class="icon-btn" aria-label="Close" title="Close (Esc)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-            </div>
-            <div class="ai-header">
-                <span class="ai-label">AI Prompt</span>
-                <label class="sr-only" for="ai-model">AI model</label>
-                <select id="ai-model" class="ai-model-select">
-                    <option value="">Loading...</option>
-                </select>
-                <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
-            </div>
-            <label class="sr-only" for="ai-prompt">AI prompt</label>
-            <textarea id="ai-prompt" rows="6" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
-            <div class="ai-actions">
-                <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
-                <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
-            </div>
-            <div class="modal-actions">
-                <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
-                <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
-            </div>
-        </div>
-    </div>
+
 
     <div class="toast-container" id="toast-container"></div>
 

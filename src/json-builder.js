@@ -17,9 +17,10 @@ export function initJsonBuilder() {
   });
 
   on('state:loaded', () => {
-    console.log('[json-builder] state:loaded → generateJSON — hld:', document.getElementById('high_level_description').value.slice(0,40), 'medium:', document.getElementById('medium').value);
-    generateJSON();
-    console.log('[json-builder] after generateJSON — textarea:', document.getElementById('json-output').value.slice(0,80));
+    // Not calling generateJSON() here — all state:loaded callers already set
+    // the textarea value, and canvas boxes haven't been rebuilt yet so any
+    // generateJSON() would produce stale output. The Load JSON button in this
+    // same module explicitly calls generateJSON() after the event loop.
   });
 
   // Capture textarea value on pointerdown, before canvas pointerup
