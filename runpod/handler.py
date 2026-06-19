@@ -32,13 +32,19 @@ if os.environ.get("WEBSOCKET_TRACE", "false").lower() == "true":
 COMFY_HOST = "127.0.0.1:8188"
 REFRESH_WORKER = os.environ.get("REFRESH_WORKER", "false").lower() == "true"
 
-WORKFLOW_TEMPLATE_PATH = "/workflow_template.json"
+WORKFLOW_TEMPLATES = {
+    "turbo": "/workflow_template_turbo.json",
+    "v1": "/workflow_template_lora.json",
+}
 
 LORAS_DIR = "/comfyui/models/loras"
+
 PRESET_INDEX = {"Quality": 1, "Default": 2, "Turbo": 3}
 
-with open(WORKFLOW_TEMPLATE_PATH) as f:
-    WORKFLOW_TEMPLATE = json.load(f)
+with open(WORKFLOW_TEMPLATES["turbo"]) as f:
+    _TURBO_TEMPLATE = json.load(f)
+with open(WORKFLOW_TEMPLATES["v1"]) as f:
+    _V1_TEMPLATE = json.load(f)
 
 
 def _get_comfyui_pid():
@@ -234,29 +240,40 @@ def _populate_lora_loader(wf, node_id, loras, strength_key):
         inputs["lora_1"] = {"on": False, "lora": "", "strength": 1.0}
 
 
-def build_workflow(import_json, width, height, preset, seed, loras):
-    wf = json.loads(json.dumps(WORKFLOW_TEMPLATE))
+def build_workflow(workflow_key, import_json, width, height, preset, seed, loras, turbo_strength):
+    if workflow_key == "v1":
+        return _build_workflow_v1(import_json, width, height, preset, seed, loras)
+    return _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo_strength)
 
-    # Width / height: sever ResolutionSelector, inject as literals
+
+def _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo_strength):
+    wf = json.loads(json.dumps(_TURBO_TEMPLATE))
     wf["98:27"]["inputs"]["value"] = width
     wf["98:28"]["inputs"]["value"] = height
-
-    # Prompt: full import_json as raw text
-    wf["188"]["inputs"]["value"] = import_json
-
-    # Seed
     if seed is not None and seed >= 0:
         wf["160"]["inputs"]["seed"] = seed
-
-    # Step preset (Quality/Default/Turbo → mu/std/num_steps)
     if preset in PRESET_INDEX:
         wf["98:156"]["inputs"]["choice"] = preset
         wf["98:156"]["inputs"]["index"] = PRESET_INDEX[preset]
+    wf["98:167"]["inputs"]["text"] = import_json
+    wf["183"]["inputs"]["strength_model"] = turbo_strength
+    _populate_lora_loader(wf, "186", loras, "positive")
+    return wf
 
-    # Loras: main model (positive strength) + unconditional model
+
+def _build_workflow_v1(import_json, width, height, preset, seed, loras):
+    """Original dual-model lora workflow (fallback)."""
+    wf = json.loads(json.dumps(_V1_TEMPLATE))
+    wf["98:27"]["inputs"]["value"] = width
+    wf["98:28"]["inputs"]["value"] = height
+    wf["188"]["inputs"]["value"] = import_json
+    if seed is not None and seed >= 0:
+        wf["160"]["inputs"]["seed"] = seed
+    if preset in PRESET_INDEX:
+        wf["98:156"]["inputs"]["choice"] = preset
+        wf["98:156"]["inputs"]["index"] = PRESET_INDEX[preset]
     _populate_lora_loader(wf, "166", loras, "positive")
     _populate_lora_loader(wf, "177", loras, "unconditional")
-
     return wf
 
 
@@ -275,6 +292,10 @@ def handler(job):
     preset = job_input.get("preset", "Default")
     seed = job_input.get("seed")
     loras = job_input.get("loras") or []
+    workflow_key = job_input.get("workflow", "turbo")
+    if workflow_key not in WORKFLOW_TEMPLATES:
+        return {"error": f"Unknown workflow '{workflow_key}'"}
+    turbo_strength = job_input.get("turbo_strength", 0.8)
 
     if not isinstance(width, int) or not isinstance(height, int):
         return {"error": "'width' and 'height' must be integers"}
@@ -298,7 +319,8 @@ def handler(job):
     else:
         print(f"worker-ideogram4 - No LoRAs active (pass-through)")
 
-    workflow = build_workflow(import_json, width, height, preset, seed, resolved_loras)
+    workflow = build_workflow(workflow_key, import_json, width, height, preset, seed, resolved_loras, turbo_strength)
+    print(f"worker-ideogram4 - Workflow: {workflow_key}, turbo_strength: {turbo_strength}")
 
     ws = None
     client_id = str(uuid.uuid4())
