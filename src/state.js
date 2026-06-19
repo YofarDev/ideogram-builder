@@ -16,6 +16,7 @@ export const state = {
   loras: [],
   seed: -1,
   ui: { drawFullscreen: false, previewMode: false },
+  imageDataUrl: null,
 };
 
 export function getBox(id) {

@@ -110,9 +110,35 @@ def run(
             import mlx.core
             mlx.core.metal.clear_cache()
 
-        object_names = [obj["name"] for obj in analysis["objects"]]
-        vlm_bboxes = [obj.get("bbox") for obj in analysis["objects"]]
-        detections = sam_detect(pre.image_padded, object_names, vlm_bboxes=vlm_bboxes, verbose=verbose, debug=debug)
+        # Skip SAM for group elements (flower field, crowd, etc.) — SAM detects
+        # individuals within a group, producing bad matches. Heuristics: plural
+        # name (ends in 's' but not 'ss') or desc contains group keywords.
+        _GROUP_KEYWORDS = [
+            "group of", "cluster of", "row of", "pair of", "collection of",
+            "stack of", "arrangement of", "several ", "multiple ",
+            "a set of", "a bunch of",
+        ]
+        _sam_indices, _sam_names = [], []
+        for i, obj in enumerate(analysis["objects"]):
+            name = obj.get("name", "")
+            desc = obj.get("desc", "")
+            is_plural = name.lower().endswith("s") and not name.lower().endswith("ss")
+            desc_has_group = any(kw in desc.lower() for kw in _GROUP_KEYWORDS)
+            if is_plural or desc_has_group:
+                if verbose:
+                    logger.info("Skipping SAM for group element: '%s'", name)
+            else:
+                _sam_indices.append(i)
+                _sam_names.append(name)
+
+        vlm_bboxes = [analysis["objects"][i].get("bbox") for i in _sam_indices]
+        detections_full = sam_detect(pre.image_padded, _sam_names, vlm_bboxes=vlm_bboxes, verbose=verbose, debug=debug)
+
+        # Merge SAM results back into full-length array (VLM fallback for groups)
+        detections = [{"name": obj["name"], "bbox": obj.get("bbox")} for obj in analysis["objects"]]
+        for j, idx in enumerate(_sam_indices):
+            if j < len(detections_full):
+                detections[idx] = detections_full[j]
         for det in detections:
             if det["bbox"] is not None:
                 det["bbox"] = _unpad_bbox(det["bbox"], pre.pad_offsets, pre.image_orig.size)

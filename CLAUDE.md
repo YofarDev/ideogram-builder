@@ -54,6 +54,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `layers:reordered` | none | layers | canvas (reapply z-index) |
 | `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
 | `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
+| `box:desc` | `{ id }` | settings (recaption) | canvas (update label) |
 | `lora:selected` | `{ overrides }` | lora | settings (snapshot form + apply overrides) |
 | `lora:cleared` | none | lora | settings (restore snapshot) |
 

@@ -200,6 +200,123 @@ class Handler(SimpleHTTPRequestHandler):
                 (OUTPUT_DIR / f"{stem}.json").write_text(prompt_json)
 
             self._send_json(200, {"ok": True, "filename": filename})
+        elif self.path == "/api/recaption-element":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length))
+            image_b64 = body.get("image", "")
+            bbox = body.get("bbox", [])
+            element_index = body.get("elementIndex", 0)
+            existing_json = body.get("existingJson", "")
+            instructions = body.get("instructions", "")
+            model = body.get("model", "")
+
+            if not image_b64 or len(bbox) != 4 or not model:
+                self._send_json(400, {"error": "Missing required fields: image, bbox, model"})
+                return
+
+            try:
+                header, b64 = image_b64.split(",", 1)
+            except ValueError:
+                self._send_json(400, {"error": "invalid data URL"})
+                return
+
+            try:
+                provider, model_name = model.split("::", 1)
+            except ValueError:
+                self._send_json(400, {"error": "invalid model format, expected provider::model_name"})
+                return
+
+            creds = json.loads(CREDENTIALS_PATH.read_text())
+            vision = creds.get("vision", {})
+            provider_cfg = vision.get(provider, {})
+            base_url = provider_cfg.get("base_url", "")
+            api_key = provider_cfg.get("api_key", "")
+            if not base_url or not api_key:
+                self._send_json(400, {"error": f"vision provider '{provider}' not configured"})
+                return
+
+            import tempfile as _tf
+            import base64 as _b64
+            from PIL import Image as _PIL
+            sys.path.insert(0, str(IMG_TO_JSON_DIR))
+            from utils.bbox_highlight import render_highlight
+            from utils.caption_verifier import canonicalize, verify
+
+            img_data = _b64.b64decode(b64)
+            ext = "png" if "image/png" in header else "jpg"
+            tmp_img = _tf.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+            tmp_img.write(img_data)
+            tmp_img.close()
+
+            try:
+                pil_image = _PIL.open(tmp_img.name)
+                highlight_path = render_highlight(pil_image, bbox)
+            except Exception as e:
+                os.unlink(tmp_img.name)
+                self._send_json(400, {"error": f"bbox highlight failed: {str(e)}"})
+                return
+
+            try:
+                with open(highlight_path, "rb") as f:
+                    hl_b64 = _b64.b64encode(f.read()).decode()
+                hl_data_url = f"data:image/jpeg;base64,{hl_b64}"
+
+                prompt_path = IMG_TO_JSON_DIR / "prompts" / "element_recaption.txt"
+                prompt_template = prompt_path.read_text().strip()
+
+                instructions_block = (
+                    f"Additional instructions from the user:\n{instructions}\n"
+                    if instructions else ""
+                )
+                prompt = (
+                    prompt_template
+                    .replace("{elementIndex}", str(element_index))
+                    .replace("{elementBbox}", json.dumps(bbox))
+                    .replace("{instructionsBlock}", instructions_block)
+                    .replace("{existingJson}", existing_json)
+                )
+
+                api_url = f"{base_url.rstrip('/')}/chat/completions"
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                }
+                payload = {
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": prompt},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Return the JSON for the highlighted element."},
+                                {"type": "image_url", "image_url": {"url": hl_data_url}},
+                            ],
+                        },
+                    ],
+                    "max_tokens": 1024,
+                }
+
+                req = Request(api_url, data=json.dumps(payload).encode(), headers=headers, method="POST")
+                with urlopen(req, timeout=60) as resp:
+                    result = json.loads(resp.read().decode())
+
+                content = result["choices"][0]["message"]["content"]
+                parsed = json.loads(content)
+                desc = parsed.get("desc", "")
+                has_text = parsed.get("has_text", False)
+                visible_text = parsed.get("visible_text")
+
+                self._send_json(200, {
+                    "desc": desc,
+                    "has_text": has_text,
+                    "visible_text": visible_text,
+                })
+            except Exception as e:
+                self._send_json(502, {"error": f"Recaption VLM call failed: {str(e)}"})
+            finally:
+                os.unlink(tmp_img.name)
+                if os.path.exists(highlight_path):
+                    os.unlink(highlight_path)
         elif self.path == "/api/img-to-json":
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))

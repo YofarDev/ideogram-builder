@@ -365,6 +365,12 @@ export function initCanvasEvents() {
     if (box && dom) dom.style.setProperty('--box-color', box.color);
   });
 
+  on('box:desc', ({ id }) => {
+    const box = state.boxes.find(b => b.id === id);
+    const label = document.getElementById(id)?.querySelector('.box-label');
+    if (box && label) label.textContent = box.text || box.desc || '';
+  });
+
   // --- Layer event listeners ---
   on('layers:reordered', () => reorderBoxes());
 
@@ -381,8 +387,9 @@ export function initCanvasEvents() {
   const overlay = document.getElementById('canvas-overlay');
   const opacityGroup = document.getElementById('opacity-group');
 
-  on('image:ready', ({ imageUrl }) => {
+  on('image:ready', ({ imageUrl, dataUrl }) => {
     overlay.src = imageUrl;
+    if (dataUrl) state.imageDataUrl = dataUrl;
     overlay.classList.add('visible');
     overlay.style.opacity = '0.4';
     opacitySlider.value = '40';

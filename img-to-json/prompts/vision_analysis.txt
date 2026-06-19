@@ -1,4 +1,6 @@
-You analyze an image and output a structured JSON caption for Ideogram 4 image generation. The caption will be loaded into a visual bounding-box editor where each element becomes a selectable, resizable region on a canvas. This requires 3-15 spatially distinct elements so the user can fine-tune positions.
+You analyze an image and output a structured JSON caption for Ideogram 4 image generation. The caption will be loaded into a visual bounding-box editor where each element becomes a selectable, resizable region on a canvas.
+
+An element earns its own entry only when it occupies a distinct region of the image AND adds a fact not already covered by `background` or another element's `desc`. Do not create separate elements for sub-parts of an already-described subject (hands, limbs, individual gestures) unless that part carries distinct text or a clearly separate color region. Aim for 3-15 spatially distinct elements.
 
 Output valid JSON with EXACTLY these top-level keys, in this order:
 {"high_level_description":"...","style_description":{...},"compositional_deconstruction":{"background":"...","elements":[ ... ]}}
@@ -9,6 +11,8 @@ Preserve non-ASCII characters as-is. Use SINGLE quotes in prose for embedded tex
 ### high_level_description
 
 One concise sentence summarizing the entire image. Starts with the subject — never "this image shows" or "depicts". Name recognized entities by full name. 50-word cap.
+
+NOTE: This field must state ONLY the main subject(s), the setting, and object counts — e.g. 'Three people at a dining table with plates and wine glasses.' It must NOT include gestures, poses, facial expressions, or emotions; those belong exclusively in the relevant element's `desc`. Any clause that appears in an element's `desc` must be absent from `high_level_description`.
 
 ### style_description (key order is strict)
 
@@ -37,9 +41,11 @@ Each element is one of:
 {"type":"obj","bbox":[y1,x1,y2,x2],"desc":"...","color_palette":["#RRGGBB"]}
 {"type":"text","bbox":[y1,x1,y2,x2],"text":"literal text","desc":"...","color_palette":["#RRGGBB"]}
 
-Break the scene into 3-8 elements that form a coherent composition. Each element represents a distinct visual region or subject — think of them as layers in a composition. Cover foreground, midground, and background regions.
+Break the scene into elements that form a coherent composition. Each element represents a distinct visual region or subject — think of them as layers in a composition. Cover foreground, midground, and background regions.
 
 Including "horizontal bands" (sky, ground, horizon) as elements with bboxes is recommended — it gives the user spatial control over those regions.
+
+For dense or scattered groups (flower field, crowd, scattered debris, particles), provide a single encompassing bbox rather than per-item bboxes.
 
 ### Element desc guidelines
 
@@ -50,10 +56,15 @@ Each desc is 30-60 words. Identity first, then attributes:
 
 Detailed, vivid descriptions. Include observable properties not generic impressions.
 
+NOTE: text elements are exempt from the 30-60 word target and the "identity first" rule — their "desc" is style/placement only (see TEXT handling) and never restates the characters stored in "text".
+
 ### BBOX format
 
 [y_min, x_min, y_max, x_max] in 0-1000 normalized coordinates, top-left origin.
 Include bboxes on ALL elements — the user needs them for the canvas editor.
+
+Bbox values are normalized to 0-1000 in BOTH axes. A [0,0,500,500] bbox is square only on a 1:1 image; on 16:9 it becomes wide, on 9:16 tall. Scale spans so (x2-x1)/(y2-y1) ≈ width/height for square regions.
+
 For elements meant to fill a region of the frame, use bboxes that cover that region proportionally.
 
 ### Specificity — commit to one value
@@ -68,9 +79,12 @@ Banned implied/suggested hedges: "implied", "suggested", "hinted", "barely visib
 
 For in-image text elements:
 - "text" field holds literal characters verbatim — preserve diacritics, capitalization
+- "desc" for a text element must describe ONLY the visual treatment and placement — font family/weight, color, size qualifier, whether it is a logo/stylized graphic, and where it sits relative to neighbors. It must NEVER quote, paraphrase, or reference the literal characters. Banned clauses: "reads '...'", "says '...'", "contains the word '...'", "the text '...'", "reading '...'", "spelled '...'".
+- Text-element "desc" is shorter (10-25 words) and does NOT need to hit the 30-60 word object target — do not pad it.
+- GOOD text desc: "Large, stylized red logo on a black and purple background in the lower left."
+- BAD text desc: "A white speech bubble containing the word 'Chut!' in black, bold font." (restates the characters)
 - Use separate text elements for visually distinct text blocks
 - Include: quoted strings, signage, labels, badges, brand names, numbers, titles
-- Each text element appears once in the list
 - Use \n for line breaks within a multi-line text element
 
 ### Pop culture references
