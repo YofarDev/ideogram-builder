@@ -12,7 +12,7 @@ import { initLayers } from './layers.js';
 import { initVision } from './vision.js';
 import { initLora } from './lora.js';
 import { showToast } from './toast.js';
-import { emit } from './events.js';
+import { emit, on } from './events.js';
 
 // Initialize all modules
 initSettings();
@@ -48,6 +48,8 @@ function closeGenerateModal() { generateModal.hidden = true; }
 document.getElementById('btn-open-generate').addEventListener('click', openGenerateModal);
 document.getElementById('btn-close-generate').addEventListener('click', closeGenerateModal);
 generateModal.addEventListener('click', (e) => { if (e.target === generateModal) closeGenerateModal(); });
+// Close the modal when an image is ready so the result (overlaid on the canvas) is visible
+on('image:ready', () => closeGenerateModal());
 
 // Import state for reset confirmation
 import { state } from './state.js';
