@@ -9,7 +9,7 @@ beforeEach(() => {
 
 describe('state', () => {
   it('starts with default canvas dimensions', () => {
-    expect(state.canvas).toEqual({ width: 1024, height: 1024, scale: 1 })
+    expect(state.canvas).toEqual({ width: 1024, height: 1024, scale: 1, maxDisplayHeight: 800 })
   })
 
   it('starts with empty boxes and palette', () => {
