@@ -70,47 +70,44 @@ export function initSettings() {
     });
   });
 
-  // Engine / workflow selection — v20 (turbotime) vs v1 (dual-model fallback)
-  const savedEngine = localStorage.getItem('ideogram_workflow');
-  if (savedEngine === 'v1') {
-    document.getElementById('engine_v1').checked = true;
+  // Workflow engine — Turbo (turbotime) vs Classic (v1 dual-model). Toggle lives in the top toolbar.
+  const savedWorkflow = localStorage.getItem('ideogram_workflow');
+  if (savedWorkflow === 'v1') {
+    document.getElementById('workflow-classic').checked = true;
     state.workflow = 'v1';
   }
-  document.querySelectorAll('input[name="engine"]').forEach(radio => {
+  document.querySelectorAll('input[name="workflow"]').forEach(radio => {
     radio.addEventListener('change', () => {
       state.workflow = radio.value;
       localStorage.setItem('ideogram_workflow', radio.value);
+      syncTurboStrengthVisibility();
     });
   });
 
-  // Turbo strength — persisted, disabled when engine=v1
+  // Turbo strength — persisted; the whole row is hidden when workflow != turbo (Classic)
   const savedTurboStrength = localStorage.getItem('ideogram_turbo_strength');
   if (savedTurboStrength !== null) {
     const val = parseFloat(savedTurboStrength);
     if (!isNaN(val)) {
       state.turboStrength = val;
       document.getElementById('turbo-strength').value = val;
-      document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
     }
   }
   document.getElementById('turbo-strength').addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
-    state.turboStrength = val;
-    document.getElementById('turbo-strength-val').textContent = val.toFixed(2);
-    localStorage.setItem('ideogram_turbo_strength', val.toString());
+    if (!isNaN(val)) {
+      state.turboStrength = val;
+      localStorage.setItem('ideogram_turbo_strength', val.toString());
+    }
   });
 
-  // Enable/disable turbo strength slider when engine toggle changes
-  function syncTurboStrengthDisabled() {
-    const slider = document.getElementById('turbo-strength');
-    if (!slider) return;
-    slider.disabled = state.workflow !== 'turbo';
+  // Show/hide the Turbo Strength row based on the current workflow
+  function syncTurboStrengthVisibility() {
+    const group = document.getElementById('turbo-strength-group');
+    if (!group) return;
+    group.style.display = state.workflow === 'turbo' ? '' : 'none';
   }
-  syncTurboStrengthDisabled();
-  // Re-sync whenever engine changes
-  document.querySelectorAll('input[name="engine"]').forEach(radio => {
-    radio.addEventListener('change', syncTurboStrengthDisabled);
-  });
+  syncTurboStrengthVisibility();
 
   // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
   let loraSnapshot = null;

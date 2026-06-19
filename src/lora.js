@@ -65,49 +65,24 @@ function getEntry(id) {
 function populateSelect() {
   const sel = document.getElementById('lora-select');
   const prev = selectedId || sel.value;
-  sel.innerHTML = '<option value="">— select a lora —</option>' +
+  sel.innerHTML = '<option value="">— none —</option>' +
     library.map(l => `<option value="${l.id}">${l.label || l.filename}</option>`).join('');
-  sel.value = library.some(l => l.id === prev) ? prev : '';
+  sel.value = library.some(l => l.id === prev) ? prev : (activeId || '');
 }
 
-function loadConfigIntoPanel(entry) {
-  if (!entry) {
+// Selecting a LoRA from the dropdown activates it immediately;
+// picking "— none —" clears it. (No separate "Use" button.)
+function selectLora(id) {
+  if (!id) {
+    selectedId = null;
+    clearActive();
     setConfigEnabled(false);
     return;
   }
-  setConfigEnabled(true);
-  document.getElementById('lora-positive').value = entry.strengths.positive;
-  document.getElementById('lora-positive-val').textContent = entry.strengths.positive.toFixed(2);
-  document.getElementById('lora-art-style').value = entry.overrides.art_style || '';
-  document.getElementById('lora-aesthetics').value = entry.overrides.aesthetics || '';
-  document.getElementById('lora-medium').value = entry.overrides.medium || '';
-}
-
-function setConfigEnabled(enabled) {
-  ['lora-positive', 'lora-art-style', 'lora-aesthetics', 'lora-medium',
-   'lora-use', 'lora-delete'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = !enabled;
-  });
-}
-
-function syncActiveEntry() {
-  if (!activeId) return;
-  const entry = getEntry(activeId);
+  const entry = getEntry(id);
   if (!entry) return;
-  // Keep state.loras in sync with edited strengths
-  if (state.loras[0]) {
-    state.loras[0].strengths = { ...entry.strengths };
-  }
-}
-
-function useSelected() {
-  const entry = getEntry(selectedId);
-  if (!entry) {
-    showToast('Pick a lora first.', 'error');
-    return;
-  }
-  activeId = entry.id;
+  selectedId = id;
+  activeId = id;
   state.loras = [{
     filename: entry.filename,
     source_url: entry.source_url,
@@ -115,7 +90,8 @@ function useSelected() {
   }];
   emit('lora:selected', { overrides: { ...entry.overrides } });
   document.getElementById('lora-active-label').textContent = entry.label || entry.filename;
-  showToast(`LoRA active: ${entry.label || entry.filename}`, 'info');
+  document.getElementById('lora-positive').value = entry.strengths.positive;
+  setConfigEnabled(true);
 }
 
 function clearActive() {
@@ -124,6 +100,21 @@ function clearActive() {
   state.loras = [];
   emit('lora:cleared');
   document.getElementById('lora-active-label').textContent = 'none';
+}
+
+function setConfigEnabled(enabled) {
+  const strength = document.getElementById('lora-positive');
+  const del = document.getElementById('lora-delete');
+  if (strength) strength.disabled = !enabled;
+  if (del) del.disabled = !enabled;
+}
+
+function toggleAddRow() {
+  const row = document.getElementById('lora-add-row');
+  if (!row) return;
+  const open = row.style.display === 'none';
+  row.style.display = open ? 'flex' : 'none';
+  if (open) document.getElementById('lora-new-url').focus();
 }
 
 function addFromUrl() {
@@ -144,11 +135,11 @@ function addFromUrl() {
   library.push(entry);
   saveLibrary(library);
   populateSelect();
-  document.getElementById('lora-select').value = entry.id;
-  selectedId = entry.id;
-  loadConfigIntoPanel(entry);
   document.getElementById('lora-new-url').value = '';
   document.getElementById('lora-new-label').value = '';
+  document.getElementById('lora-add-row').style.display = 'none';
+  selectLora(entry.id);
+  document.getElementById('lora-select').value = entry.id;
   showToast(`Added ${entry.label}.`, 'success');
 }
 
@@ -160,28 +151,18 @@ function deleteSelected() {
   saveLibrary(library);
   selectedId = null;
   populateSelect();
-  loadConfigIntoPanel(null);
+  setConfigEnabled(false);
+  document.getElementById('lora-positive').value = 1;
   showToast(`Removed ${entry?.label || 'lora'}.`, 'info');
 }
 
-function updateEntry(field, value) {
+function updateStrength(value) {
   const entry = getEntry(selectedId);
   if (!entry) return;
-  if (field === 'positive') {
-    entry.strengths[field] = parseFloat(value);
-    document.getElementById(`lora-${field}-val`).textContent = entry.strengths[field].toFixed(2);
-  } else {
-    entry.overrides[field] = value;
-  }
+  entry.strengths.positive = parseFloat(value);
   saveLibrary(library);
-  syncActiveEntry();
-  // Override text edits on the active lora also push into the main form live
-  if (selectedId === activeId && (field === 'art_style' || field === 'aesthetics' || field === 'medium')) {
-    const el = document.getElementById(field);
-    if (el) {
-      el.value = value;
-      emit('state:changed');
-    }
+  if (selectedId === activeId && state.loras[0]) {
+    state.loras[0].strengths = { ...entry.strengths };
   }
 }
 
@@ -191,24 +172,13 @@ export function initLora() {
   selectedId = null;
 
   populateSelect();
-  loadConfigIntoPanel(null);
+  setConfigEnabled(false);
 
-  document.getElementById('lora-select').addEventListener('change', (e) => {
-    selectedId = e.target.value;
-    loadConfigIntoPanel(getEntry(selectedId));
-  });
-  document.getElementById('lora-use').addEventListener('click', useSelected);
-  document.getElementById('lora-clear').addEventListener('click', clearActive);
-  document.getElementById('lora-add').addEventListener('click', addFromUrl);
+  document.getElementById('lora-select').addEventListener('change', (e) => selectLora(e.target.value));
+  document.getElementById('lora-add').addEventListener('click', toggleAddRow);
+  document.getElementById('lora-add-confirm').addEventListener('click', addFromUrl);
   document.getElementById('lora-delete').addEventListener('click', deleteSelected);
-
-  document.getElementById('lora-positive').addEventListener('input', (e) => updateEntry('positive', e.target.value));
-
-  // element id → entry override key (art_style has a dash in the DOM id)
-  const overrideFields = { 'lora-art-style': 'art_style', 'lora-aesthetics': 'aesthetics', 'lora-medium': 'medium' };
-  Object.entries(overrideFields).forEach(([elId, key]) => {
-    document.getElementById(elId).addEventListener('input', (e) => updateEntry(key, e.target.value));
-  });
+  document.getElementById('lora-positive').addEventListener('input', (e) => updateStrength(e.target.value));
 
   on('canvas:reset', clearActive);
 }

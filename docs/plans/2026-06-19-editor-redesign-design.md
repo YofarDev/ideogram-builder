@@ -65,7 +65,7 @@ All three columns fit the viewport height; the canvas no longer requires scrolli
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ [Exit fullscreen]                                    [Turbo|Classic]│
+│ [aspect│size│dims│reset│ EXIT FULLSCREEN]                       │
 ├──────────────────────────────────────────────────┬──────────────┤
 │                                                  │  LAYERS       │
 │                                                  │  ┌──────────┐ │
@@ -81,9 +81,13 @@ All three columns fit the viewport height; the canvas no longer requires scrolli
 
 - Fullscreen enters via the sub-toolbar's fullscreen button; exits via the Exit button or Esc
   (existing behavior in `src/app.js`).
-- While fullscreen: both sidebars (left settings + right JSON) and the sub-toolbar are hidden;
-  only the maximized canvas + the right rail (Layers + Box Properties) remain. The Turbo/Classic
-  toolbar toggle stays visible.
+- While fullscreen: both sidebars (left settings + right JSON) are hidden; the maximized canvas,
+  the editor sub-toolbar (aspect/size/reset + exit button), and the right rail (Layers + Box
+  Properties) remain. The editor sub-toolbar is intentionally kept visible because
+  `applyFullscreenHeight` in `src/app.js` relies on its height when sizing the canvas.
+- The Turbo/Classic toolbar toggle lives in the top app toolbar, which the fullscreen overlay
+  (`position: fixed; inset: 0`) covers, so it is **not** reachable while fullscreen. This is
+  deliberate: fullscreen is for drawing boxes, and the workflow choice is made before entering.
 - The "draw boxes, then edit them" workflow happens here, same as today.
 
 ## AI Prompt + Generate — Modal Dialog
@@ -232,7 +236,8 @@ No JS test framework changes needed (existing vitest tests cover pure logic in `
 4. Close modal via Esc / backdrop click — no generation triggered.
 5. Draw a box in normal view — no panel appears (intended).
 6. Enter fullscreen — canvas maximizes, Layers + Box Properties panels appear on the right,
-   sidebars + sub-toolbar + Generate button hidden, toolbar toggle still visible.
+   sidebars + Generate button hidden. The editor sub-toolbar (aspect/size/reset + exit) stays
+   visible; the Turbo/Classic toggle is covered by the overlay (not reachable while fullscreen).
 7. In fullscreen, select a box → Box Properties appears; edit fields apply; Layers reorder /
    visibility / lock work.
 8. Exit fullscreen (button + Esc) — normal three-column layout restored.

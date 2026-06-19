@@ -55,6 +55,10 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: var(--font-body);
             background: var(--bg);
@@ -62,7 +66,8 @@
                 radial-gradient(ellipse at 85% 15%, oklch(74% 0.115 80 / 0.04) 0%, transparent 60%),
                 radial-gradient(ellipse at 20% 85%, oklch(56% 0.13 50 / 0.025) 0%, transparent 50%);
             color: var(--text);
-            min-height: 100vh;
+            height: 100%;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             padding: 16px;
@@ -286,39 +291,82 @@
             outline-offset: -2px;
         }
 
-        /* Main layout */
+        /* Main layout — three columns: settings | canvas | json */
         .main-content {
             display: flex;
             gap: 16px;
-            align-items: flex-start;
+            align-items: stretch;
             flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
-        .left-col {
+        .left-sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .center-col {
             flex: 1;
+            min-width: 0;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            min-width: 0;
+            overflow: hidden;
         }
 
-        .right-col {
+        .right-sidebar {
             width: 340px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            min-height: 0;
+            overflow-y: auto;
         }
 
-        /* Canvas container */
+        .fullscreen-rail {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Editor tab fills the center column as a flex column */
+        #tab-editor {
+            flex: 1;
+            min-height: 0;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #tab-editor.active {
+            display: flex;
+        }
+
+        /* Gallery/Vision tabs scroll internally when active (center column never page-scrolls) */
+        #tab-gallery.active,
+        #tab-vision.active {
+            display: block;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        /* Canvas container — exact size + centering applied inline by canvas.js
+           (width/height = scaled canvas + padding). margin:auto centers it in #tab-editor. */
         .canvas-container {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 16px;
             overflow: hidden;
-            min-height: 200px;
             line-height: 0;
+            margin: auto;
+            flex-shrink: 0;
         }
 
         #canvas-wrapper {
@@ -669,13 +717,6 @@
         }
 
         /* AI Prompt Section */
-        .ai-section {
-            background: var(--surface);
-            border: 1px solid var(--hairline);
-            border-radius: var(--radius);
-            padding: 14px 16px;
-        }
-
         .ai-header {
             display: flex;
             align-items: center;
@@ -687,22 +728,6 @@
             font-family: var(--font-display);
             font-size: 14px;
             color: var(--text);
-        }
-
-        .ai-key-row {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .ai-key-label {
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            white-space: nowrap;
         }
 
         .ai-model-select {
@@ -811,18 +836,7 @@
             color: var(--accent);
         }
 
-        /* Action row */
-        .action-row {
-            display: flex;
-            gap: 8px;
-        }
-
-        .action-row .btn {
-            flex: 1;
-            padding: 9px 16px;
-            font-size: 13px;
-        }
-
+        /* JSON output */
         #json-output {
             width: 100%;
             height: 200px;
@@ -971,6 +985,49 @@
             font-size: 14px;
             padding: 0 10px;
             line-height: 1;
+        }
+
+        /* Compact LoRA controls — picker + strength + add/delete on one row */
+        .lora-controls {
+            display: flex;
+            gap: 6px;
+            align-items: stretch;
+        }
+
+        .lora-strength-wrap {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            gap: 2px;
+        }
+
+        .lora-strength-wrap input[type="number"] {
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+        }
+
+        .lora-add-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .lora-add-row input[type="text"] {
+            font-family: var(--font-body);
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
         }
 
         .input-group textarea {
@@ -1493,19 +1550,18 @@
             opacity: 0.8;
         }
 
-        /* Tab-dependent layout — editor is default (no class needed) */
-        .main-content .right-col {
-            display: flex;
-        }
-
-        .main-content.gallery-active .right-col,
-        .main-content.vision-active .right-col {
+        .main-content.gallery-active .left-sidebar,
+        .main-content.vision-active .left-sidebar,
+        .main-content.gallery-active .right-sidebar,
+        .main-content.vision-active .right-sidebar {
             display: none;
         }
 
-        .main-content.gallery-active .left-col,
-        .main-content.vision-active .left-col {
-            max-width: 100%;
+        /* The workflow toggle lives in the toolbar (a sibling of .main-content),
+           so we use :has() to hide it on Gallery/Vision tabs where it's irrelevant. */
+        body:has(.main-content.gallery-active) .workflow-toggle,
+        body:has(.main-content.vision-active) .workflow-toggle {
+            display: none;
         }
 
         /* Editor sub-toolbar */
@@ -1517,7 +1573,6 @@
             background: var(--surface);
             border: 1px solid var(--hairline);
             border-radius: var(--radius);
-            margin-bottom: 12px;
         }
 
         .vision-section {
@@ -1819,11 +1874,25 @@
 
         /* Responsive */
         @media (max-width: 900px) {
+            html, body {
+                height: auto;
+            }
+            body {
+                overflow: auto;
+            }
             .main-content {
                 flex-direction: column;
+                overflow: visible;
             }
-            .right-col {
+            .left-sidebar, .right-sidebar {
                 width: 100%;
+                overflow-y: visible;
+            }
+            .center-col {
+                overflow: visible;
+            }
+            .canvas-container {
+                margin: 0;
             }
             .toolbar {
                 flex-wrap: wrap;
@@ -1863,47 +1932,89 @@
             align-items: stretch;
         }
 
-        .main-content.draw-fullscreen .left-col {
+        /* In fullscreen: hide both sidebars; the center column + fullscreen-rail remain */
+        .main-content.draw-fullscreen .left-sidebar,
+        .main-content.draw-fullscreen .right-sidebar {
+            display: none;
+        }
+
+        .main-content.draw-fullscreen .center-col {
             flex: 1;
             min-width: 0;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
         }
 
-        .main-content.draw-fullscreen #tab-editor {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
+        /* The Generate button + AI section + generate row are hidden (gen-only) */
         .main-content.draw-fullscreen .gen-only {
             display: none;
         }
 
-        .main-content.draw-fullscreen #global-settings-panel {
-            display: none;
-        }
-
-        .main-content.draw-fullscreen .right-col {
+        /* Layers + Box Properties appear in the fullscreen rail */
+        .main-content.draw-fullscreen .fullscreen-rail {
+            display: flex;
             width: 340px;
             flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
             overflow-y: auto;
         }
 
         .main-content.draw-fullscreen .canvas-container {
             flex: 1;
             min-height: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
         }
 
         .main-content.draw-fullscreen #btn-enter-fullscreen { display: none; }
         .main-content.draw-fullscreen #btn-exit-fullscreen { display: inline-flex; }
+
+        /* Generate modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: oklch(14.5% 0.012 60 / 0.72);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay[hidden] {
+            display: none;
+        }
+
+        .modal-card {
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-strong);
+            width: min(620px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 20px;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: 18px;
+            color: var(--accent);
+        }
+
+        .modal-card .ai-header { margin: 0; }
+        .modal-card textarea { resize: vertical; }
+        .modal-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
     </style>
 </head>
 <body>
@@ -1913,10 +2024,128 @@
         <button class="tab-btn active" data-tab="editor" role="tab" aria-selected="true" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
+        <div class="toolbar-spacer"></div>
+        <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
+            <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
+            <label for="workflow-turbo" class="pill-label">Turbo</label>
+            <input type="radio" id="workflow-classic" name="workflow" value="v1">
+            <label for="workflow-classic" class="pill-label">Classic</label>
+        </div>
     </header>
 
     <div class="main-content">
-        <div class="left-col">
+        <!-- LEFT: Global Settings -->
+        <div class="left-sidebar">
+            <div class="panel" id="global-settings-panel">
+                <div class="panel-header">
+                    <h3>Global Settings</h3>
+                </div>
+                <div class="panel-body">
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Generation</legend>
+                        <div class="input-group">
+                            <span id="steps-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Speed</span>
+                            <div class="pill-group" role="radiogroup" aria-labelledby="steps-label">
+                                <input type="radio" id="steps_turbo" name="steps" value="2" data-preset="Turbo">
+                                <label for="steps_turbo" class="pill-label">Turbo</label>
+                                <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
+                                <label for="steps_default" class="pill-label">Default</label>
+                                <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
+                                <label for="steps_quality" class="pill-label">Quality</label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="turbo-strength-group">
+                            <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
+                                Turbo Strength
+                            </label>
+                            <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8" style="width:80px;">
+                        </div>
+                        <div class="input-group">
+                            <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
+                            <div class="lora-controls">
+                                <select id="lora-select" style="flex:1;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
+                                <label class="lora-strength-wrap" for="lora-positive">
+                                    <span class="lora-strength-label">Strength</span>
+                                    <input type="number" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled style="width:54px;">
+                                </label>
+                                <button id="lora-add" type="button" class="icon-btn" title="Add LoRA by URL" aria-label="Add LoRA" style="padding:6px 10px;">+</button>
+                                <button id="lora-delete" type="button" class="icon-btn" title="Delete selected LoRA" aria-label="Delete selected LoRA" disabled style="padding:6px 10px;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </div>
+                            <div id="lora-add-row" class="lora-add-row" style="display:none;margin-top:6px;gap:6px;">
+                                <label class="sr-only" for="lora-new-url">New LoRA URL</label>
+                                <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
+                                <label class="sr-only" for="lora-new-label">New LoRA label</label>
+                                <input type="text" id="lora-new-label" placeholder="label" style="width:80px;">
+                                <button id="lora-add-confirm" type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:11px;">Add</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="seed-input">Seed</label>
+                            <div class="seed-row">
+                                <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
+                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
+                            </div>
+                        </div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Composition</legend>
+                        <div class="input-group">
+                            <label for="high_level_description">High Level Description</label>
+                            <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label for="background">Background</label>
+                            <textarea id="background" rows="3" placeholder="Describe the background environment"></textarea>
+                        </div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Style</legend>
+                        <div class="input-group">
+                            <span id="mode-group-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Mode</span>
+                            <div class="pill-group" role="radiogroup" aria-labelledby="mode-group-label">
+                                <input type="radio" id="mode_photo" name="art_mode" value="photo">
+                                <label for="mode_photo" class="pill-label">Photo</label>
+                                <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+                                <label for="mode_artstyle" class="pill-label">Art Style</label>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="aesthetics">Aesthetics</label>
+                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
+                        </div>
+                        <div class="input-group">
+                            <label for="lighting">Lighting</label>
+                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
+                        </div>
+                        <div class="input-group">
+                            <label for="medium">Medium</label>
+                            <input type="text" id="medium">
+                        </div>
+                        <div class="input-group">
+                            <label id="mode_label" for="art_style">Art Style</label>
+                            <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
+                        </div>
+                    </fieldset>
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Color</legend>
+                        <div class="input-group">
+                            <span id="global-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Global Palette (max 16)</span>
+                            <div class="color-input-row">
+                                <label class="sr-only" for="global-color-picker">Global palette color</label>
+                                <input type="color" id="global-color-picker" value="#d4a853" aria-labelledby="global-palette-label">
+                                <button id="btn-add-global-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
+                            </div>
+                            <div id="global-colors" class="color-list"></div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER: Editor / Gallery / Vision tabs -->
+        <div class="center-col">
             <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
                 <div class="editor-toolbar" id="editor-toolbar">
                     <div class="ar-group">
@@ -1942,51 +2171,15 @@
                     </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
+                    <button id="btn-open-generate" class="btn btn-primary gen-only" type="button">Generate</button>
                     <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
                     </button>
                     <button id="btn-exit-fullscreen" type="button" class="btn btn-secondary">Exit Fullscreen</button>
                 </div>
-                <div class="ai-section gen-only">
-                    <div class="ai-header">
-                        <span class="ai-label">AI Prompt</span>
-                        <label class="sr-only" for="ai-model">AI model</label>
-                        <select id="ai-model" class="ai-model-select">
-                            <option value="">Loading...</option>
-                        </select>
-                        <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
-                    </div>
-                    <label class="sr-only" for="ai-prompt">AI prompt</label>
-                    <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
-                    <div class="ai-actions">
-                        <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
-                        <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
-                    </div>
-                </div>
 
                 <div class="canvas-container">
-                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the panel."><img id="canvas-overlay" alt=""></div>
-                </div>
-
-                <div class="action-row gen-only" style="position:relative;">
-                    <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
-                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
-                </div>
-
-                <div class="json-section gen-only">
-                    <div class="json-header">
-                        <span class="json-title">Prompt JSON</span>
-                        <div class="json-header-actions">
-                            <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            </button>
-                            <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <label class="sr-only" for="json-output">Prompt JSON output</label>
-                    <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
+                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in fullscreen mode."><img id="canvas-overlay" alt=""></div>
                 </div>
             </div>
 
@@ -2064,134 +2257,27 @@
             </div>
         </div>
 
-        <div class="right-col">
-            <div class="panel" id="global-settings-panel">
-                <div class="panel-header">
-                    <h3>Global Settings</h3>
+        <!-- RIGHT: JSON output -->
+        <div class="right-sidebar">
+            <div class="json-section">
+                <div class="json-header">
+                    <span class="json-title">Prompt JSON</span>
+                    <div class="json-header-actions">
+                        <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
                 </div>
-                <div class="panel-body">
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Generation</legend>
-                        <div class="input-group">
-                            <span id="steps-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Speed</span>
-                            <div class="pill-group" role="radiogroup" aria-labelledby="steps-label">
-                                <input type="radio" id="steps_turbo" name="steps" value="2" data-preset="Turbo">
-                                <label for="steps_turbo" class="pill-label">Turbo</label>
-                                <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
-                                <label for="steps_default" class="pill-label">Default</label>
-                                <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
-                                <label for="steps_quality" class="pill-label">Quality</label>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <span style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Engine</span>
-                            <div class="pill-group" role="radiogroup" aria-label="Engine">
-                                <input type="radio" id="engine_v20" name="engine" value="turbo" checked>
-                                <label for="engine_v20" class="pill-label">Turbo</label>
-                                <input type="radio" id="engine_v1" name="engine" value="v1">
-                                <label for="engine_v1" class="pill-label">Standard</label>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
-                                Turbo Strength <span id="turbo-strength-val" style="opacity:0.6;">0.80</span>
-                            </label>
-                            <input type="range" id="turbo-strength" min="0" max="2" step="0.05" value="0.8">
-                            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:2px;">
-                                <span>0</span>
-                                <span>2</span>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="lora-select">LoRA <span id="lora-active-label" style="opacity:0.6;font-weight:normal;">none</span></label>
-                            <select id="lora-select" style="width:100%;font-family:var(--font-body);font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:8px 10px;outline:none;"></select>
-                            <div style="display:flex;gap:6px;margin-top:6px;">
-                                <button id="lora-use" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Use</button>
-                                <button id="lora-clear" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;">Clear</button>
-                                <button id="lora-delete" class="btn btn-ghost" style="flex:1;padding:7px 10px;font-size:11px;" disabled>Delete</button>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-top:8px;">
-                                <label style="flex:1;font-size:11px;display:flex;flex-direction:column;gap:4px;" for="lora-positive">
-                                    Main <span id="lora-positive-val" style="opacity:0.6;">1.00</span>
-                                    <input type="range" id="lora-positive" min="0" max="2" step="0.1" value="1" disabled aria-describedby="lora-positive-val">
-                                </label>
-                            </div>
-                            <label class="sr-only" for="lora-art-style">art_style override</label>
-                            <input type="text" id="lora-art-style" placeholder="art_style override (e.g. Studio Ghibli style)" style="width:100%;margin-top:6px;" disabled>
-                            <label class="sr-only" for="lora-aesthetics">aesthetics override</label>
-                            <input type="text" id="lora-aesthetics" placeholder="aesthetics override" style="width:100%;margin-top:4px;" disabled>
-                            <label class="sr-only" for="lora-medium">medium override</label>
-                            <input type="text" id="lora-medium" placeholder="medium override (e.g. anime_screencap)" style="width:100%;margin-top:4px;" disabled>
-                            <div style="display:flex;gap:6px;margin-top:8px;">
-                                <label class="sr-only" for="lora-new-url">New LoRA URL</label>
-                                <input type="text" id="lora-new-url" placeholder="paste HF resolve URL…" style="flex:1;">
-                                <label class="sr-only" for="lora-new-label">New LoRA label</label>
-                                <input type="text" id="lora-new-label" placeholder="label" style="width:90px;">
-                                <button id="lora-add" class="btn btn-ghost" style="padding:7px 10px;font-size:11px;" aria-label="Add LoRA">+</button>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="seed-input">Seed</label>
-                            <div class="seed-row">
-                                <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
-                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
-                            </div>
-                        </div>
-                    </fieldset>
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Composition</legend>
-                        <div class="input-group">
-                            <label for="high_level_description">High Level Description</label>
-                            <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label for="background">Background</label>
-                            <textarea id="background" rows="3" placeholder="Describe the background environment"></textarea>
-                        </div>
-                    </fieldset>
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Style</legend>
-                        <div class="input-group">
-                            <span id="mode-group-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Mode</span>
-                            <div class="pill-group" role="radiogroup" aria-labelledby="mode-group-label">
-                                <input type="radio" id="mode_photo" name="art_mode" value="photo">
-                                <label for="mode_photo" class="pill-label">Photo</label>
-                                <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
-                                <label for="mode_artstyle" class="pill-label">Art Style</label>
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="aesthetics">Aesthetics</label>
-                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
-                        </div>
-                        <div class="input-group">
-                            <label for="lighting">Lighting</label>
-                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
-                        </div>
-                        <div class="input-group">
-                            <label for="medium">Medium</label>
-                            <input type="text" id="medium">
-                        </div>
-                        <div class="input-group">
-                            <label id="mode_label" for="art_style">Art Style</label>
-                            <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
-                        </div>
-                    </fieldset>
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Color</legend>
-                        <div class="input-group">
-                            <span id="global-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Global Palette (max 16)</span>
-                            <div class="color-input-row">
-                                <label class="sr-only" for="global-color-picker">Global palette color</label>
-                                <input type="color" id="global-color-picker" value="#d4a853" aria-labelledby="global-palette-label">
-                                <button id="btn-add-global-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
-                            </div>
-                            <div id="global-colors" class="color-list"></div>
-                        </div>
-                    </fieldset>
-                </div>
+                <label class="sr-only" for="json-output">Prompt JSON output</label>
+                <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
             </div>
+        </div>
 
+        <!-- FULLSCREEN-ONLY: Layers + Box Properties -->
+        <div class="fullscreen-rail">
             <div class="panel" id="layers-panel">
                 <div class="panel-header">
                     <h3>Layers</h3>
@@ -2248,6 +2334,35 @@
                     </div>
                     <button id="btn-delete-box" class="btn btn-danger btn-block" style="margin-top:8px;">Delete Box</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="generate-modal" class="modal-overlay" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="generate-modal-title">
+            <div class="modal-header">
+                <h3 id="generate-modal-title">Generate</h3>
+                <button id="btn-close-generate" type="button" class="icon-btn" aria-label="Close" title="Close (Esc)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="ai-header">
+                <span class="ai-label">AI Prompt</span>
+                <label class="sr-only" for="ai-model">AI model</label>
+                <select id="ai-model" class="ai-model-select">
+                    <option value="">Loading...</option>
+                </select>
+                <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+            </div>
+            <label class="sr-only" for="ai-prompt">AI prompt</label>
+            <textarea id="ai-prompt" rows="6" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+            <div class="ai-actions">
+                <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
+                <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
+                <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
             </div>
         </div>
     </div>
