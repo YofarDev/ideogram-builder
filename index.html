@@ -772,6 +772,23 @@
             border-color: var(--border-strong);
         }
 
+        #btn-preview.active {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .canvas-container.preview-mode .bounding-box {
+            display: none !important;
+        }
+
+        .canvas-container.preview-mode #canvas-wrapper {
+            pointer-events: none;
+        }
+
+        .canvas-container.preview-mode #canvas-overlay {
+            opacity: 1 !important;
+        }
+
 
 
         #ai-prompt {
@@ -2352,6 +2369,9 @@
                         <label for="overlay-opacity">Overlay</label>
                         <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;" aria-valuetext="40 percent">
                     </div>
+                    <button id="btn-preview" type="button" class="icon-btn" aria-label="Toggle preview mode" title="Preview — hide overlays">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
                     <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>

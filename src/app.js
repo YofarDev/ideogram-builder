@@ -1,6 +1,6 @@
 // app.js — Entry point: imports all modules, wires button handlers, calls init()
 
-import { initCanvas, initCanvasEvents, deleteSelectedBox } from './canvas.js';
+import { initCanvas, initCanvasEvents, deleteSelectedBox, setPreviewMode } from './canvas.js';
 import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
 import { generateImage } from './runpod.js';
@@ -67,6 +67,19 @@ function setFullscreen(on) {
 
 document.getElementById('btn-enter-fullscreen').addEventListener('click', () => setFullscreen(true));
 document.getElementById('btn-exit-fullscreen').addEventListener('click', () => setFullscreen(false));
+
+document.getElementById('btn-preview').addEventListener('click', () => {
+  const enabled = !state.ui.previewMode;
+  setPreviewMode(enabled);
+  document.getElementById('btn-preview').classList.toggle('active', enabled);
+});
+
+on('canvas:reset', () => {
+  if (state.ui.previewMode) {
+    setPreviewMode(false);
+    document.getElementById('btn-preview').classList.remove('active');
+  }
+});
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && state.ui.drawFullscreen) setFullscreen(false);

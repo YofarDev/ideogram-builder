@@ -34,7 +34,7 @@
   },
   "165": {
     "inputs": {
-      "unet_name": "ideogram4\\ideogram4_fp8_scaled.safetensors",
+      "unet_name": "ideogram4_fp8_scaled.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -44,7 +44,7 @@
   },
   "183": {
     "inputs": {
-      "lora_name": "ideogram4\\control\\ideogram_4_turbotime_v1.safetensors",
+      "lora_name": "ideogram4/control/ideogram_4_turbotime_v1.safetensors",
       "strength_model": 1,
       "model": [
         "165",

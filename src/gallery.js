@@ -235,6 +235,7 @@ function loadItem(item) {
     }
 
     switchTab('editor');
+    emit('canvas:relayout');
 }
 
 function escapeHtml(str) {

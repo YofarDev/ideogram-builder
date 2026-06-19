@@ -15,7 +15,7 @@ export const state = {
   turboStrength: 0.8,
   loras: [],
   seed: -1,
-  ui: { drawFullscreen: false },
+  ui: { drawFullscreen: false, previewMode: false },
 };
 
 export function getBox(id) {

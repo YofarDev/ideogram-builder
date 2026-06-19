@@ -211,6 +211,12 @@ export function deleteSelectedBox() {
   emit('state:changed');
 }
 
+export function setPreviewMode(enabled) {
+  state.ui.previewMode = enabled;
+  const container = document.querySelector('.canvas-container');
+  if (container) container.classList.toggle('preview-mode', enabled);
+}
+
 export function initCanvasEvents() {
   const canvas = document.getElementById('canvas-wrapper');
 
