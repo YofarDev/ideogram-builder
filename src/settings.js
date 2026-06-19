@@ -70,6 +70,19 @@ export function initSettings() {
     });
   });
 
+  // Engine / workflow selection — v20 (turbotime) vs v1 (dual-model fallback)
+  const savedEngine = localStorage.getItem('ideogram_workflow');
+  if (savedEngine === 'v1') {
+    document.getElementById('engine_v1').checked = true;
+    state.workflow = 'v1';
+  }
+  document.querySelectorAll('input[name="engine"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.workflow = radio.value;
+      localStorage.setItem('ideogram_workflow', radio.value);
+    });
+  });
+
   // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
   let loraSnapshot = null;
   const OVERRIDE_FIELDS = ['aesthetics', 'lighting', 'medium', 'art_style'];
