@@ -286,28 +286,56 @@
             outline-offset: -2px;
         }
 
-        /* Main layout */
+        /* Main layout — three columns: settings | canvas | json */
         .main-content {
             display: flex;
             gap: 16px;
-            align-items: flex-start;
+            align-items: stretch;
             flex: 1;
+            min-height: 0;
         }
 
-        .left-col {
+        .left-sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+
+        .center-col {
             flex: 1;
+            min-width: 0;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            min-width: 0;
         }
 
-        .right-col {
+        .right-sidebar {
             width: 340px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            min-height: 0;
+        }
+
+        .fullscreen-rail {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Editor tab fills the center column as a flex column */
+        #tab-editor {
+            flex: 1;
+            min-height: 0;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #tab-editor.active {
+            display: flex;
         }
 
         /* Canvas container */
@@ -319,6 +347,10 @@
             overflow: hidden;
             min-height: 200px;
             line-height: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         #canvas-wrapper {
@@ -1493,19 +1525,11 @@
             opacity: 0.8;
         }
 
-        /* Tab-dependent layout — editor is default (no class needed) */
-        .main-content .right-col {
-            display: flex;
-        }
-
-        .main-content.gallery-active .right-col,
-        .main-content.vision-active .right-col {
+        .main-content.gallery-active .left-sidebar,
+        .main-content.vision-active .left-sidebar,
+        .main-content.gallery-active .right-sidebar,
+        .main-content.vision-active .right-sidebar {
             display: none;
-        }
-
-        .main-content.gallery-active .left-col,
-        .main-content.vision-active .left-col {
-            max-width: 100%;
         }
 
         /* The workflow toggle lives in the toolbar (a sibling of .main-content),
@@ -1524,7 +1548,6 @@
             background: var(--surface);
             border: 1px solid var(--hairline);
             border-radius: var(--radius);
-            margin-bottom: 12px;
         }
 
         .vision-section {
@@ -1829,7 +1852,7 @@
             .main-content {
                 flex-direction: column;
             }
-            .right-col {
+            .left-sidebar, .right-sidebar {
                 width: 100%;
             }
             .toolbar {
@@ -1870,43 +1893,33 @@
             align-items: stretch;
         }
 
-        .main-content.draw-fullscreen .left-col {
+        /* In fullscreen: hide both sidebars; the center column + fullscreen-rail remain */
+        .main-content.draw-fullscreen .left-sidebar,
+        .main-content.draw-fullscreen .right-sidebar {
+            display: none;
+        }
+
+        .main-content.draw-fullscreen .center-col {
             flex: 1;
             min-width: 0;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
         }
 
-        .main-content.draw-fullscreen #tab-editor {
-            flex: 1;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
+        /* The Generate button + AI section + generate row are hidden (gen-only) */
         .main-content.draw-fullscreen .gen-only {
             display: none;
         }
 
-        .main-content.draw-fullscreen #global-settings-panel {
-            display: none;
-        }
-
-        .main-content.draw-fullscreen .right-col {
+        /* Layers + Box Properties appear in the fullscreen rail */
+        .main-content.draw-fullscreen .fullscreen-rail {
+            display: flex;
             width: 340px;
             flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
             overflow-y: auto;
         }
 
         .main-content.draw-fullscreen .canvas-container {
             flex: 1;
             min-height: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
         }
 
         .main-content.draw-fullscreen #btn-enter-fullscreen { display: none; }
@@ -1930,155 +1943,8 @@
     </header>
 
     <div class="main-content">
-        <div class="left-col">
-            <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
-                <div class="editor-toolbar" id="editor-toolbar">
-                    <div class="ar-group">
-                        <label for="aspect-ratio">Aspect</label>
-                        <select id="aspect-ratio">
-                            <option value="1024x1024">1:1, Square</option>
-                            <option value="1152x864">4:3, Classic</option>
-                            <option value="864x1152">3:4, Portrait</option>
-                            <option value="1280x720">16:9, Widescreen</option>
-                            <option value="720x1280">9:16, Tall</option>
-                            <option value="1152x768">3:2, Photo</option>
-                            <option value="768x1152">2:3, Photo Portrait</option>
-                        </select>
-                        <div class="size-toggle" role="group" aria-label="Resolution tier">
-                            <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
-                            <button class="size-btn" data-size="2" aria-pressed="false">2M</button>
-                        </div>
-                    </div>
-                    <span class="dim-display" id="dim-display" aria-live="polite">1024 × 1024</span>
-                    <div class="ar-group" id="opacity-group" style="display:none;">
-                        <label for="overlay-opacity">Overlay</label>
-                        <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;" aria-valuetext="40 percent">
-                    </div>
-                    <div class="toolbar-spacer"></div>
-                    <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
-                    <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-                    </button>
-                    <button id="btn-exit-fullscreen" type="button" class="btn btn-secondary">Exit Fullscreen</button>
-                </div>
-                <div class="ai-section gen-only">
-                    <div class="ai-header">
-                        <span class="ai-label">AI Prompt</span>
-                        <label class="sr-only" for="ai-model">AI model</label>
-                        <select id="ai-model" class="ai-model-select">
-                            <option value="">Loading...</option>
-                        </select>
-                        <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
-                    </div>
-                    <label class="sr-only" for="ai-prompt">AI prompt</label>
-                    <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
-                    <div class="ai-actions">
-                        <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
-                        <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
-                    </div>
-                </div>
-
-                <div class="canvas-container">
-                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the panel."><img id="canvas-overlay" alt=""></div>
-                </div>
-
-                <div class="action-row gen-only" style="position:relative;">
-                    <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
-                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
-                </div>
-
-                <div class="json-section gen-only">
-                    <div class="json-header">
-                        <span class="json-title">Prompt JSON</span>
-                        <div class="json-header-actions">
-                            <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            </button>
-                            <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <label class="sr-only" for="json-output">Prompt JSON output</label>
-                    <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
-                </div>
-            </div>
-
-            <div class="tab-content" id="tab-gallery" role="tabpanel" aria-labelledby="tab-btn-gallery">
-                <div id="gallery-container">
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-                        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;">Open Output Folder</button>
-                    </div>
-                    <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
-                    <div class="gallery-grid" id="gallery-grid"></div>
-                </div>
-            </div>
-
-            <div class="tab-content" id="tab-vision" role="tabpanel" aria-labelledby="tab-btn-vision">
-                <div class="vision-section" id="vision-section">
-                    <div class="vision-toolbar" id="vision-model-row">
-                        <span class="vision-toolbar-label">Vision Model</span>
-                        <label class="sr-only" for="vision-model">Vision model</label>
-                        <select id="vision-model" class="ai-model-select"></select>
-                        <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
-                    </div>
-                    <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;" role="note">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <span>No vision models configured. Add <code>vision</code> to your <a href="#" onclick="fetch('/api/open-config'); return false;">credentials file</a>.</span>
-                    </div>
-                    <div class="vision-body">
-                        <div class="vision-info">
-                            <h2 class="vision-heading">Image to Prompt</h2>
-                            <p class="vision-subtitle">Upload an image to analyze its structure, colors, and composition. We'll generate a complete Ideogram prompt you can refine in the editor.</p>
-                            <div class="vision-formats" aria-hidden="true">
-                                <span class="vision-format-tag">JPEG</span>
-                                <span class="vision-format-tag">PNG</span>
-                                <span class="vision-format-tag">WebP</span>
-                            </div>
-                            <div class="vision-options" id="vision-options" style="display:none;">
-                                <label class="vision-option">
-                                    <input type="checkbox" id="vision-no-sam">
-                                    <span>Skip SAM detection (faster, Qwen bboxes only)</span>
-                                </label>
-                                <label class="vision-option">
-                                    <input type="checkbox" id="vision-low-memory">
-                                    <span>Low memory mode (unload Qwen before SAM)</span>
-                                </label>
-                                <label class="vision-option">
-                                    <input type="checkbox" id="vision-debug">
-                                    <span>Save debug artifacts (step-by-step outputs)</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="vision-upload">
-                            <div class="vision-dropzone" id="vision-dropzone" role="button" tabindex="0" aria-label="Drop an image here, or click to browse">
-                                <div class="vision-dropzone-icon" aria-hidden="true">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                </div>
-                                <span class="vision-dropzone-text">Drop an image here, or click to browse</span>
-                                <span class="vision-dropzone-hint">Max 2048px, auto-downscaled</span>
-                                <input type="file" id="vision-file-input" accept="image/*" hidden>
-                            </div>
-                            <div class="vision-preview" id="vision-preview">
-                                <div class="vision-preview-frame">
-                                    <img id="vision-preview-img" alt="">
-                                </div>
-                                <button class="vision-preview-change" id="vision-change-btn">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                                    Choose a different image
-                                </button>
-                            </div>
-                            <div class="vision-actions" id="vision-actions">
-                                <button id="btn-vision-process" class="btn btn-primary" disabled>Process Image</button>
-                                <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="right-col">
+        <!-- LEFT: Global Settings -->
+        <div class="left-sidebar">
             <div class="panel" id="global-settings-panel">
                 <div class="panel-header">
                     <h3>Global Settings</h3>
@@ -2196,7 +2062,164 @@
                     </fieldset>
                 </div>
             </div>
+        </div>
 
+        <!-- CENTER: Editor / Gallery / Vision tabs -->
+        <div class="center-col">
+            <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
+                <div class="editor-toolbar" id="editor-toolbar">
+                    <div class="ar-group">
+                        <label for="aspect-ratio">Aspect</label>
+                        <select id="aspect-ratio">
+                            <option value="1024x1024">1:1, Square</option>
+                            <option value="1152x864">4:3, Classic</option>
+                            <option value="864x1152">3:4, Portrait</option>
+                            <option value="1280x720">16:9, Widescreen</option>
+                            <option value="720x1280">9:16, Tall</option>
+                            <option value="1152x768">3:2, Photo</option>
+                            <option value="768x1152">2:3, Photo Portrait</option>
+                        </select>
+                        <div class="size-toggle" role="group" aria-label="Resolution tier">
+                            <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
+                            <button class="size-btn" data-size="2" aria-pressed="false">2M</button>
+                        </div>
+                    </div>
+                    <span class="dim-display" id="dim-display" aria-live="polite">1024 × 1024</span>
+                    <div class="ar-group" id="opacity-group" style="display:none;">
+                        <label for="overlay-opacity">Overlay</label>
+                        <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;" aria-valuetext="40 percent">
+                    </div>
+                    <div class="toolbar-spacer"></div>
+                    <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
+                    <button id="btn-open-generate" class="btn btn-primary gen-only" type="button" style="margin-left:auto;">Generate</button>
+                    <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                    </button>
+                    <button id="btn-exit-fullscreen" type="button" class="btn btn-secondary">Exit Fullscreen</button>
+                </div>
+
+                <div class="ai-section gen-only">
+                    <div class="ai-header">
+                        <span class="ai-label">AI Prompt</span>
+                        <label class="sr-only" for="ai-model">AI model</label>
+                        <select id="ai-model" class="ai-model-select">
+                            <option value="">Loading...</option>
+                        </select>
+                        <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+                    </div>
+                    <label class="sr-only" for="ai-prompt">AI prompt</label>
+                    <textarea id="ai-prompt" rows="3" placeholder="Describe the image you want to create... e.g. 'A serene mountain lake at sunset with pine trees framing the shore, golden light reflecting on water'"></textarea>
+                    <div class="ai-actions">
+                        <button id="btn-ai-enhance" class="btn btn-primary">AI Enhance</button>
+                        <span id="ai-status" class="ai-status" role="status" aria-live="polite"></span>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in fullscreen mode."><img id="canvas-overlay" alt=""></div>
+                </div>
+
+                <div class="action-row gen-only" style="position:relative;">
+                    <button id="btn-generate-image" class="btn btn-primary btn-generate">Generate Image</button>
+                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-gallery" role="tabpanel" aria-labelledby="tab-btn-gallery">
+                <div id="gallery-container">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+                        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;">Open Output Folder</button>
+                    </div>
+                    <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
+                    <div class="gallery-grid" id="gallery-grid"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-vision" role="tabpanel" aria-labelledby="tab-btn-vision">
+                <div class="vision-section" id="vision-section">
+                    <div class="vision-toolbar" id="vision-model-row">
+                        <span class="vision-toolbar-label">Vision Model</span>
+                        <label class="sr-only" for="vision-model">Vision model</label>
+                        <select id="vision-model" class="ai-model-select"></select>
+                        <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+                    </div>
+                    <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;" role="note">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>No vision models configured. Add <code>vision</code> to your <a href="#" onclick="fetch('/api/open-config'); return false;">credentials file</a>.</span>
+                    </div>
+                    <div class="vision-body">
+                        <div class="vision-info">
+                            <h2 class="vision-heading">Image to Prompt</h2>
+                            <p class="vision-subtitle">Upload an image to analyze its structure, colors, and composition. We'll generate a complete Ideogram prompt you can refine in the editor.</p>
+                            <div class="vision-formats" aria-hidden="true">
+                                <span class="vision-format-tag">JPEG</span>
+                                <span class="vision-format-tag">PNG</span>
+                                <span class="vision-format-tag">WebP</span>
+                            </div>
+                            <div class="vision-options" id="vision-options" style="display:none;">
+                                <label class="vision-option">
+                                    <input type="checkbox" id="vision-no-sam">
+                                    <span>Skip SAM detection (faster, Qwen bboxes only)</span>
+                                </label>
+                                <label class="vision-option">
+                                    <input type="checkbox" id="vision-low-memory">
+                                    <span>Low memory mode (unload Qwen before SAM)</span>
+                                </label>
+                                <label class="vision-option">
+                                    <input type="checkbox" id="vision-debug">
+                                    <span>Save debug artifacts (step-by-step outputs)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="vision-upload">
+                            <div class="vision-dropzone" id="vision-dropzone" role="button" tabindex="0" aria-label="Drop an image here, or click to browse">
+                                <div class="vision-dropzone-icon" aria-hidden="true">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                </div>
+                                <span class="vision-dropzone-text">Drop an image here, or click to browse</span>
+                                <span class="vision-dropzone-hint">Max 2048px, auto-downscaled</span>
+                                <input type="file" id="vision-file-input" accept="image/*" hidden>
+                            </div>
+                            <div class="vision-preview" id="vision-preview">
+                                <div class="vision-preview-frame">
+                                    <img id="vision-preview-img" alt="">
+                                </div>
+                                <button class="vision-preview-change" id="vision-change-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                    Choose a different image
+                                </button>
+                            </div>
+                            <div class="vision-actions" id="vision-actions">
+                                <button id="btn-vision-process" class="btn btn-primary" disabled>Process Image</button>
+                                <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: JSON output -->
+        <div class="right-sidebar">
+            <div class="json-section">
+                <div class="json-header">
+                    <span class="json-title">Prompt JSON</span>
+                    <div class="json-header-actions">
+                        <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <label class="sr-only" for="json-output">Prompt JSON output</label>
+                <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
+            </div>
+        </div>
+
+        <!-- FULLSCREEN-ONLY: Layers + Box Properties -->
+        <div class="fullscreen-rail">
             <div class="panel" id="layers-panel">
                 <div class="panel-header">
                     <h3>Layers</h3>
