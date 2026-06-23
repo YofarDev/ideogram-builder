@@ -3,7 +3,7 @@
 import { initCanvas, initCanvasEvents, deleteSelectedBox, setPreviewMode } from './canvas.js';
 import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
-import { generateImage } from './runpod.js';
+import { enqueue, initQueue } from './queue.js';
 import { initImport } from './png-import.js';
 import { initSettings } from './settings.js';
 import { initAIEnhancer } from './ai-enhancer.js';
@@ -25,6 +25,7 @@ initImport();
 initGallery();
 initVision();
 initLora();
+initQueue();
 
 // Wire button handlers (no inline onclick in HTML)
 document.getElementById('btn-reset').addEventListener('click', () => {
@@ -37,7 +38,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     showToast('Canvas reset.', 'info');
   }
 });
-document.getElementById('btn-generate-image').addEventListener('click', () => generateImage());
+document.getElementById('btn-generate-image').addEventListener('click', () => enqueue());
 document.getElementById('btn-delete-box')?.addEventListener('click', () => deleteSelectedBox());
 document.getElementById('btn-config').addEventListener('click', () => fetch('/api/open-config'));
 
