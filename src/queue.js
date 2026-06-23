@@ -56,6 +56,7 @@ export function removeJob(id) {
     const job = queue.find(j => j.id === id);
     if (!job) return;
     if (job.status === 'running') job.abort.abort();
+    if (job.thumbUrl?.startsWith('blob:')) URL.revokeObjectURL(job.thumbUrl);
     queue = queue.filter(j => j.id !== id);
     render();
 }
@@ -115,8 +116,11 @@ function render() {
         if (job.status === 'running' && job.elapsed != null) statusText = `${job.elapsed}s`;
         else if (job.status === 'done') statusText = 'Done';
         else if (job.status === 'failed') statusText = 'Failed';
+        const failTitle = (job.status === 'failed' && job.error)
+            ? ` title="${job.error.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`
+            : '';
         return `
-            <div class="queue-card queue-${job.status}" data-id="${job.id}">
+            <div class="queue-card queue-${job.status}" data-id="${job.id}"${failTitle}>
                 ${thumb}
                 <span class="queue-seed">seed ${job.snapshot.seed}</span>
                 <span class="queue-status">${statusText}</span>

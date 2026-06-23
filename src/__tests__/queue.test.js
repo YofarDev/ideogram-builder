@@ -96,5 +96,25 @@ describe('queue', () => {
       expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
     })
     expect(runJob).toHaveBeenCalledTimes(2)
+    expect(document.querySelectorAll('.queue-card').length).toBe(1)
+  })
+
+  it('removeJob on a running job aborts it and continues to next', async () => {
+    const runJob = vi.fn()
+      .mockImplementationOnce((_snap, opts) => new Promise((_, rej) => {
+        opts.signal.addEventListener('abort', () =>
+          rej(Object.assign(new Error('aborted'), { name: 'AbortError' })))
+      }))
+      .mockResolvedValueOnce({ dataUrl: 'data:image/png;base64,DD', imageUrl: 'blob:z' })
+    const mod = await loadQueue({ runJob })
+    mod.enqueue()
+    state.seed = 5
+    mod.enqueue()
+    expect(runJob).toHaveBeenCalledTimes(1)
+    mod.removeJob(1)
+    await vi.waitFor(() => {
+      expect(runJob).toHaveBeenCalledTimes(2)
+    })
+    expect(document.querySelectorAll('.queue-card').length).toBe(1)
   })
 })
