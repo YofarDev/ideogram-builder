@@ -30,7 +30,8 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events, image overlay | state, events |
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON output textarea | state, events |
-| `runpod.js` | RunPod serverless API calls (submit + poll) | state, events |
+| `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll | nothing |
+| `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, runpod, toast |
 | `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
 | `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo) | events |
 | `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
@@ -58,12 +59,15 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `lora:selected` | `{ overrides }` | lora | settings (snapshot form + apply overrides) |
 | `lora:cleared` | none | lora | settings (restore snapshot) |
 
+> **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly.
+
 ## Editing Guide
 
 - **Editing canvas interactions?** → `src/canvas.js` + `src/state.js`
 - **Editing color palette?** → `src/palette.js` + `src/state.js`
 - **Editing JSON output format?** → `src/json-builder.js`
 - **Editing RunPod generation?** → `src/runpod.js`
+- **Editing the generation queue?** → `src/queue.js`
 - **Editing gallery/history?** → `src/gallery.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
 - **Editing layer panel?** → `src/layers.js`
