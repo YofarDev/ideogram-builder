@@ -117,4 +117,38 @@ describe('queue', () => {
     })
     expect(document.querySelectorAll('.queue-card').length).toBe(1)
   })
+
+  it('emits image:ready with imageUrl and dataUrl on success', async () => {
+    const emit = vi.fn()
+    const mod = await loadQueue({
+      emit,
+      runJob: vi.fn(async (_snap, opts) => {
+        opts?.onStatus?.(1)
+        return { dataUrl: 'data:image/png;base64,ZZ', imageUrl: 'blob:success' }
+      }),
+    })
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(emit).toHaveBeenCalledWith('image:ready', {
+      imageUrl: 'blob:success',
+      dataUrl: 'data:image/png;base64,ZZ',
+    })
+  })
+
+  it('marks a job failed and surfaces the error on the card when runJob throws', async () => {
+    const mod = await loadQueue({
+      showToast: vi.fn(),
+      runJob: vi.fn(async () => { throw new Error('GPU OOM') }),
+    })
+    mod.enqueue()
+    await vi.waitFor(() => {
+      const card = document.querySelector('.queue-card')
+      expect(card).toBeTruthy()
+      expect(card.classList.contains('queue-failed')).toBe(true)
+      expect(card.getAttribute('title')).toContain('GPU OOM')
+    })
+    expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+  })
 })
