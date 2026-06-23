@@ -8,6 +8,13 @@ async function getConfig() {
     return config;
 }
 
+/**
+ * Submit a generation snapshot to RunPod and poll until complete.
+ * @param {object} snapshot - { importJson, width, height, preset, workflow,
+ *   turboStrength, loras: [{filename, source_url, strengths}], seed }
+ * @param {object} [opts] - { onStatus?(elapsedSec), signal? }
+ * @returns {Promise<{ dataUrl: string, imageUrl: string }>}
+ */
 export async function runJob(snapshot, { onStatus, signal } = {}) {
     const { api_key, endpoint_id } = await getConfig();
     if (!api_key || !endpoint_id) {

@@ -35,7 +35,6 @@ beforeEach(() => {
 describe('runJob', () => {
   async function importModule() {
     vi.resetModules()
-    vi.mock('../events.js', () => ({ emit: vi.fn(), on: vi.fn() }))
     return await import('../runpod.js')
   }
 
@@ -102,6 +101,7 @@ describe('runJob', () => {
   })
 
   it('calls onStatus with elapsed seconds during polling', async () => {
+    vi.useFakeTimers()
     global.fetch = mockFetchSequence([
       { body: CONFIG_RESP },
       { body: { id: 'j' } },
@@ -111,11 +111,18 @@ describe('runJob', () => {
       ]}}},
       { body: new Blob() },
     ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
     const mod = await importModule()
     const ticks = []
-    await mod.runJob(baseSnapshot(), { onStatus: (s) => ticks.push(s) })
-    expect(ticks.length).toBeGreaterThan(0)
-    expect(typeof ticks[0]).toBe('number')
+    const p = mod.runJob(baseSnapshot(), { onStatus: (s) => ticks.push(s) })
+    // Advance the 3s poll-loop sleep between IN_PROGRESS and COMPLETED
+    await vi.advanceTimersByTimeAsync(3000)
+    await p
+    vi.useRealTimers()
+
+    expect(ticks.length).toBeGreaterThan(1)
+    expect(ticks[1]).toBeGreaterThan(ticks[0])
   })
 
   it('aborts via signal', async () => {
