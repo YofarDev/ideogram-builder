@@ -31,7 +31,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON output textarea | state, events |
 | `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll | nothing |
-| `modal.js` | Modal serverless API calls: `runJob(snapshot)` single synchronous POST | nothing |
+| `modal.js` | Modal serverless API calls: `runJob(snapshot)` submit + poll (mirrors runpod.js) | nothing |
 | `backend.js` | Dispatcher — routes `runJob(snapshot)` to RunPod or Modal per `localStorage.ideogram_backend` | runpod, modal |
 | `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, backend, toast |
 | `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
@@ -90,7 +90,7 @@ Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
 | `workflow_template_lora.json` | API-format ComfyUI workflow (lora-capable: rgthree Power Lora Loader, step presets). Live base, copied to `/workflow_template.json` in the image |
 | `workflow_template.json` | Original 17-node workflow — dormant fallback, not copied into the image |
 | `client.py` | CLI for sending requests to the RunPod endpoint |
-| `modal_app.py` | Modal backend — reuses the Dockerfile image, hosts ComfyUI warm, exposes `handler.handler` over a token-authed HTTP endpoint |
+| `modal_app.py` | Modal backend — reuses the Dockerfile image, hosts ComfyUI warm. Web proxy (`min_containers=1`) exposes two endpoints: `POST /generate` (spawns Comfy job, returns `call_id`) and `GET /status/{call_id}` (polls result). Token-authed via shared secret. |
 | `example_prompt.json` | Sample prompt JSON for testing |
 
 **Build:** Push a git tag (e.g. `v1.0.8`) → RunPod Container Builder rebuilds. Dockerfile path: `runpod/Dockerfile`, build context: repo root.
@@ -100,3 +100,5 @@ Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
 ### Modal backend
 
 Same ComfyUI image, hosted on Modal. Deploy: `modal deploy runpod/modal_app.py` (from repo root). Create the auth secret once: `modal secret create ideogram-builder AUTH_TOKEN=<value>`. GPU defaults to `T4` (16GB); set `IDEOGRAM_GPU=A10G` at deploy for the Classic dual-model workflow. UI toggle (RunPod/Modal) persists to `localStorage.ideogram_backend`; `src/backend.js` dispatches `runJob` accordingly.
+
+**Architecture:** The web proxy (`min_containers=1`, always warm) splits generation into submit + poll to avoid gateway timeouts on long-running jobs: `POST /generate` spawns the Comfy job via `.spawn()` and returns `{"call_id": "..."}` immediately; `GET /status/{call_id}` uses `FunctionCall.from_id()` + `get(timeout=0)` to poll. `src/modal.js` mirrors runpod.js's submit+poll loop (3s cadence, 15min timeout).

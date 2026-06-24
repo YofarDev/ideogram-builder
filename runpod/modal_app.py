@@ -33,7 +33,7 @@ import modal
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 COMFY_HOST = "127.0.0.1:8188"
-GPU = os.environ.get("IDEOGRAM_GPU", "T4")  # ponytail: T4 cheapest; A10G if Classic OOMs
+GPU = os.environ.get("IDEOGRAM_GPU", "RTX-PRO-6000")  # 96GB; set A100-80GB for Classic
 
 # Same image RunPod builds: ComfyUI, KJNodes, rgthree, 4 Ideogram-4 models, LoRAs, handler.py.
 COMFY_IMAGE = modal.Image.from_dockerfile(
@@ -101,7 +101,11 @@ class Comfy:
         return comfy.handler({"input": payload, "id": "modal"})
 
 
-@app.function(image=PROXY_IMAGE)
+@app.function(
+    image=PROXY_IMAGE,
+    min_containers=1,    # keep proxy warm — prevents cold-start redirect (303 CORS bug)
+    secrets=[SECRET],    # AUTH_TOKEN for the shared-secret check
+)
 @modal.asgi_app()
 def web_app():
     from fastapi import FastAPI, HTTPException, Request
@@ -112,19 +116,34 @@ def web_app():
     api.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_methods=["POST", "OPTIONS"],
+        allow_methods=["POST", "GET", "OPTIONS"],
         allow_headers=["*"],
     )
     expected = os.environ.get("AUTH_TOKEN", "")
 
-    @api.post("/generate")
-    async def generate(req: Request):
-        # ponytail: shared-secret header mirrors RunPod's api_key; URL is also unguessable.
+    def _check_auth(req: Request):
         if expected:
             token = (req.headers.get("authorization") or "").removeprefix("Bearer ").strip()
             if token != expected:
                 raise HTTPException(status_code=401, detail="invalid auth token")
+
+    @api.post("/generate")
+    async def generate(req: Request):
+        _check_auth(req)
         payload = await req.json()
-        return Comfy().generate.remote(payload)
+        call = Comfy().generate.spawn(payload)
+        return {"call_id": call.object_id}
+
+    @api.get("/status/{call_id}")
+    async def status(call_id: str, req: Request):
+        _check_auth(req)
+        call = modal.FunctionCall.from_id(call_id)
+        try:
+            result = call.get(timeout=0)
+        except TimeoutError:
+            return {"status": "pending"}
+        except Exception as e:
+            return {"status": "failed", "error": str(e)}
+        return {"status": "completed", "result": result}
 
     return api
