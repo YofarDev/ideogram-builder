@@ -2,6 +2,7 @@
 
 import { state, MODE_PHOTO } from './state.js';
 import { on, emit } from './events.js';
+import { showToast } from './toast.js';
 
 let isLoadingFromJSON = false;
 
@@ -32,17 +33,28 @@ export function initJsonBuilder() {
   });
 
   document.getElementById('btn-load-json').addEventListener('click', () => {
-    try {
-      const json = JSON.parse(capturedRaw);
-      if (!json.high_level_description && !json.style_description && !json.compositional_deconstruction) return;
-      isLoadingFromJSON = true;
-      emit('state:loaded', { json });
-      isLoadingFromJSON = false;
-      generateJSON();
-    } catch {
-      const btn = document.getElementById('btn-load-json');
-      btn.style.color = 'var(--danger)';
-      setTimeout(() => { btn.style.color = ''; }, 1200);
+    applyJsonText(capturedRaw, 'btn-load-json');
+  });
+
+  document.getElementById('btn-paste-json').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-paste-json');
+    const text = await readClipboard();
+    if (text == null) {
+      showToast('Clipboard blocked — click the textarea and press Cmd+V.', 'warning');
+      const out = document.getElementById('json-output');
+      out.focus();
+      return;
+    }
+    if (!text.trim()) {
+      showToast('Clipboard is empty.', 'warning');
+      flashError(btn);
+      return;
+    }
+    document.getElementById('json-output').value = text;
+    if (applyJsonText(text, 'btn-paste-json')) {
+      showToast('JSON pasted and applied.', 'success', 1500);
+    } else {
+      showToast('Clipboard has no valid prompt JSON.', 'error');
     }
   });
 
@@ -56,6 +68,38 @@ export function initJsonBuilder() {
       setTimeout(() => { btn.innerHTML = original; }, 1500);
     });
   });
+}
+
+function applyJsonText(raw, btnId) {
+  try {
+    const json = JSON.parse(raw);
+    if (!json.high_level_description && !json.style_description && !json.compositional_deconstruction) {
+      flashError(document.getElementById(btnId));
+      return false;
+    }
+    isLoadingFromJSON = true;
+    emit('state:loaded', { json });
+    isLoadingFromJSON = false;
+    generateJSON();
+    return true;
+  } catch {
+    flashError(document.getElementById(btnId));
+    return false;
+  }
+}
+
+async function readClipboard() {
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    return null;
+  }
+}
+
+function flashError(btn) {
+  if (!btn) return;
+  btn.style.color = 'var(--danger)';
+  setTimeout(() => { btn.style.color = ''; }, 1200);
 }
 
 export function generateJSON() {
