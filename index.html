@@ -1672,7 +1672,10 @@
            so we use :has() to hide it on Gallery/Vision tabs where it's irrelevant. */
         body:has(.main-content.gallery-active) .workflow-toggle,
         body:has(.main-content.prompt-active) .workflow-toggle,
-        body:has(.main-content.vision-active) .workflow-toggle {
+        body:has(.main-content.vision-active) .workflow-toggle,
+        body:has(.main-content.gallery-active) .backend-toggle,
+        body:has(.main-content.prompt-active) .backend-toggle,
+        body:has(.main-content.vision-active) .backend-toggle {
             display: none;
         }
 
@@ -2323,6 +2326,12 @@
             <label for="workflow-turbo" class="pill-label">Turbo</label>
             <input type="radio" id="workflow-classic" name="workflow" value="v1">
             <label for="workflow-classic" class="pill-label">Classic</label>
+        </div>
+        <div class="backend-toggle pill-group" id="backend-toggle" role="radiogroup" aria-label="Generation backend">
+            <input type="radio" id="backend-runpod" name="backend" value="runpod" checked>
+            <label for="backend-runpod" class="pill-label">RunPod</label>
+            <input type="radio" id="backend-modal" name="backend" value="modal">
+            <label for="backend-modal" class="pill-label">Modal</label>
         </div>
     </header>
 

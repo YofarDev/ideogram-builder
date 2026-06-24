@@ -130,7 +130,7 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 creds = json.loads(CREDENTIALS_PATH.read_text())
                 config = {}
-                for key in ("deepseek", "google", "openrouter", "mimo", "runpod", "vision"):
+                for key in ("deepseek", "google", "openrouter", "mimo", "runpod", "modal", "vision"):
                     if key in creds:
                         config[key] = creds[key]
                 config["_meta"] = {

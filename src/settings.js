@@ -89,6 +89,16 @@ export function initSettings() {
     });
   });
 
+  // Generation backend — RunPod vs Modal. Persisted; default RunPod.
+  if (localStorage.getItem('ideogram_backend') === 'modal') {
+    document.getElementById('backend-modal').checked = true;
+  }
+  document.querySelectorAll('input[name="backend"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      localStorage.setItem('ideogram_backend', radio.value);
+    });
+  });
+
   // Turbo strength — persisted; the whole row is hidden when workflow != turbo (Classic)
   const savedTurboStrength = localStorage.getItem('ideogram_turbo_strength');
   if (savedTurboStrength !== null) {

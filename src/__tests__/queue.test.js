@@ -22,7 +22,7 @@ async function loadQueue(mocks) {
   vi.resetModules()
   vi.doMock('../toast.js', () => ({ showToast: mocks.showToast }))
   vi.doMock('../events.js', () => ({ emit: mocks.emit ?? vi.fn(), on: vi.fn() }))
-  vi.doMock('../runpod.js', () => ({ runJob: mocks.runJob }))
+  vi.doMock('../backend.js', () => ({ runJob: mocks.runJob }))
   return import('../queue.js')
 }
 

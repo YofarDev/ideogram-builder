@@ -31,7 +31,9 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON output textarea | state, events |
 | `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll | nothing |
-| `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, runpod, toast |
+| `modal.js` | Modal serverless API calls: `runJob(snapshot)` single synchronous POST | nothing |
+| `backend.js` | Dispatcher — routes `runJob(snapshot)` to RunPod or Modal per `localStorage.ideogram_backend` | runpod, modal |
+| `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, backend, toast |
 | `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
 | `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo) | events |
 | `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
@@ -67,6 +69,8 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing color palette?** → `src/palette.js` + `src/state.js`
 - **Editing JSON output format?** → `src/json-builder.js`
 - **Editing RunPod generation?** → `src/runpod.js`
+- **Editing Modal generation?** → `src/modal.js`
+- **Switching which backend a job uses?** → `src/backend.js` (reads `localStorage.ideogram_backend`)
 - **Editing the generation queue?** → `src/queue.js`
 - **Editing gallery/history?** → `src/gallery.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
@@ -86,8 +90,13 @@ Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
 | `workflow_template_lora.json` | API-format ComfyUI workflow (lora-capable: rgthree Power Lora Loader, step presets). Live base, copied to `/workflow_template.json` in the image |
 | `workflow_template.json` | Original 17-node workflow — dormant fallback, not copied into the image |
 | `client.py` | CLI for sending requests to the RunPod endpoint |
+| `modal_app.py` | Modal backend — reuses the Dockerfile image, hosts ComfyUI warm, exposes `handler.handler` over a token-authed HTTP endpoint |
 | `example_prompt.json` | Sample prompt JSON for testing |
 
 **Build:** Push a git tag (e.g. `v1.0.8`) → RunPod Container Builder rebuilds. Dockerfile path: `runpod/Dockerfile`, build context: repo root.
 
 **API:** `POST /run` with `{ "input": { "import_json": "...", "width": 768, "height": 1152 } }` → returns `{ "output": { "images": [{ "filename", "type": "base64", "data" }] } }`
+
+### Modal backend
+
+Same ComfyUI image, hosted on Modal. Deploy: `modal deploy runpod/modal_app.py` (from repo root). Create the auth secret once: `modal secret create ideogram-builder AUTH_TOKEN=<value>`. GPU defaults to `T4` (16GB); set `IDEOGRAM_GPU=A10G` at deploy for the Classic dual-model workflow. UI toggle (RunPod/Modal) persists to `localStorage.ideogram_backend`; `src/backend.js` dispatches `runJob` accordingly.

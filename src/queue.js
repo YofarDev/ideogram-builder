@@ -1,7 +1,7 @@
 import { state } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
-import { runJob } from './runpod.js';
+import { runJob } from './backend.js';
 
 let queue = [];
 let isRunning = false;
