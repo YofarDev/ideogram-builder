@@ -74,21 +74,27 @@ async function pollStatus(baseUrl, headers, jobId, onStatus, signal) {
     const startTime = Date.now();
     const timeout = 5 * 60 * 1000;
 
-    while (Date.now() - startTime < timeout) {
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    // ponytail: 1s ticker decoupled from 3s poll cadence so elapsed updates every second
+    const ticker = setInterval(() => {
+        onStatus?.(Math.round((Date.now() - startTime) / 1000));
+    }, 1000);
+    onStatus?.(0);
 
-        const elapsed = Math.round((Date.now() - startTime) / 1000);
-        onStatus?.(elapsed);
+    try {
+        while (Date.now() - startTime < timeout) {
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        const resp = await fetch(`${baseUrl}/status/${jobId}`, { headers, signal });
-        if (!resp.ok) throw new Error(`Status check failed: ${resp.status}`);
+            const resp = await fetch(`${baseUrl}/status/${jobId}`, { headers, signal });
+            if (!resp.ok) throw new Error(`Status check failed: ${resp.status}`);
 
-        const result = await resp.json();
-        if (result.status === 'COMPLETED') return result;
-        if (result.status === 'FAILED') return result;
+            const result = await resp.json();
+            if (result.status === 'COMPLETED') return result;
+            if (result.status === 'FAILED') return result;
 
-        await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 3000));
+        }
+        throw new Error('Generation timed out after 5 minutes');
+    } finally {
+        clearInterval(ticker);
     }
-
-    throw new Error('Generation timed out after 5 minutes');
 }
