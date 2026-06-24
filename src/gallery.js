@@ -1,9 +1,5 @@
 import { on } from './events.js';
 import { emit } from './events.js';
-import { showToast } from './toast.js';
-
-const STORAGE_KEY = 'ideogram_history';
-const MAX_ITEMS = 30;
 
 export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -30,13 +26,14 @@ export function initGallery() {
     let lastSaveTime = 0;
     let lastSaveDataUrl = '';
 
-    on('image:ready', ({ imageUrl, dataUrl, skipSave, source, model }) => {
-        if (skipSave) return;
+    // ponytail: disk is the source of truth — just save the image+prompt there, gallery lists the folder
+    on('image:ready', ({ dataUrl, skipSave }) => {
+        if (skipSave || !dataUrl) return;
         const now = Date.now();
         if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
         lastSaveTime = now;
-        lastSaveDataUrl = dataUrl || '';
-        saveToGallery(imageUrl, dataUrl, { source: source || 'generation', model: model || '' });
+        lastSaveDataUrl = dataUrl;
+        saveToDisk(dataUrl, document.getElementById('json-output').value);
     });
 }
 
@@ -54,99 +51,16 @@ function switchTab(tab) {
     if (tab === 'gallery') renderGallery();
 }
 
-function getHistory() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-        return [];
-    }
-}
-
-function saveHistory(items) {
-    const trimmed = items.slice(0, MAX_ITEMS);
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-    } catch {
-        for (let i = trimmed.length - 1; i >= 1; i--) {
-            delete trimmed[i].full_image;
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-                return;
-            } catch {}
-        }
-        delete trimmed[0].full_image;
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
-        } catch {
-            localStorage.removeItem(STORAGE_KEY);
-        }
-    }
-}
-
-function saveToGallery(imageUrl, dataUrl, meta = {}) {
-    const promptJson = document.getElementById('json-output').value;
-    const aspectRatio = document.getElementById('aspect-ratio').value;
-    const selected = meta.model || document.getElementById('ai-model').value || '';
-    const [provider, model] = selected.includes('::') ? selected.split('::') : ['', selected];
-
-    createThumbnail(imageUrl, (thumbnail) => {
-        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        const items = getHistory();
-        const entry = {
-            id,
-            timestamp: Date.now(),
-            thumbnail,
-            full_image: dataUrl || '',
-            prompt_json: promptJson,
-            aspect_ratio: aspectRatio,
-            provider: provider || '',
-            model: model || '',
-            source: meta.source || 'generation',
-            disk_filename: '',
-        };
-        items.unshift(entry);
-        saveHistory(items);
-
-        if (dataUrl) {
-            saveToDisk(dataUrl, promptJson).then(filename => {
-                if (filename) {
-                    const updated = getHistory();
-                    const item = updated.find(i => i.id === id);
-                    if (item) {
-                        item.disk_filename = filename;
-                        saveHistory(updated);
-                    }
-                }
-            });
-        }
-    });
-}
-
-function createThumbnail(imageUrl, callback) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-        const maxW = 480;
-        const scale = maxW / img.width;
-        const canvas = document.createElement('canvas');
-        canvas.width = maxW;
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        callback(canvas.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = () => callback('');
-    img.src = imageUrl;
-}
-
-function renderGallery() {
+async function renderGallery() {
     const grid = document.getElementById('gallery-grid');
     const empty = document.getElementById('gallery-empty');
-    const items = getHistory();
-
     grid.innerHTML = '';
+
+    let items = [];
+    try {
+        const res = await fetch('/api/list-output');
+        items = await res.json();
+    } catch {}
 
     if (items.length === 0) {
         empty.style.display = 'block';
@@ -154,11 +68,12 @@ function renderGallery() {
     }
     empty.style.display = 'none';
 
+    const frag = document.createDocumentFragment();
     items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'gallery-card';
 
-        const date = new Date(item.timestamp);
+        const date = new Date(item.mtime * 1000);
         const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         let desc = '';
@@ -170,12 +85,11 @@ function renderGallery() {
         }
 
         card.innerHTML = `
-            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="" loading="lazy" decoding="async">` : ''}
+            <img src="/output/${item.img}" alt="" loading="lazy" decoding="async">
             <div class="gallery-card-info">
                 <div class="gallery-card-actions">
-                    ${item.source === 'vision' ? '<span class="gallery-card-badge vision">Vision</span>' : ''}
-                    <button class="gallery-card-btn download" data-id="${item.id}" title="Download image" aria-label="Download image"><span aria-hidden="true">&darr;</span></button>
-                    <button class="gallery-card-btn delete" data-id="${item.id}" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
+                    <button class="gallery-card-btn download" title="Download image" aria-label="Download image"><span aria-hidden="true">&darr;</span></button>
+                    <button class="gallery-card-btn delete" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="gallery-card-date">${dateStr}</div>
                 <div class="gallery-card-prompt">${escapeHtml(desc)}</div>
@@ -187,39 +101,31 @@ function renderGallery() {
             downloadImage(item);
         });
 
-        card.querySelector('.gallery-card-btn.delete').addEventListener('click', (e) => {
+        card.querySelector('.gallery-card-btn.delete').addEventListener('click', async (e) => {
             e.stopPropagation();
-            deleteItem(item.id);
+            await deleteItem(item.id);
         });
 
         card.addEventListener('click', () => loadItem(item));
 
-        grid.appendChild(card);
+        frag.appendChild(card);
     });
+    grid.appendChild(frag);
 }
 
-function deleteItem(id) {
-    const items = getHistory().filter(i => i.id !== id);
-    saveHistory(items);
+async function deleteItem(id) {
+    try {
+        await fetch('/api/delete-output', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: id }),
+        });
+    } catch {}
     renderGallery();
 }
 
 function loadItem(item) {
-    if (item.aspect_ratio) {
-        const sel = document.getElementById('aspect-ratio');
-        if (sel.querySelector(`option[value="${item.aspect_ratio}"]`)) {
-            sel.value = item.aspect_ratio;
-            sel.dispatchEvent(new Event('change'));
-        }
-    }
-
-    const diskUrl = item.disk_filename ? `/output/${item.disk_filename}` : '';
-
-    if (item.full_image) {
-        emit('image:ready', { imageUrl: item.full_image, dataUrl: item.full_image, skipSave: true });
-    } else if (diskUrl) {
-        emit('image:ready', { imageUrl: diskUrl, dataUrl: '', skipSave: true });
-    }
+    emit('image:ready', { imageUrl: `/output/${item.img}`, skipSave: true });
 
     if (item.prompt_json) {
         document.getElementById('json-output').value = item.prompt_json;
@@ -227,13 +133,6 @@ function loadItem(item) {
             const json = JSON.parse(item.prompt_json);
             emit('state:loaded', { json });
         } catch {}
-    }
-
-    if (!item.full_image && !diskUrl && item.thumbnail) {
-        emit('image:ready', { imageUrl: item.thumbnail, dataUrl: item.thumbnail, skipSave: true });
-        showToast('Full-resolution image unavailable — showing thumbnail.', 'warning');
-    } else if (!item.full_image && !diskUrl && !item.thumbnail) {
-        showToast('Image no longer available (storage limit was reached).', 'warning');
     }
 
     switchTab('editor');
@@ -247,12 +146,9 @@ function escapeHtml(str) {
 }
 
 function downloadImage(item) {
-    const diskUrl = item.disk_filename ? `/output/${item.disk_filename}` : '';
-    const url = item.full_image || diskUrl;
-    if (!url) return;
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `ideogram_${item.id}.png`;
+    a.href = `/output/${item.img}`;
+    a.download = item.img;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -260,14 +156,10 @@ function downloadImage(item) {
 
 async function saveToDisk(dataUrl, promptJson) {
     try {
-        const res = await fetch('/api/save-image', {
+        await fetch('/api/save-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ dataUrl, promptJson: promptJson || '' }),
         });
-        const data = await res.json();
-        return data.filename || '';
-    } catch {
-        return '';
-    }
+    } catch {}
 }

@@ -148,6 +148,27 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 subprocess.Popen(["xdg-open", str(OUTPUT_DIR)])
             self._send_json(200, {"ok": True})
+        elif self.path == "/api/list-output":
+            OUTPUT_DIR.mkdir(exist_ok=True)
+            items = []
+            for img_path in OUTPUT_DIR.iterdir():
+                if img_path.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+                    continue
+                json_path = OUTPUT_DIR / f"{img_path.name}.json"
+                prompt_json = ""
+                if json_path.exists():
+                    try:
+                        prompt_json = json_path.read_text()
+                    except Exception:
+                        pass
+                items.append({
+                    "id": img_path.name,
+                    "img": img_path.name,
+                    "prompt_json": prompt_json,
+                    "mtime": img_path.stat().st_mtime,
+                })
+            items.sort(key=lambda x: x["mtime"], reverse=True)
+            self._send_json(200, items)
         elif self.path == "/api/open-config":
             CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
             if not CREDENTIALS_PATH.exists():
@@ -197,9 +218,26 @@ class Handler(SimpleHTTPRequestHandler):
 
             prompt_json = body.get("promptJson", "")
             if prompt_json:
-                (OUTPUT_DIR / f"{stem}.json").write_text(prompt_json)
+                (OUTPUT_DIR / f"{filename}.json").write_text(prompt_json)
 
             self._send_json(200, {"ok": True, "filename": filename})
+        elif self.path == "/api/delete-output":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length))
+            name = body.get("name", "")
+            if not name or "/" in name or "\\" in name or ".." in name:
+                self._send_json(400, {"error": "invalid name"})
+                return
+            deleted = False
+            img_p = OUTPUT_DIR / name
+            json_p = OUTPUT_DIR / f"{name}.json"
+            if img_p.exists():
+                img_p.unlink()
+                deleted = True
+            if json_p.exists():
+                json_p.unlink()
+                deleted = True
+            self._send_json(200, {"ok": deleted})
         elif self.path == "/api/recaption-element":
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))

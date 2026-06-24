@@ -116,12 +116,16 @@ function applyCanvasScale() {
   canvas.style.width = width + 'px';
   canvas.style.height = height + 'px';
 
-  // Available space inside the editor tab (center column), minus the sub-toolbar + gap + container padding
+  // Available space inside the editor tab (center column), minus the sub-toolbar + queue + gaps + container padding
   const editor = document.getElementById('tab-editor');
   const toolbar = document.getElementById('editor-toolbar');
+  const queuePanel = document.getElementById('queue-panel');
   const padX = 32, padY = 32, gap = 12;
+  const queueH = queuePanel ? queuePanel.offsetHeight : 0;
   const availW = Math.max(0, (editor ? editor.clientWidth : 0) - padX);
-  const availH = Math.max(0, (editor ? editor.clientHeight : 0) - (toolbar ? toolbar.offsetHeight : 0) - gap - padY);
+  const availH = Math.max(0, (editor ? editor.clientHeight : 0)
+    - (toolbar ? toolbar.offsetHeight : 0) - queueH
+    - gap - (queueH > 0 ? gap : 0) - padY);
 
   const fitW = width > 0 ? availW / width : 1;
   const fitH = height > 0 ? availH / height : 1;
