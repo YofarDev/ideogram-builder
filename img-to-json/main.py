@@ -22,6 +22,11 @@ def main():
         action="store_true",
         help="Save intermediate artifacts for debugging",
     )
+    parser.add_argument(
+        "--split",
+        action="store_true",
+        help="Use the split pipeline (two VLM calls + SAM-only localization)",
+    )
 
     args = parser.parse_args()
 
@@ -34,16 +39,20 @@ def main():
         debug_dir = create_debug_dir(Path(__file__).resolve().parent)
         debug_logger = DebugLogger(debug_dir)
 
-    from pipeline import run
-
-    run(
+    kwargs = dict(
         image_path=args.image_path,
         output_path=args.output,
         verbose=args.verbose,
-        no_sam=args.no_sam,
         low_memory=args.low_memory,
         debug=debug_logger,
     )
+    if args.split:
+        from pipeline_split import run
+    else:
+        from pipeline import run
+        kwargs["no_sam"] = args.no_sam
+
+    run(**kwargs)
 
     if debug_logger and debug_logger.enabled:
         print(f"[debug_dir]{debug_logger.dir_path()}", file=sys.stderr)
