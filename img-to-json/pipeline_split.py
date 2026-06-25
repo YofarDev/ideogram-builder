@@ -1,4 +1,5 @@
 import logging
+import shutil
 from pathlib import Path
 
 from PIL import Image
@@ -69,8 +70,8 @@ def _vlm_call(image, system_prompt, user_text, debug, debug_subdir):
     prompt = apply_chat_template(processor, config, messages, num_images=1)
 
     if debug and debug.enabled:
-        debug.save_text(f"{debug_subdir}/system_prompt.txt", system_prompt)
-        debug.save_text(f"{debug_subdir}/user_message.txt", user_text)
+        debug.save_text(f"{debug_subdir}_system_prompt.txt", system_prompt)
+        debug.save_text(f"{debug_subdir}_user_message.txt", user_text)
 
     retry_text = (
         "Return ONLY a raw JSON object. No text before or after. "
@@ -80,11 +81,11 @@ def _vlm_call(image, system_prompt, user_text, debug, debug_subdir):
         result = generate(model, processor, prompt, image=image, max_tokens=4096)
         response = result.text
         if debug and debug.enabled:
-            debug.save_text(f"{debug_subdir}/raw_response_attempt_{attempt + 1}.txt", response)
+            debug.save_text(f"{debug_subdir}_raw_response_attempt_{attempt + 1}.txt", response)
         parsed = _parse_json(response)
         if parsed is not None:
             if debug and debug.enabled:
-                debug.save_json(f"{debug_subdir}/parsed.json", parsed)
+                debug.save_json(f"{debug_subdir}_parsed.json", parsed)
             return parsed
         user_text = retry_text
         messages = [
@@ -107,12 +108,12 @@ def run(
     if verbose:
         logger.info("Split step 1 - preprocess: palette=%d colors", len(pre.palette))
     if debug and debug.enabled:
-        debug.save_json("01_preprocess/result.json", {
+        debug.save_json("01_preprocess_result.json", {
             "palette": pre.palette,
             "pad_offsets": list(pre.pad_offsets),
             "orig_size": list(pre.image_orig.size),
         })
-        debug.save_image("01_preprocess/image_padded.png", pre.image_padded)
+        debug.save_image("01_preprocess_image_padded.png", pre.image_padded)
 
     scene_prompt = (_PROMPT_DIR / "scene_analysis.txt").read_text().strip()
     scene = _vlm_call(pre.image_orig, scene_prompt, "Analyze this image and return the JSON.", debug, "02_scene")
@@ -142,13 +143,20 @@ def run(
         logger.info("Split step 3 - SAM: %d/%d localized", len(kept_objects), len(objects))
 
     if debug and debug.enabled:
-        debug.save_json("03_sam/detections_all.json", [
+        debug.save_json("03_sam_detections_all.json", [
             {"name": d.get("name"), "bbox": d.get("bbox")} for d in detections
         ])
-        debug.save_json("03_sam/dropped_elements.json", dropped)
+        debug.save_json("03_sam_dropped_elements.json", dropped)
         sam_boxes = [d.get("bbox") for d in kept_detections]
         sam_labels = [o.get("name", "") for o in kept_objects]
-        debug.save_image("03_sam/sam_boxes.png", _draw_bboxes(pre.image_orig, sam_boxes, sam_labels))
+        debug.save_image("03_sam_boxes.png", _draw_bboxes(pre.image_orig, sam_boxes, sam_labels))
+        # ponytail: sam_detection.py (frozen) forces a 03_sam/ subfolder; flatten to match
+        sam_subdir = Path(debug.dir_path()) / "03_sam"
+        if sam_subdir.is_dir():
+            for f in sam_subdir.iterdir():
+                if f.is_file() and not f.name.startswith("."):
+                    f.rename(sam_subdir.parent / f"03_sam_{f.name}")
+            shutil.rmtree(sam_subdir, ignore_errors=True)
 
     ow, oh = pre.image_orig.size
     element_palettes = {}
@@ -163,8 +171,8 @@ def run(
                 element_palettes[obj["name"]] = extract_palette_from_region(region, color_count=5)
                 if debug and debug.enabled:
                     safe = obj["name"].replace(" ", "_").replace("/", "_")
-                    debug.save_image(f"04_palettes/{safe}_crop.png", region)
-                    debug.save_json(f"04_palettes/{safe}_palette.json", {"palette": element_palettes[obj["name"]]})
+                    debug.save_image(f"04_palettes_{safe}_crop.png", region)
+                    debug.save_json(f"04_palettes_{safe}_palette.json", {"palette": element_palettes[obj["name"]]})
             except Exception as e:
                 if verbose:
                     logger.warning("Per-element palette failed for '%s': %s", obj["name"], e)
@@ -173,7 +181,7 @@ def run(
     caption_json = build_json(pre.palette, analysis, kept_detections, element_palettes=element_palettes)
 
     if debug and debug.enabled:
-        debug.save_text("05_final/caption.json", caption_json)
+        debug.save_text("05_final_caption.json", caption_json)
 
     if output_path:
         Path(output_path).write_text(caption_json, encoding="utf-8")
