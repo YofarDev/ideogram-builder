@@ -57,35 +57,41 @@ def sam_detect(
                 logger.warning("SAM found no detection for '%s'", name)
                 continue
 
-            # Take top N detections for this name
+            # Build all detections sorted by score descending; mark top-N as selected
             count = name_counts[name]
-            if len(result.scores) <= count:
-                top_indices = list(range(len(result.scores)))
-            else:
-                top_indices = sorted(
-                    range(len(result.scores)),
-                    key=lambda k: float(result.scores[k]),
-                    reverse=True,
-                )[:count]
-
-            sam_boxes = []
-            for idx in top_indices:
+            sorted_indices = sorted(
+                range(len(result.scores)),
+                key=lambda k: float(result.scores[k]),
+                reverse=True,
+            )
+            all_detections = []
+            for rank, idx in enumerate(sorted_indices):
                 score = result.scores[idx].item() if hasattr(result.scores[idx], "item") else result.scores[idx]
-                bbox = xyxy_to_ideogram(result.boxes[idx].tolist())
-                sam_boxes.append({"bbox": bbox, "score": float(score), "box_xyxy": result.boxes[idx].tolist()})
+                all_detections.append({
+                    "bbox": xyxy_to_ideogram(result.boxes[idx].tolist()),
+                    "score": float(score),
+                    "box_xyxy": result.boxes[idx].tolist(),
+                    "selected": rank < count,
+                })
 
-                if verbose:
-                    logger.info(
-                        "SAM '%s' (#%d): score=%.3f, box_xyxy=%s",
-                        name, idx, score, result.boxes[idx].tolist(),
-                    )
+            sam_boxes = [
+                {k: v for k, v in d.items() if k != "selected"}
+                for d in all_detections if d["selected"]
+            ]
+
+            if verbose:
+                for rank, d in enumerate(all_detections):
+                    marker = "+" if d["selected"] else "-"
+                    logger.info("SAM '%s' [%s rank=%d]: score=%.3f, box_xyxy=%s",
+                                name, marker, rank, d["score"], d["box_xyxy"])
 
             if debug and debug.enabled:
                 safe_name = name.replace(" ", "_").replace("/", "_")
                 debug.save_json(f"03_sam/detection_{safe_name}.json", {
                     "name": name,
                     "count_requested": count,
-                    "detections": sam_boxes,
+                    "raw_count": len(all_detections),
+                    "all_detections": all_detections,
                 })
 
             # Assign SAM detections to VLM objects by bbox proximity

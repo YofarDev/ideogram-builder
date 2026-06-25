@@ -13,15 +13,43 @@ Each object entry:
 ### SAM-groundability rules for `name`
 
 The `name` is passed verbatim to a text-prompted segmenter. To be segmentable:
-- Use SINGULAR concrete nouns: "dog", "wine glass", "wooden chair". Never plurals or group nouns: "crowd", "people", "flowers", "trees".
+- Use SINGULAR concrete nouns: "dog", "wine glass", "wooden chair". Never plurals, compound groups, or mass nouns: "crowd", "people", "flowers", "furniture".
 - One name = one distinct visual region. Do not split a single subject into sub-parts (no "person's hand", "person's face" — use "person").
-- For dense or scattered groups (a field of flowers, a crowd, scattered debris), emit ONE entry with a collective-free name describing the whole region (e.g. "flower field") and describe the scatter in `desc`.
+- ONE ENTRY PER DISCRETE INSTANCE. If there are 3 chairs, emit 3 entries each named "wooden chair" with a distinct desc pinpointing each (e.g. "leftmost chair, turned slightly right", "center chair, tucked under table"). SAM3 is called once per unique name and returns all instances at once — the number of repeated name entries tells it how many to keep. Never collapse multiple discrete items into one entry with a plural or compound name.
+- Discrete countable items (chairs, pots, pans, lamps, vases, people, mugs, utensils, jars) are NEVER groups — always one entry per instance, even when clustered, stacked, hanging on a rack, or lined up on a shelf or table. Physical proximity or shared storage (a rack, a shelf, a drawer) is NEVER a reason to merge entries.
+- Dense or scattered groups that TRULY cannot be separated into individuals (a field of flowers, a crowd, scattered debris) → emit ONE entry with a singular collective noun SAM3 can ground (e.g. "flower bed", not "flowers"). If you cannot find a singular collective noun, split into individual entries instead. This exception is narrow: if you can assign a distinct material, color, or shape to each item, the items are discrete, not collective — use the rule above instead, even if they're on the same rack or shelf.
 - Avoid abstract nouns SAM3 cannot ground ("foreground interest", "negative space", "atmosphere") — those belong in the scene pass, not here.
 - If a recognized entity has a proper name (brand, product), prefer the generic segmentable noun in `name` ("sneaker") and put the brand in `desc`.
 
+CRITICAL: A `name` field containing "and", "or", or a comma is INVALID and must never appear in the output, with no exceptions.
+
+BAD:
+"fork and knife"
+"wine bottle and glass"
+"salt, pepper shaker"
+
+GOOD:
+"fork"
+"knife"
+"wine bottle"
+"wine glass"
+"salt shaker"
+"pepper shaker"
+
+If a desc you're drafting naturally lists multiple items joined by "and" or commas (e.g. "a copper kettle, a cast-iron pan, and a wooden spoon"), that sentence is proof you need one entry per item named, not one entry for all of them. Emit a separate entry — with its own pinpointing desc — for each item you just listed.
+
+COMMON FAILURE — clustered/hanging/shelved items:
+WRONG
+{ "name": "cups and saucers" }
+CORRECT
+{ "name": "teacup" }   (one entry per visible cup, each with a distinct desc)
+{ "name": "saucer" }   (one entry per visible saucer, each with a distinct desc)
+
 ### Element selection
 
-An element earns its own entry only when it occupies a distinct region AND adds a fact not already covered by another element's `desc`. Aim for 3-15 spatially distinct elements. Cover foreground, midground, and background regions.
+An element earns its own entry when it occupies a distinct region. Multiple instances of the same category ALWAYS earn separate entries (each is a distinct region), even if their descriptions share similar attributes. Aim for 3-20 spatially distinct elements. Cover foreground, midground, and background regions.
+
+The 3-20 target is a guideline for overall scene coverage — it NEVER overrides the one-entry-per-instance rule. If a cluster of clustered/hanging/shelved items has 6 discrete pieces, emit 6 entries even if the total count for the image then exceeds 20. Exceeding the target is always correct; merging discrete items to stay under it is always wrong.
 
 ### Element desc guidelines
 
@@ -50,9 +78,20 @@ For in-image text elements:
 - Text-element "desc" is shorter (10-25 words) and does NOT need to hit the 30-60 word object target — do not pad it.
 - Include: signs, labels, badges, brand names, numbers, titles
 - Use separate objects for visually distinct text blocks
+- An object that displays text (a sign, a newspaper, a box with a label) gets its own entry for the physical object (has_text: false, desc covers only material/shape/position — never the text it carries), PLUS a separate entry for each distinct text block on it (has_text: true).
 
 ### Pop culture references
 
 When you see a brand, product, public figure, fictional character, or franchise, use the explicit name in the relevant element desc — not a generic stand-in.
+
+### Pre-return validation
+
+Before returning JSON, check every entry against this list. If any check fails, fix the output before returning — do not return a draft that fails any of these:
+✓ No `name` field contains "and", "or", or a comma
+✓ No `name` field is a plural or mass noun
+✓ Every desc that lists 2+ items by material/color has been split into that many separate entries
+✓ No entry was merged or omitted just to stay within the 3-15 target
+✓ Every text-bearing object has a separate object-entry (has_text: false) and text-entry (has_text: true)
+✓ No desc contains a banned hedge, alternative-listing, or implied/suggested phrasing
 
 Return ONLY the JSON object. No explanation, no markdown.

@@ -139,7 +139,7 @@ export function initAIEnhancer() {
           if (!m) return;
           const opt = document.createElement('option');
           opt.value = `${provider}::${m}`;
-          opt.textContent = m;
+          opt.textContent = p.has_vision ? `${m} 👁` : m;
           group.appendChild(opt);
           if (!firstModel) firstModel = opt.value;
         });

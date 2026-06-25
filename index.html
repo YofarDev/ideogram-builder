@@ -1135,6 +1135,12 @@
             letter-spacing: 0.01em;
         }
 
+        .preset-row {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
         .input-group textarea {
             resize: none;
             min-height: 48px;
@@ -2412,6 +2418,17 @@
                             <label id="mode_label" for="art_style">Art Style</label>
                             <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
                         </div>
+                        <div class="input-group">
+                            <label>Preset</label>
+                            <div class="preset-row">
+                                <select id="style-preset-editor" class="ai-model-select" style="flex:1;">
+                                    <option value="">None</option>
+                                </select>
+                                <input type="text" id="preset-name-input" placeholder="Name" style="width:80px;padding:4px 6px;font-size:11px;border:1px solid var(--border-color,#2a2a2a);border-radius:4px;background:var(--bg-input,#222);color:inherit;">
+                                <button id="btn-save-preset" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">Save</button>
+                                <button id="btn-delete-preset" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">Del</button>
+                            </div>
+                        </div>
                     </fieldset>
                     <fieldset class="panel-section">
                         <legend class="panel-section-title">Color</legend>
@@ -2540,6 +2557,11 @@
                         <select id="vision-pipeline" class="ai-model-select" style="display:none;">
                             <option value="current">Current</option>
                             <option value="split">Split</option>
+                        </select>
+                        <span class="vision-toolbar-label" id="vision-style-label" style="display:none;">Style</span>
+                        <label class="sr-only" for="vision-style-preset">Style Preset</label>
+                        <select id="vision-style-preset" class="ai-model-select" style="display:none;">
+                            <option value="">None</option>
                         </select>
                         <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
                     </div>

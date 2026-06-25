@@ -76,6 +76,7 @@ def run(
     no_sam: bool = False,
     low_memory: bool = False,
     debug=None,
+    model: str = "Qwen3-VL-4B-Instruct-8bit",
 ):
     pre = preprocess(image_path)
     if verbose:
@@ -89,7 +90,7 @@ def run(
         })
         debug.save_image("01_preprocess/image_padded.png", pre.image_padded)
 
-    analysis = analyze(pre.image_orig, verbose=verbose, debug=debug)
+    analysis = analyze(pre.image_orig, verbose=verbose, debug=debug, model_name=model)
     if verbose:
         obj_count = len(analysis.get("objects", []))
         logger.info("Step 2 — Local VLM: %d objects detected", obj_count)
@@ -181,10 +182,7 @@ def run(
                     region = pre.image_orig.crop((px1, py1, px2, py2))
                     region_palette = extract_palette_from_region(region, color_count=5)
                     obj["element_palette"] = region_palette
-                    if debug and debug.enabled:
-                        safe_name = obj["name"].replace(" ", "_").replace("/", "_")
-                        debug.save_image(f"04_palettes/{safe_name}_crop.png", region)
-                        debug.save_json(f"04_palettes/{safe_name}_palette.json", {"palette": region_palette})
+                    # palette data lives in obj["element_palette"], no per-file debug
                 except Exception as e:
                     if verbose:
                         logger.warning("Per-element palette failed for '%s': %s", obj["name"], e)

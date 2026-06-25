@@ -1,26 +1,24 @@
 """
-Local Vision-Language Model loader (currently Qwen3-VL-4B).
+Local Vision-Language Model loader.
 
-Swap the model_path below to change the local VLM used by the img-to-json
-pipeline. The prompt in prompts/global_analysis.txt may also need updating
-if the replacement model expects a different schema.
-
-Extending: add a new loader module here, import it in pipeline.py, and
-switch on a config flag to pick which VLM to load.
+Model is selected at runtime via the model_name parameter. Models are
+auto-downloaded from HuggingFace (mlx-community/ org) on first use.
 """
 
 from functools import cache
 
 import mlx_vlm
-from mlx_vlm.utils import load_model, get_model_path
+from mlx_vlm.utils import get_model_path
 
 
 @cache
-def get_local_vlm():
-    """Load the local VLM (Qwen3-VL-4B, 8-bit MLX) — cached after first call.
+def get_local_vlm(model_name="Qwen3-VL-4B-Instruct-8bit"):
+    """Load a local VLM — cached per model_name after first call.
 
-    Returns (model, processor) tuple compatible with mlx_vlm.generate().
+    model_name is a HuggingFace repo under mlx-community/ (e.g. "Qwen3-VL-8B-Instruct-4bit").
+    If it already contains a "/", it's used as-is (full org/repo path).
     """
-    model_path = get_model_path("mlx-community/Qwen3-VL-4B-Instruct-8bit")
+    repo = model_name if "/" in model_name else f"mlx-community/{model_name}"
+    model_path = get_model_path(repo)
     model, processor = mlx_vlm.load(model_path)
     return model, processor

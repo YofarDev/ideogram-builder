@@ -82,7 +82,7 @@ async function drain() {
             });
             job.status = 'done';
             job.thumbUrl = imageUrl;
-            emit('image:ready', { imageUrl, dataUrl });
+            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson });
         } catch (err) {
             if (err.name === 'AbortError') {
                 queue = queue.filter(j => j !== job);
@@ -115,7 +115,7 @@ function render() {
     const pending = queue.filter(j => j.status === 'queued' || j.status === 'running').length;
     genBtn().textContent = pending > 0 ? `Generate (+${pending} queued)` : 'Generate';
 
-    el.innerHTML = queue.map(job => {
+    el.innerHTML = queue.slice().reverse().map(job => {
         const thumb = job.thumbUrl
             ? `<img class="queue-thumb" src="${job.thumbUrl}" alt="">`
             : `<span class="queue-spinner"></span>`;

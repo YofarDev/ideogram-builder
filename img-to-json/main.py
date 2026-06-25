@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
@@ -27,6 +28,17 @@ def main():
         action="store_true",
         help="Use the split pipeline (two VLM calls + SAM-only localization)",
     )
+    parser.add_argument(
+        "--style-override",
+        type=str,
+        help="Path to JSON file with style override for the split pipeline",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="Qwen3-VL-4B-Instruct-8bit",
+        help="Local VLM model name (HuggingFace repo under mlx-community/)",
+    )
 
     args = parser.parse_args()
 
@@ -45,9 +57,12 @@ def main():
         verbose=args.verbose,
         low_memory=args.low_memory,
         debug=debug_logger,
+        model=args.model,
     )
     if args.split:
         from pipeline_split import run
+        if args.style_override:
+            kwargs["style_override"] = json.loads(Path(args.style_override).read_text())
     else:
         from pipeline import run
         kwargs["no_sam"] = args.no_sam

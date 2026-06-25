@@ -27,13 +27,13 @@ export function initGallery() {
     let lastSaveDataUrl = '';
 
     // ponytail: disk is the source of truth — just save the image+prompt there, gallery lists the folder
-    on('image:ready', ({ dataUrl, skipSave }) => {
+    on('image:ready', ({ dataUrl, importJson, skipSave }) => {
         if (skipSave || !dataUrl) return;
         const now = Date.now();
         if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
         lastSaveTime = now;
         lastSaveDataUrl = dataUrl;
-        saveToDisk(dataUrl, document.getElementById('json-output').value);
+        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value);
     });
 }
 

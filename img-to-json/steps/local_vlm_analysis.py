@@ -53,8 +53,8 @@ def _build_messages(user_text: str) -> list:
     ]
 
 
-def analyze(image: Image.Image, verbose: bool = False, debug=None) -> dict:
-    model, processor = get_local_vlm()
+def analyze(image: Image.Image, verbose: bool = False, debug=None, model_name="Qwen3-VL-4B-Instruct-8bit") -> dict:
+    model, processor = get_local_vlm(model_name)
     config = model.config
 
     user_text = _USER_TEXT

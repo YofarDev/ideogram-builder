@@ -3,25 +3,29 @@
     "base_url": "https://api.deepseek.com/v1",
     "api_key": "sk-your-deepseek-api-key",
     "default_model": "deepseek-chat",
-    "models": ["deepseek-chat", "deepseek-reasoner"]
+    "models": ["deepseek-chat", "deepseek-reasoner"],
+    "has_vision": false
   },
   "google": {
     "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
     "api_key": "AIza-your-google-api-key",
     "default_model": "gemini-2.0-flash",
-    "models": ["gemini-2.0-flash", "gemini-1.5-pro"]
+    "models": ["gemini-2.0-flash", "gemini-1.5-pro"],
+    "has_vision": true
   },
   "openrouter": {
     "base_url": "https://openrouter.ai/api/v1",
     "api_key": "sk-or-v1-your-openrouter-key",
     "default_model": "gpt-4o",
-    "models": ["gpt-4o", "claude-3-opus", "gemini-2.0-flash"]
+    "models": ["gpt-4o", "claude-3-opus", "gemini-2.0-flash"],
+    "has_vision": false
   },
   "mimo": {
     "base_url": "https://api.xiaomimimo.com/v1",
     "api_key": "sk-your-mimo-key",
     "default_model": "mimo-v2.5",
-    "models": ["mimo-v2.5", "mimo-v2.5-pro"]
+    "models": ["mimo-v2.5", "mimo-v2.5-pro"],
+    "has_vision": false
   },
   "vision": {
     "local": {

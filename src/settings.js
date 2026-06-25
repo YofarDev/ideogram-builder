@@ -157,6 +157,17 @@ export function initSettings() {
     emit('state:changed');
   });
 
+  on('style-preset:applied', ({ preset }) => {
+    const mode = preset.mode;
+    document.getElementById('mode_' + (mode === 'photo' ? 'photo' : 'artstyle')).checked = true;
+    setPhotoArtMode(mode);
+    document.getElementById('aesthetics').value = preset.aesthetics || '';
+    document.getElementById('lighting').value = preset.lighting || '';
+    document.getElementById('medium').value = preset.medium || '';
+    document.getElementById('art_style').value = preset.photo_art || '';
+    emit('state:changed');
+  });
+
   // Seed input
   const seedInput = document.getElementById('seed-input');
   seedInput.addEventListener('input', () => {

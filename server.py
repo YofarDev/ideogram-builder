@@ -48,7 +48,7 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             creds = json.loads(CREDENTIALS_PATH.read_text())
             vision = creds.get("vision", {})
-            provider_cfg = vision.get(provider, {})
+            provider_cfg = vision.get(provider) or creds.get(provider, {})
             base_url = provider_cfg.get("base_url", "")
             api_key = provider_cfg.get("api_key", "")
             if not base_url or not api_key:
@@ -173,10 +173,10 @@ class Handler(SimpleHTTPRequestHandler):
             CREDENTIALS_PATH.parent.mkdir(parents=True, exist_ok=True)
             if not CREDENTIALS_PATH.exists():
                 CREDENTIALS_PATH.write_text(json.dumps({
-                    "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": "", "default_model": "", "models": [""]},
-                    "google": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": "", "default_model": "", "models": [""]},
-                    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "default_model": "", "models": [""]},
-                    "mimo": {"base_url": "https://api.xiaomimimo.com/v1", "api_key": "", "default_model": "", "models": [""]},
+                    "deepseek": {"base_url": "https://api.deepseek.com/v1", "api_key": "", "default_model": "", "models": [""], "has_vision": False},
+                    "google": {"base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api_key": "", "default_model": "", "models": [""], "has_vision": True},
+                    "openrouter": {"base_url": "https://openrouter.ai/api/v1", "api_key": "", "default_model": "", "models": [""], "has_vision": False},
+                    "mimo": {"base_url": "https://api.xiaomimimo.com/v1", "api_key": "", "default_model": "", "models": [""], "has_vision": False},
                     "vision": {
                         "local": {
                             "default_model": "qwen3-vl-4b",
@@ -266,7 +266,7 @@ class Handler(SimpleHTTPRequestHandler):
 
             creds = json.loads(CREDENTIALS_PATH.read_text())
             vision = creds.get("vision", {})
-            provider_cfg = vision.get(provider, {})
+            provider_cfg = vision.get(provider) or creds.get(provider, {})
             base_url = provider_cfg.get("base_url", "")
             api_key = provider_cfg.get("api_key", "")
             if not base_url or not api_key:
@@ -360,10 +360,12 @@ class Handler(SimpleHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             image_b64 = body.get("image", "")
             model = body.get("model", "local")
+            local_model = body.get("local_model")
             no_sam = body.get("no_sam", False)
             low_memory = body.get("low_memory", False)
             debug_flag = body.get("debug", False)
             pipeline = body.get("pipeline", "current")
+            style_override = body.get("style_override")
 
             if not image_b64:
                 self._send_json(400, {"error": "no image field"})
@@ -381,6 +383,7 @@ class Handler(SimpleHTTPRequestHandler):
                 img_data = base64.b64decode(b64)
                 import tempfile
                 tmp = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+                tmp_style = None
                 try:
                     tmp.write(img_data)
                     tmp.close()
@@ -394,6 +397,13 @@ class Handler(SimpleHTTPRequestHandler):
                         cmd.append("--debug")
                     if pipeline == "split":
                         cmd.append("--split")
+                    if style_override:
+                        tmp_style = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+                        tmp_style.write(json.dumps(style_override))
+                        tmp_style.close()
+                        cmd.extend(["--style-override", tmp_style.name])
+                    if local_model:
+                        cmd.extend(["--model", local_model])
 
                     result = subprocess.run(
                         cmd, capture_output=True, text=True, timeout=180,
@@ -435,6 +445,8 @@ class Handler(SimpleHTTPRequestHandler):
                     self._send_json(500, {"error": "img-to-json pipeline not found"})
                 finally:
                     os.unlink(tmp.name)
+                    if tmp_style:
+                        os.unlink(tmp_style.name)
             else:
                 self._handle_vision_api(model, image_b64, ext)
         else:

@@ -1,4 +1,5 @@
 import logging
+import re
 import shutil
 from pathlib import Path
 
@@ -45,33 +46,73 @@ def _filter_localized(objects, detections):
     return kept_objects, kept_dets, dropped
 
 
-def _assemble_analysis(scene, objects):
-    """Merge scene call + object call into the analysis shape build_json expects."""
+def _override_to_style(override):
+    """Map a client style_override ({mode, aesthetics, lighting, medium, photo_art})
+    to the `style` dict shape build_json reads ({medium, aesthetics, lighting, photo_or_art})."""
+    return {
+        "medium": override["medium"],
+        "aesthetics": override.get("aesthetics", ""),
+        "lighting": override.get("lighting", ""),
+        "photo_or_art": override.get("photo_art", ""),
+    }
+
+
+def _assemble_analysis(scene, objects, style=None):
+    """Merge scene call + object call into the analysis shape build_json expects.
+    If style is None, falls back to the VLM-produced scene["style"]."""
+    if style is None:
+        style = scene["style"]
     return {
         "high_level_description": scene["high_level_description"],
         "background": scene["background"],
-        "style": scene["style"],
+        "style": style,
         "objects": objects,
     }
 
 
-def _vlm_call(image, system_prompt, user_text, debug, debug_subdir):
+def _singularize(word):
+    """Naive singularization — strips common English plural endings."""
+    w = word.strip()
+    low = w.lower()
+    if low.endswith("ies") and len(low) > 4:
+        return w[:-3] + "y"
+    if low.endswith(("sses", "xes", "zes", "ches", "shes")):
+        return w[:-2]
+    if low.endswith("ss"):
+        return w
+    if low.endswith("s"):
+        return w[:-1]
+    return w
+
+
+def _expand_compounds(objects):
+    """Split compound names ('pots and pans') into individual singular entries.
+    VLMs resist prompt bans on compounds — fix it here before SAM sees them."""
+    expanded = []
+    for obj in objects:
+        parts = re.split(r'[,/]|(?:\s+(?:and|or|&)\s+)', obj.get("name", ""))
+        parts = [p.strip() for p in parts if p.strip()]
+        if len(parts) <= 1:
+            expanded.append(obj)
+            continue
+        for part in parts:
+            expanded.append({**obj, "name": _singularize(part)})
+    return expanded
+
+
+def _vlm_call(image, system_prompt, user_text, debug, debug_subdir, model_name="Qwen3-VL-4B-Instruct-8bit"):
     """One VLM generation with markdown-fence JSON parsing + single retry. Returns parsed dict."""
     w, h = image.size
     scale = _VLM_MAX_DIM / max(w, h)
     if scale < 1.0:
         image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
-    model, processor = get_local_vlm()
+    model, processor = get_local_vlm(model_name)
     config = model.config
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_text},
     ]
     prompt = apply_chat_template(processor, config, messages, num_images=1)
-
-    if debug and debug.enabled:
-        debug.save_text(f"{debug_subdir}_system_prompt.txt", system_prompt)
-        debug.save_text(f"{debug_subdir}_user_message.txt", user_text)
 
     retry_text = (
         "Return ONLY a raw JSON object. No text before or after. "
@@ -103,6 +144,8 @@ def run(
     verbose: bool = False,
     low_memory: bool = False,
     debug=None,
+    style_override=None,
+    model: str = "Qwen3-VL-4B-Instruct-8bit",
 ):
     pre = preprocess(image_path)
     if verbose:
@@ -115,14 +158,18 @@ def run(
         })
         debug.save_image("01_preprocess_image_padded.png", pre.image_padded)
 
-    scene_prompt = (_PROMPT_DIR / "scene_analysis.txt").read_text().strip()
-    scene = _vlm_call(pre.image_orig, scene_prompt, "Analyze this image and return the JSON.", debug, "02_scene")
+    scene_prompt_name = "scene_analysis_no_style.txt" if style_override else "scene_analysis.txt"
+    scene_prompt = (_PROMPT_DIR / scene_prompt_name).read_text().strip()
+    scene = _vlm_call(pre.image_orig, scene_prompt, "Analyze this image and return the JSON.", debug, "02_scene", model)
     if verbose:
         logger.info("Split step 2a - scene call done")
+    if style_override and debug and debug.enabled:
+        debug.save_json("02_scene_style_override.json", style_override)
 
     object_prompt = (_PROMPT_DIR / "object_listing.txt").read_text().strip()
-    raw_objects = _vlm_call(pre.image_orig, object_prompt, "List the individual objects in this image and return the JSON.", debug, "03_objects")
+    raw_objects = _vlm_call(pre.image_orig, object_prompt, "List the individual objects in this image and return the JSON.", debug, "03_objects", model)
     objects = raw_objects.get("objects", [])
+    objects = _expand_compounds(objects)
     if verbose:
         logger.info("Split step 2b - object call: %d objects", len(objects))
 
@@ -158,6 +205,38 @@ def run(
                     f.rename(sam_subdir.parent / f"03_sam_{f.name}")
             shutil.rmtree(sam_subdir, ignore_errors=True)
 
+    if dropped:
+        miss_count = len(dropped)
+        if low_memory:
+            import gc
+            gc.collect()
+            import mlx.core
+            mlx.core.metal.clear_cache()
+        fb_prompt = (_PROMPT_DIR / "bbox_fallback.txt").read_text().strip()
+        fb_msg = "Locate these objects:\n" + "\n".join(
+            f"- {d['name']}: {d.get('desc', '')[:100]}" for d in dropped
+        )
+        try:
+            fb = _vlm_call(pre.image_orig, fb_prompt, fb_msg, debug, "04_fallback", model)
+            from collections import defaultdict, deque
+            vlm_boxes = defaultdict(deque)
+            for o in fb.get("objects", []):
+                if o.get("bbox") is not None:
+                    vlm_boxes[o["name"]].append(o["bbox"])
+            still_dropped = []
+            for d in dropped:
+                if vlm_boxes[d["name"]]:
+                    kept_objects.append({"name": d["name"], "desc": d.get("desc", ""), "has_text": False})
+                    kept_detections.append({"name": d["name"], "bbox": vlm_boxes[d["name"]].popleft()})
+                else:
+                    still_dropped.append(d)
+            dropped = still_dropped
+            if verbose:
+                logger.info("Split step 3b - VLM fallback: recovered %d/%d SAM misses", miss_count - len(dropped), miss_count)
+        except Exception as e:
+            if verbose:
+                logger.warning("VLM bbox fallback failed: %s", e)
+
     ow, oh = pre.image_orig.size
     element_palettes = {}
     for obj, det in zip(kept_objects, kept_detections):
@@ -169,15 +248,13 @@ def run(
             try:
                 region = pre.image_orig.crop((px1, py1, px2, py2))
                 element_palettes[obj["name"]] = extract_palette_from_region(region, color_count=5)
-                if debug and debug.enabled:
-                    safe = obj["name"].replace(" ", "_").replace("/", "_")
-                    debug.save_image(f"04_palettes_{safe}_crop.png", region)
-                    debug.save_json(f"04_palettes_{safe}_palette.json", {"palette": element_palettes[obj["name"]]})
+                # ponytail: palette data lives in element_palettes dict, no per-file debug
             except Exception as e:
                 if verbose:
                     logger.warning("Per-element palette failed for '%s': %s", obj["name"], e)
 
-    analysis = _assemble_analysis(scene, kept_objects)
+    style = _override_to_style(style_override) if style_override else scene["style"]
+    analysis = _assemble_analysis(scene, kept_objects, style=style)
     caption_json = build_json(pre.palette, analysis, kept_detections, element_palettes=element_palettes)
 
     if debug and debug.enabled:

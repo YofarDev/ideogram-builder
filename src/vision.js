@@ -86,6 +86,23 @@ export function initVision() {
         });
       }
 
+      // ponytail: has_vision providers also usable as vision models (gemini etc.)
+      ['deepseek', 'google', 'openrouter', 'mimo'].forEach(provider => {
+        const p = config[provider];
+        if (!p?.has_vision || !p?.api_key || !p?.models?.length) return;
+        if (p.models.every(m => !m)) return;
+        const group = document.createElement('optgroup');
+        group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+        p.models.forEach(m => {
+          if (!m) return;
+          const opt = document.createElement('option');
+          opt.value = `${provider}::${m}`;
+          opt.textContent = m;
+          group.appendChild(opt);
+        });
+        visionModelSelect.appendChild(group);
+      });
+
       if (!visionModelSelect.options.length) {
         modelRow.style.display = 'none';
         unavailableEl.style.display = 'flex';
@@ -98,12 +115,17 @@ export function initVision() {
 
   // Show/hide local options when model selection changes
   const visionOptions = document.getElementById('vision-options');
+  const visionStyleLabel = document.getElementById('vision-style-label');
+  const visionStyleSelect = document.getElementById('vision-style-preset');
   function updatePipelineVisibility() {
     const isLocal = visionModelSelect.value === 'local';
     const isSplit = pipelineSelect?.value === 'split';
     if (pipelineLabel) pipelineLabel.style.display = isLocal ? '' : 'none';
     if (pipelineSelect) pipelineSelect.style.display = isLocal ? '' : 'none';
     if (visionOptions) visionOptions.style.display = isLocal ? 'flex' : 'none';
+    const styleVisible = isLocal && isSplit;
+    if (visionStyleLabel) visionStyleLabel.style.display = styleVisible ? '' : 'none';
+    if (visionStyleSelect) visionStyleSelect.style.display = styleVisible ? '' : 'none';
     const noSamRow = noSamCheckbox?.closest('.vision-option');
     if (noSamRow) noSamRow.style.display = (isLocal && !isSplit) ? '' : 'none';
   }
@@ -113,6 +135,21 @@ export function initVision() {
     updatePipelineVisibility();
   });
   updatePipelineVisibility();
+
+  // Populate vision style preset select
+  (function populateStylePresets() {
+    const sel = document.getElementById('vision-style-preset');
+    if (!sel) return;
+    try {
+      const presets = JSON.parse(localStorage.getItem('ideogram_style_presets')) || [];
+      presets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+    } catch {}
+  })();
 
   dropzone.addEventListener('click', () => fileInput.click());
 
@@ -205,10 +242,26 @@ export function initVision() {
 
       const body = { image: downscaled, model: selectedModel };
       if (selectedModel === 'local') {
-        body.pipeline = pipelineSelect?.value || 'current';
+        body.local_model = visionModelSelect.options[visionModelSelect.selectedIndex].textContent;
+        const pipeline = pipelineSelect?.value || 'current';
+        body.pipeline = pipeline;
         body.no_sam = document.getElementById('vision-no-sam')?.checked || false;
         body.low_memory = document.getElementById('vision-low-memory')?.checked || false;
         body.debug = document.getElementById('vision-debug')?.checked || false;
+        const styleId = document.getElementById('vision-style-preset')?.value;
+        if (styleId && pipeline === 'split') {
+          try {
+            const presets = JSON.parse(localStorage.getItem('ideogram_style_presets')) || [];
+            const preset = presets.find(p => p.id === styleId);
+            if (preset) body.style_override = {
+              mode: preset.mode,
+              aesthetics: preset.aesthetics,
+              lighting: preset.lighting,
+              medium: preset.medium,
+              photo_art: preset.photo_art,
+            };
+          } catch {}
+        }
       }
 
       try {

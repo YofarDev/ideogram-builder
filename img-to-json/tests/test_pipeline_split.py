@@ -1,6 +1,6 @@
 import json
 
-from pipeline_split import _filter_localized, _assemble_analysis
+from pipeline_split import _filter_localized, _assemble_analysis, _override_to_style
 from steps.json_builder import build_json
 
 _SCENE = {
@@ -75,3 +75,33 @@ def test_assemble_feeds_build_json():
     elements = parsed["compositional_deconstruction"]["elements"]
     assert elements[1]["type"] == "text"
     assert elements[1]["text"] == "CAT"
+
+
+def test_assemble_uses_explicit_style():
+    override_style = {
+        "medium": "digital_illustration",
+        "aesthetics": "vibrant",
+        "lighting": "dramatic rim",
+        "photo_or_art": "fantasy art",
+    }
+    analysis = _assemble_analysis(_SCENE, _OBJECTS, style=override_style)
+    assert analysis["style"]["medium"] == "digital_illustration"
+    assert analysis["style"]["photo_or_art"] == "fantasy art"
+    assert analysis["high_level_description"] == "A cat on a mat."
+
+
+def test_override_to_style_maps_fields():
+    override = {
+        "mode": "art_style",
+        "aesthetics": "vibrant",
+        "lighting": "dramatic rim",
+        "medium": "digital_illustration",
+        "photo_art": "fantasy art",
+    }
+    style = _override_to_style(override)
+    assert style == {
+        "medium": "digital_illustration",
+        "aesthetics": "vibrant",
+        "lighting": "dramatic rim",
+        "photo_or_art": "fantasy art",
+    }

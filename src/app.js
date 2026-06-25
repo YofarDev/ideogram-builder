@@ -11,6 +11,7 @@ import { initGallery } from './gallery.js';
 import { initLayers } from './layers.js';
 import { initVision } from './vision.js';
 import { initLora } from './lora.js';
+import { initStylePresets } from './style-presets.js';
 import { showToast } from './toast.js';
 import { emit, on } from './events.js';
 
@@ -25,6 +26,7 @@ initImport();
 initGallery();
 initVision();
 initLora();
+initStylePresets();
 initQueue();
 
 // Wire button handlers (no inline onclick in HTML)
