@@ -1,6 +1,8 @@
 import logging
 from pathlib import Path
 
+from PIL import Image
+
 from mlx_vlm import generate
 from mlx_vlm.prompt_utils import apply_chat_template
 
@@ -18,6 +20,7 @@ from pipeline import _unpad_bbox, _bbox_to_pixels, _draw_bboxes
 logger = logging.getLogger(__name__)
 
 _PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
+_VLM_MAX_DIM = 512
 
 
 def _filter_localized(objects, detections):
@@ -53,6 +56,10 @@ def _assemble_analysis(scene, objects):
 
 def _vlm_call(image, system_prompt, user_text, debug, debug_subdir):
     """One VLM generation with markdown-fence JSON parsing + single retry. Returns parsed dict."""
+    w, h = image.size
+    scale = _VLM_MAX_DIM / max(w, h)
+    if scale < 1.0:
+        image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
     model, processor = get_local_vlm()
     config = model.config
     messages = [
