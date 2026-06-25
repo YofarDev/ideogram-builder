@@ -47,6 +47,11 @@ export function initVision() {
   const visionModelSelect = document.getElementById('vision-model');
   const modelRow = document.getElementById('vision-model-row');
   const unavailableEl = document.getElementById('vision-model-unavailable');
+  const pipelineSelect = document.getElementById('vision-pipeline');
+  const pipelineLabel = document.getElementById('vision-pipeline-label');
+  const noSamCheckbox = document.getElementById('vision-no-sam');
+  const savedPipeline = localStorage.getItem('vision_pipeline');
+  if (savedPipeline && pipelineSelect) pipelineSelect.value = savedPipeline;
   fetch('/api/config', { signal: AbortSignal.timeout(5000) })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(config => {
@@ -93,11 +98,21 @@ export function initVision() {
 
   // Show/hide local options when model selection changes
   const visionOptions = document.getElementById('vision-options');
-  visionModelSelect.addEventListener('change', () => {
-    if (visionOptions) {
-      visionOptions.style.display = visionModelSelect.value === 'local' ? 'flex' : 'none';
-    }
+  function updatePipelineVisibility() {
+    const isLocal = visionModelSelect.value === 'local';
+    const isSplit = pipelineSelect?.value === 'split';
+    if (pipelineLabel) pipelineLabel.style.display = isLocal ? '' : 'none';
+    if (pipelineSelect) pipelineSelect.style.display = isLocal ? '' : 'none';
+    if (visionOptions) visionOptions.style.display = isLocal ? 'flex' : 'none';
+    const noSamRow = noSamCheckbox?.closest('.vision-option');
+    if (noSamRow) noSamRow.style.display = (isLocal && !isSplit) ? '' : 'none';
+  }
+  visionModelSelect.addEventListener('change', updatePipelineVisibility);
+  pipelineSelect?.addEventListener('change', () => {
+    localStorage.setItem('vision_pipeline', pipelineSelect.value);
+    updatePipelineVisibility();
   });
+  updatePipelineVisibility();
 
   dropzone.addEventListener('click', () => fileInput.click());
 
@@ -190,6 +205,7 @@ export function initVision() {
 
       const body = { image: downscaled, model: selectedModel };
       if (selectedModel === 'local') {
+        body.pipeline = pipelineSelect?.value || 'current';
         body.no_sam = document.getElementById('vision-no-sam')?.checked || false;
         body.low_memory = document.getElementById('vision-low-memory')?.checked || false;
         body.debug = document.getElementById('vision-debug')?.checked || false;

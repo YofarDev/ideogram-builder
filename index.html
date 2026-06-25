@@ -2535,6 +2535,12 @@
                         <span class="vision-toolbar-label">Vision Model</span>
                         <label class="sr-only" for="vision-model">Vision model</label>
                         <select id="vision-model" class="ai-model-select"></select>
+                        <span class="vision-toolbar-label" id="vision-pipeline-label" style="display:none;">Pipeline</span>
+                        <label class="sr-only" for="vision-pipeline">Pipeline</label>
+                        <select id="vision-pipeline" class="ai-model-select" style="display:none;">
+                            <option value="current">Current</option>
+                            <option value="split">Split</option>
+                        </select>
                         <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
                     </div>
                     <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;" role="note">
