@@ -1,5 +1,6 @@
+import json
 import logging
-import re
+import os
 import shutil
 from pathlib import Path
 
@@ -70,40 +71,10 @@ def _assemble_analysis(scene, objects, style=None):
     }
 
 
-def _singularize(word):
-    """Naive singularization — strips common English plural endings."""
-    w = word.strip()
-    low = w.lower()
-    if low.endswith("ies") and len(low) > 4:
-        return w[:-3] + "y"
-    if low.endswith(("sses", "xes", "zes", "ches", "shes")):
-        return w[:-2]
-    if low.endswith("ss"):
-        return w
-    if low.endswith("s"):
-        return w[:-1]
-    return w
-
-
-def _expand_compounds(objects):
-    """Split compound names ('pots and pans') into individual singular entries.
-    VLMs resist prompt bans on compounds — fix it here before SAM sees them."""
-    expanded = []
-    for obj in objects:
-        parts = re.split(r'[,/]|(?:\s+(?:and|or|&)\s+)', obj.get("name", ""))
-        parts = [p.strip() for p in parts if p.strip()]
-        if len(parts) <= 1:
-            expanded.append(obj)
-            continue
-        for part in parts:
-            expanded.append({**obj, "name": _singularize(part)})
-    return expanded
-
-
-def _vlm_call(image, system_prompt, user_text, debug, debug_subdir, model_name="Qwen3-VL-4B-Instruct-8bit"):
+def _vlm_call(image, system_prompt, user_text, debug, debug_subdir, model_name="Qwen3-VL-4B-Instruct-8bit", max_tokens=4096, max_dim=_VLM_MAX_DIM):
     """One VLM generation with markdown-fence JSON parsing + single retry. Returns parsed dict."""
     w, h = image.size
-    scale = _VLM_MAX_DIM / max(w, h)
+    scale = max_dim / max(w, h)
     if scale < 1.0:
         image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
     model, processor = get_local_vlm(model_name)
@@ -119,7 +90,7 @@ def _vlm_call(image, system_prompt, user_text, debug, debug_subdir, model_name="
         "Do not wrap in markdown code fences."
     )
     for attempt in range(2):
-        result = generate(model, processor, prompt, image=image, max_tokens=4096)
+        result = generate(model, processor, prompt, image=image, max_tokens=max_tokens)
         response = result.text
         if debug and debug.enabled:
             debug.save_text(f"{debug_subdir}_raw_response_attempt_{attempt + 1}.txt", response)
@@ -169,7 +140,6 @@ def run(
     object_prompt = (_PROMPT_DIR / "object_listing.txt").read_text().strip()
     raw_objects = _vlm_call(pre.image_orig, object_prompt, "List the individual objects in this image and return the JSON.", debug, "03_objects", model)
     objects = raw_objects.get("objects", [])
-    objects = _expand_compounds(objects)
     if verbose:
         logger.info("Split step 2b - object call: %d objects", len(objects))
 
@@ -207,35 +177,43 @@ def run(
 
     if dropped:
         miss_count = len(dropped)
-        if low_memory:
-            import gc
-            gc.collect()
-            import mlx.core
-            mlx.core.metal.clear_cache()
-        fb_prompt = (_PROMPT_DIR / "bbox_fallback.txt").read_text().strip()
-        fb_msg = "Locate these objects:\n" + "\n".join(
-            f"- {d['name']}: {d.get('desc', '')[:100]}" for d in dropped
-        )
+        import tempfile, subprocess, sys
+        img_dir = Path(__file__).resolve().parent
+        tmp_objects = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+        tmp_objects.write(json.dumps(dropped))
+        tmp_objects.close()
         try:
-            fb = _vlm_call(pre.image_orig, fb_prompt, fb_msg, debug, "04_fallback", model)
-            from collections import defaultdict, deque
-            vlm_boxes = defaultdict(deque)
-            for o in fb.get("objects", []):
-                if o.get("bbox") is not None:
-                    vlm_boxes[o["name"]].append(o["bbox"])
-            still_dropped = []
-            for d in dropped:
-                if vlm_boxes[d["name"]]:
-                    kept_objects.append({"name": d["name"], "desc": d.get("desc", ""), "has_text": False})
-                    kept_detections.append({"name": d["name"], "bbox": vlm_boxes[d["name"]].popleft()})
-                else:
-                    still_dropped.append(d)
-            dropped = still_dropped
-            if verbose:
-                logger.info("Split step 3b - VLM fallback: recovered %d/%d SAM misses", miss_count - len(dropped), miss_count)
+            result = subprocess.run(
+                [sys.executable, str(img_dir / "main.py"), "--bbox-only",
+                 image_path, "--objects", tmp_objects.name, "--model", model],
+                capture_output=True, text=True, timeout=120,
+                cwd=str(img_dir),
+            )
+            if result.returncode == 0:
+                fb = json.loads(result.stdout)
+                from collections import defaultdict, deque
+                vlm_boxes = defaultdict(deque)
+                for o in fb.get("objects", []):
+                    if o.get("bbox") is not None:
+                        vlm_boxes[o["name"]].append(o["bbox"])
+                still_dropped = []
+                for d in dropped:
+                    if vlm_boxes[d["name"]]:
+                        kept_objects.append({"name": d["name"], "desc": d.get("desc", ""), "has_text": False})
+                        kept_detections.append({"name": d["name"], "bbox": vlm_boxes[d["name"]].popleft()})
+                    else:
+                        still_dropped.append(d)
+                dropped = still_dropped
+                if verbose:
+                    logger.info("Split step 3b - VLM bbox fallback (subprocess): recovered %d/%d SAM misses",
+                                miss_count - len(dropped), miss_count)
+            elif verbose:
+                logger.warning("VLM bbox fallback subprocess failed: %s", result.stderr.strip()[:200])
         except Exception as e:
             if verbose:
                 logger.warning("VLM bbox fallback failed: %s", e)
+        finally:
+            os.unlink(tmp_objects.name)
 
     ow, oh = pre.image_orig.size
     element_palettes = {}

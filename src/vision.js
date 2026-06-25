@@ -187,6 +187,10 @@ export function initVision() {
   changeBtn.addEventListener('click', () => fileInput.click());
 
   processBtn.addEventListener('click', () => {
+    if (isProcessing) {
+      fetch('/api/img-to-json/cancel', { method: 'POST' });
+      return;
+    }
     if (processed) {
       document.getElementById('tab-btn-editor').click();
     } else {
@@ -229,9 +233,10 @@ export function initVision() {
     if (!currentFile || isProcessing) return;
 
     isProcessing = true;
-    processBtn.disabled = true;
+    processBtn.textContent = 'Cancel';
+    processBtn.className = 'btn btn-danger';
+    processBtn.disabled = false;
     visionModelSelect.disabled = true;
-    processBtn.textContent = 'Processing\u2026';
     statusEl.textContent = 'Processing\u2026';
 
     const reader = new FileReader();
@@ -335,8 +340,9 @@ export function initVision() {
         img.src = dataUrl;
 
       } catch (err) {
-        statusEl.textContent = 'Failed';
-        showToast(err.message, 'error');
+        const cancelled = err.message === 'Cancelled';
+        statusEl.textContent = cancelled ? '' : 'Failed';
+        if (!cancelled) showToast(err.message, 'error');
         processBtn.textContent = 'Process Image';
         processBtn.className = 'btn btn-primary';
         processBtn.disabled = false;

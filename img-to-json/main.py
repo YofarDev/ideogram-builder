@@ -39,8 +39,22 @@ def main():
         default="Qwen3-VL-4B-Instruct-8bit",
         help="Local VLM model name (HuggingFace repo under mlx-community/)",
     )
+    parser.add_argument(
+        "--bbox-only",
+        action="store_true",
+        help="Subprocess mode: given --objects JSON file, output bboxes only",
+    )
+    parser.add_argument(
+        "--objects",
+        type=str,
+        help="Path to JSON file with objects list (for --bbox-only mode)",
+    )
 
     args = parser.parse_args()
+
+    if args.bbox_only:
+        _run_bbox_only(args)
+        return
 
     if args.verbose:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", stream=sys.stderr)
@@ -75,3 +89,46 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def _run_bbox_only(args):
+    """Subprocess mode: load VLM fresh (no SAM), output bboxes for given objects."""
+    from PIL import Image
+    from mlx_vlm import generate
+    from mlx_vlm.prompt_utils import apply_chat_template
+    from models.local_vlm_loader import get_local_vlm
+    from steps.local_vlm_analysis import _parse_json
+
+    image = Image.open(args.image_path).convert("RGB")
+    objects = json.loads(Path(args.objects).read_text())
+    prompt_dir = Path(__file__).resolve().parent / "prompts"
+
+    system_prompt = (prompt_dir / "bbox_fallback.txt").read_text().strip()
+    user_msg = "Locate these objects:\n" + "\n".join(
+        f"- {o['name']}: {o.get('desc', '')[:100]}" for o in objects
+    )
+
+    w, h = image.size
+    scale = 512 / max(w, h)
+    if scale < 1.0:
+        image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+
+    model, processor = get_local_vlm(args.model)
+    config = model.config
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_msg},
+    ]
+    prompt = apply_chat_template(processor, config, messages, num_images=1)
+    result = generate(model, processor, prompt, image=image, max_tokens=1024)
+
+    parsed = _parse_json(result.text)
+    if parsed:
+        for o in parsed.get("objects", []):
+            bbox = o.get("bbox")
+            if bbox:
+                x1, y1, x2, y2 = bbox
+                o["bbox"] = [y1, x1, y2, x2]
+        print(json.dumps(parsed))
+    else:
+        print(json.dumps({"objects": []}))

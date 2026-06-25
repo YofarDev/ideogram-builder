@@ -1137,8 +1137,40 @@
 
         .preset-row {
             display: flex;
-            gap: 4px;
+            gap: 6px;
             align-items: center;
+        }
+
+        .preset-row + .preset-row {
+            margin-top: 6px;
+        }
+
+        .preset-row .ai-model-select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .preset-name-input {
+            width: 100px;
+            padding: 5px 8px;
+            font-size: 12px;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            color: var(--text);
+            outline: none;
+            font-family: var(--font-body);
+            transition: border-color 0.2s;
+        }
+
+        .preset-name-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .preset-name-input::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
         }
 
         .input-group textarea {
@@ -2421,12 +2453,14 @@
                         <div class="input-group">
                             <label>Preset</label>
                             <div class="preset-row">
-                                <select id="style-preset-editor" class="ai-model-select" style="flex:1;">
+                                <select id="style-preset-editor" class="ai-model-select">
                                     <option value="">None</option>
                                 </select>
-                                <input type="text" id="preset-name-input" placeholder="Name" style="width:80px;padding:4px 6px;font-size:11px;border:1px solid var(--border-color,#2a2a2a);border-radius:4px;background:var(--bg-input,#222);color:inherit;">
-                                <button id="btn-save-preset" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">Save</button>
-                                <button id="btn-delete-preset" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">Del</button>
+                            </div>
+                            <div class="preset-row">
+                                <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Name">
+                                <button id="btn-save-preset" class="btn btn-ghost">Save</button>
+                                <button id="btn-delete-preset" class="btn btn-danger">Del</button>
                             </div>
                         </div>
                     </fieldset>

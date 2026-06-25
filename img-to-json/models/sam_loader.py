@@ -12,3 +12,8 @@ def get_sam_predictor():
     processor = Sam31Processor.from_pretrained(str(model_path))
     predictor = Sam3Predictor(model, processor, score_threshold=0.3)
     return predictor
+
+
+def unload_sam():
+    """Drop the cached SAM predictor so its memory can be reclaimed."""
+    get_sam_predictor.cache_clear()

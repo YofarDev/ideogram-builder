@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import signal
 import subprocess
 import sys
 from datetime import datetime
@@ -15,6 +16,8 @@ CREDENTIALS_PATH = Path.home() / ".config" / "llm-credentials.json"
 OUTPUT_DIR = Path(__file__).parent / "output"
 IMG_TO_JSON_DIR = Path(__file__).parent / "img-to-json"
 PORT = int(os.environ.get("PORT", "8080"))
+
+_vision_state = {"proc": None, "cancelled": False}
 
 # Import canonicalize + verify from img-to-json utils
 sys.path.insert(0, str(IMG_TO_JSON_DIR))
@@ -201,6 +204,16 @@ class Handler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/img-to-json/cancel":
+            proc = _vision_state["proc"]
+            if proc and proc.poll() is None:
+                _vision_state["cancelled"] = True
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                except (ProcessLookupError, OSError):
+                    pass
+            self._send_json(200, {"cancelled": True})
+            return
         if self.path == "/api/save-image":
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))
@@ -405,27 +418,34 @@ class Handler(SimpleHTTPRequestHandler):
                     if local_model:
                         cmd.extend(["--model", local_model])
 
-                    result = subprocess.run(
-                        cmd, capture_output=True, text=True, timeout=180,
-                        cwd=str(IMG_TO_JSON_DIR),
+                    proc = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        text=True, cwd=str(IMG_TO_JSON_DIR),
+                        start_new_session=True,
                     )
+                    _vision_state["proc"] = proc
+                    _vision_state["cancelled"] = False
+                    stdout, stderr = proc.communicate()
+                    _vision_state["proc"] = None
 
-                    if result.returncode != 0:
-                        error_msg = result.stderr.strip() or f"exit code {result.returncode}"
+                    if _vision_state["cancelled"]:
+                        self._send_json(499, {"error": "Cancelled"})
+                        return
+
+                    if proc.returncode != 0:
+                        error_msg = stderr.strip() or f"exit code {proc.returncode}"
                         self._send_json(500, {"error": error_msg})
                         return
 
-                    json_output = json.loads(result.stdout)
+                    json_output = json.loads(stdout)
 
-                    # Extract verifier warnings from stderr
                     verifier_warnings = [
-                        line for line in result.stderr.splitlines()
+                        line for line in stderr.splitlines()
                         if line.startswith("[verifier]")
                     ]
 
-                    # Extract debug dir from stderr
                     debug_dir = None
-                    for line in result.stderr.splitlines():
+                    for line in stderr.splitlines():
                         if line.startswith("[debug_dir]"):
                             debug_dir = line[len("[debug_dir]"):]
                             break
@@ -437,8 +457,6 @@ class Handler(SimpleHTTPRequestHandler):
                     if debug_dir:
                         response["debug_dir"] = debug_dir
                     self._send_json(200, response)
-                except subprocess.TimeoutExpired:
-                    self._send_json(504, {"error": "Pipeline timed out after 180 seconds"})
                 except json.JSONDecodeError:
                     self._send_json(500, {"error": "Pipeline returned invalid JSON"})
                 except FileNotFoundError:
