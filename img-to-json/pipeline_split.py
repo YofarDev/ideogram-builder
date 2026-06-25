@@ -1,23 +1,3 @@
-import json
-import logging
-from pathlib import Path
-
-from PIL import Image
-
-from steps.preprocess import preprocess
-from steps.local_vlm_analysis import _parse_json
-from steps.sam_detection import sam_detect
-from steps.json_builder import build_json
-from utils.palette import extract_palette_from_region
-
-# ponytail: reuse baseline geometry helpers verbatim (baseline frozen for A/B validity)
-from pipeline import _unpad_bbox, _bbox_to_pixels, _draw_bboxes
-
-logger = logging.getLogger(__name__)
-
-_PROMPT_DIR = Path(__file__).resolve().parent / "prompts"
-
-
 def _filter_localized(objects, detections):
     """Drop objects SAM failed to localize.
 
