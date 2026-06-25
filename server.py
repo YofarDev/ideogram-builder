@@ -363,6 +363,7 @@ class Handler(SimpleHTTPRequestHandler):
             no_sam = body.get("no_sam", False)
             low_memory = body.get("low_memory", False)
             debug_flag = body.get("debug", False)
+            pipeline = body.get("pipeline", "current")
 
             if not image_b64:
                 self._send_json(400, {"error": "no image field"})
@@ -391,6 +392,8 @@ class Handler(SimpleHTTPRequestHandler):
                         cmd.append("--low-memory")
                     if debug_flag:
                         cmd.append("--debug")
+                    if pipeline == "split":
+                        cmd.append("--split")
 
                     result = subprocess.run(
                         cmd, capture_output=True, text=True, timeout=180,
