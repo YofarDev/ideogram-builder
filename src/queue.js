@@ -36,19 +36,29 @@ function buildSnapshot() {
     };
 }
 
+function makeJob(importJson) {
+    return {
+        id: counter++,
+        snapshot: { ...buildSnapshot(), importJson },
+        status: 'queued',
+        abort: new AbortController(),
+    };
+}
+
 export function enqueue() {
     const jsonText = document.getElementById('json-output').value;
     if (!jsonText.trim()) {
         showToast('Create a prompt first — draw boxes and fill the settings, or load JSON.', 'error');
         return;
     }
-    const job = {
-        id: counter++,
-        snapshot: buildSnapshot(),
-        status: 'queued',
-        abort: new AbortController(),
-    };
-    queue.push(job);
+    queue.push(makeJob(jsonText));
+    render();
+    drain();
+}
+
+export function enqueueImportJson(importJson) {
+    if (!importJson || !importJson.trim()) return;
+    queue.push(makeJob(importJson));
     render();
     drain();
 }
@@ -82,7 +92,7 @@ async function drain() {
             });
             job.status = 'done';
             job.thumbUrl = imageUrl;
-            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson });
+            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, source: 'generation' });
         } catch (err) {
             if (err.name === 'AbortError') {
                 queue = queue.filter(j => j !== job);

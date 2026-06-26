@@ -53,6 +53,27 @@ describe('queue', () => {
     expect(card.querySelector('img.queue-thumb')).toBeTruthy()
   })
 
+  it('enqueueImportJson enqueues a prompt without reading #json-output', async () => {
+    document.getElementById('json-output').value = ''  // editor textarea is empty
+    const emit = vi.fn()
+    const mod = await loadQueue({ emit, runJob: okRunJob() })
+    mod.enqueueImportJson('{"high_level_description":"from collection"}')
+    expect(document.getElementById('queue-panel').children.length).toBe(1)
+    expect(emit).not.toHaveBeenCalledWith('image:ready', expect.anything())  // no result emitted synchronously
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(emit).toHaveBeenCalledWith('image:ready', expect.objectContaining({
+      importJson: expect.stringContaining('from collection'),
+    }))
+  })
+
+  it('enqueueImportJson ignores empty/whitespace prompts', async () => {
+    const mod = await loadQueue({ runJob: okRunJob() })
+    mod.enqueueImportJson('   ')
+    expect(document.getElementById('queue-panel').children.length).toBe(0)
+  })
+
   it('drains multiple jobs in FIFO order', async () => {
     const mod = await loadQueue({ runJob: okRunJob() })
     mod.enqueue()
