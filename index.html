@@ -717,6 +717,107 @@
             color: var(--danger);
         }
 
+        /* Collections tab */
+        #tab-collections.active {
+            display: block;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .collection-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .collection-toolbar #collection-select { flex: 0 1 200px; }
+        .collection-toolbar #collection-name { flex: 1 1 160px; }
+
+        .collection-paste-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            margin-bottom: 12px;
+        }
+
+        .collection-paste-row textarea {
+            flex: 1;
+            font-family: var(--font-body);
+            font-size: 12px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            outline: none;
+            resize: vertical;
+        }
+
+        .collection-paste-row textarea:focus { border-color: var(--accent); }
+
+        .collection-items {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .collections-empty {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-dim);
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        .collection-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+
+        .collection-item:hover { border-color: var(--hairline-hover); }
+
+        .collection-item-label {
+            flex: 1;
+            min-width: 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .collection-item-remove {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px 6px;
+            line-height: 1;
+            border-radius: 3px;
+        }
+
+        .collection-item-remove:hover { color: var(--danger); }
+
+        .collection-footer {
+            position: sticky;
+            bottom: 0;
+        }
+
+        .collection-footer .btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* AI Prompt Section */
         .ai-header {
             display: flex;
@@ -1706,6 +1807,11 @@
             display: none;
         }
 
+        .main-content.collections-active .left-sidebar,
+        .main-content.collections-active .right-sidebar {
+            display: none;
+        }
+
         /* The workflow toggle lives in the toolbar (a sibling of .main-content),
            so we use :has() to hide it on Gallery/Vision tabs where it's irrelevant. */
         body:has(.main-content.gallery-active) .workflow-toggle,
@@ -1714,6 +1820,11 @@
         body:has(.main-content.gallery-active) .backend-toggle,
         body:has(.main-content.prompt-active) .backend-toggle,
         body:has(.main-content.vision-active) .backend-toggle {
+            display: none;
+        }
+
+        body:has(.main-content.collections-active) .workflow-toggle,
+        body:has(.main-content.collections-active) .backend-toggle {
             display: none;
         }
 
@@ -2358,6 +2469,7 @@
         <button class="tab-btn" data-tab="prompt" role="tab" aria-selected="false" aria-controls="tab-prompt" id="tab-btn-prompt">Prompt</button>
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
+        <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <div class="toolbar-spacer"></div>
         <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
             <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
@@ -2580,6 +2692,29 @@
                 </div>
             </div>
 
+            <div class="tab-content" id="tab-collections" role="tabpanel" aria-labelledby="tab-btn-collections">
+                <div id="collection-container">
+                    <div class="collection-toolbar">
+                        <label class="sr-only" for="collection-select">Active collection</label>
+                        <select id="collection-select" class="ai-model-select"></select>
+                        <input id="collection-name" class="preset-name-input" placeholder="Collection name" aria-label="Collection name">
+                        <button id="btn-collection-new" class="btn btn-ghost" title="New collection">+ New</button>
+                        <button id="btn-collection-rename" class="btn btn-secondary" title="Rename active collection">Rename</button>
+                        <button id="btn-collection-delete" class="btn btn-danger" title="Delete active collection">Delete</button>
+                        <span id="collection-count" class="layer-count">0 prompts</span>
+                    </div>
+                    <div class="collection-paste-row">
+                        <label class="sr-only" for="collection-paste">Paste prompt JSON</label>
+                        <textarea id="collection-paste" rows="2" placeholder="Paste prompt JSON here, then Add…"></textarea>
+                        <button id="btn-collection-paste-add" class="btn btn-secondary">Add</button>
+                    </div>
+                    <div class="collection-items" id="collection-items"></div>
+                    <div class="collection-footer">
+                        <button id="btn-collection-generate" class="btn btn-primary btn-block">Generate Collection</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="tab-content" id="tab-vision" role="tabpanel" aria-labelledby="tab-btn-vision">
                 <div class="vision-section" id="vision-section">
                     <div class="vision-toolbar" id="vision-model-row">
@@ -2661,6 +2796,9 @@
                 <div class="json-header">
                     <span class="json-title">Prompt JSON</span>
                     <div class="json-header-actions">
+                        <button id="btn-add-to-collection" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
                         <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </button>
