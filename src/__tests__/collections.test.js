@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const DOM_HTML = `
-  <div id="collection-header"></div>
-  <select id="collection-select"></select>
-  <input id="collection-name">
-  <button id="btn-collection-new"></button>
-  <button id="btn-collection-rename"></button>
-  <button id="btn-collection-delete"></button>
-  <div id="collection-items"></div>
-  <textarea id="collection-paste"></textarea>
-  <button id="btn-collection-paste-add"></button>
-  <button id="btn-collection-generate"></button>
-  <div id="collection-count"></div>
+  <div id="collection-container">
+    <div id="collection-chips"></div>
+    <input type="file" id="collection-import-input">
+    <button id="btn-collection-import"></button>
+    <button id="btn-collection-export"></button>
+    <button id="btn-collection-delete"></button>
+    <h2 id="collection-title"></h2>
+    <input id="collection-title-edit">
+    <div id="collection-meta"></div>
+    <textarea id="collection-paste"></textarea>
+    <button id="btn-collection-paste-add"></button>
+    <div id="collection-grid"></div>
+    <button id="btn-collection-generate"></button>
+  </div>
   <div id="toast-container"></div>
 `
 
@@ -71,7 +74,7 @@ describe('collections data layer', () => {
   it('load restores collections + active id from localStorage on init', async () => {
     const mod = await loadCollections()
     const c = mod.createCollection('Persisted')
-    const reloaded = await loadCollections()  // fresh module instance reads localStorage
+    const reloaded = await loadCollections()
     expect(reloaded.getAll().some(x => x.id === c.id)).toBe(true)
     expect(reloaded.getActive().id).toBe(c.id)
   })
@@ -85,9 +88,36 @@ describe('collections data layer', () => {
     mod.addItem('{"high_level_description":"two"}')
     mod.generateCollection()
     expect(enqueueImportJson).toHaveBeenCalledTimes(2)
-    // empty collection path:
     mod.createCollection('Empty')
     mod.generateCollection()
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('empty'), 'error')
+  })
+
+  it('duplicateItem clones an item with a new id, inserted after the source', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('Set')
+    const c = mod.addItem('{"high_level_description":"x"}')
+    const orig = c.items[0].id
+    mod.duplicateItem(orig)
+    const items = mod.getActive().items
+    expect(items).toHaveLength(2)
+    expect(items[0].id).toBe(orig)
+    expect(items[1].id).not.toBe(orig)
+    expect(items[1].importJson).toBe(items[0].importJson)
+  })
+
+  it('loadItemToEditor emits state:loaded with parsed json; errors on non-structured json', async () => {
+    const emit = vi.fn()
+    const showToast = vi.fn()
+    const mod = await loadCollections({ emit, showToast })
+    mod.createCollection('Set')
+    const c = mod.addItem(JSON.stringify({ high_level_description: 'hi', compositional_deconstruction: { elements: [] } }))
+    mod.loadItemToEditor(c.items[0].id)
+    expect(emit).toHaveBeenCalledWith('state:loaded', { json: expect.objectContaining({ high_level_description: 'hi' }) })
+    emit.mockClear()
+    const c2 = mod.addItem('not json')
+    mod.loadItemToEditor(c2.items[0].id)
+    expect(emit).not.toHaveBeenCalled()
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('loadable'), 'error')
   })
 })
