@@ -336,8 +336,13 @@ function bind() {
     const card = e.target.closest('[data-card]');
     if (card) {
       const id = card.dataset.card;
-      expandedId = (expandedId === id) ? null : id;
+      const expanding = expandedId !== id;
+      expandedId = expanding ? id : null;
       render();
+      if (expanding) {
+        document.querySelector(`.coll-card[data-card="${id}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
   });
 
