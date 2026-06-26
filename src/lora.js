@@ -29,6 +29,14 @@ const LORAS = [
     strengths: { positive: 1.0, unconditional: 0.5 },
     overrides: {},
   },
+  {
+    id: 'yofardev-v1',
+    label: 'Yofardev (v1)',
+    filename: 'yofardev_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/yofardev_id4_v1/resolve/main/yofardev_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+    overrides: {},
+  },
 ];
 
 let activeId = null;
