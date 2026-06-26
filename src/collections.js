@@ -1,7 +1,7 @@
 // collections.js — Prompt collections (localStorage), Collections tab DOM, batch generation.
 // Owns its data (module-local, like lora.js). Sibling comms via events only.
 
-import { on, emit } from './events.js';
+import { on } from './events.js';
 import { showToast } from './toast.js';
 import { enqueueImportJson } from './queue.js';
 
