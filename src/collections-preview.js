@@ -32,10 +32,8 @@ export function drawPreview(canvas, elements, size) {
   if (!canvas || !canvas.getContext) return;
   const dpr = window.devicePixelRatio || 1;
   const px = size;
-  canvas.width = px * dpr;
+  canvas.width = px * dpr;   // backing store (crisp); CSS controls display size
   canvas.height = px * dpr;
-  canvas.style.width = px + 'px';
-  canvas.style.height = px + 'px';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, px, px);
