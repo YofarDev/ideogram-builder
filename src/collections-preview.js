@@ -30,11 +30,12 @@ export function elementsToRects(elements, size = 1000) {
 // Draw element rects onto a 2D context. Needs a real canvas (browser only).
 export function drawPreview(canvas, elements, size) {
   if (!canvas || !canvas.getContext) return;
-  const dpr = window.devicePixelRatio || 1;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return; // jsdom, or a browser with no 2D context
+  const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
   const px = size;
   canvas.width = px * dpr;   // backing store (crisp); CSS controls display size
   canvas.height = px * dpr;
-  const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, px, px);
 
