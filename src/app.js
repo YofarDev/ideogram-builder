@@ -12,6 +12,7 @@ import { initLayers } from './layers.js';
 import { initVision } from './vision.js';
 import { initLora } from './lora.js';
 import { initStylePresets } from './style-presets.js';
+import { initCollections } from './collections.js';
 import { showToast } from './toast.js';
 import { emit, on } from './events.js';
 
@@ -28,6 +29,7 @@ initVision();
 initLora();
 initStylePresets();
 initQueue();
+initCollections();
 
 // Wire button handlers (no inline onclick in HTML)
 document.getElementById('btn-reset').addEventListener('click', () => {

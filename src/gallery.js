@@ -13,6 +13,7 @@ export function initGallery() {
         mc.classList.toggle('gallery-active', tab === 'gallery');
         mc.classList.toggle('vision-active', tab === 'vision');
         mc.classList.toggle('prompt-active', tab === 'prompt');
+        mc.classList.toggle('collections-active', tab === 'collections');
     }
     renderGallery();
 
@@ -48,6 +49,7 @@ function switchTab(tab) {
     mc.classList.toggle('gallery-active', tab === 'gallery');
     mc.classList.toggle('vision-active', tab === 'vision');
     mc.classList.toggle('prompt-active', tab === 'prompt');
+    mc.classList.toggle('collections-active', tab === 'collections');
     if (tab === 'gallery') renderGallery();
 }
 
@@ -88,6 +90,7 @@ async function renderGallery() {
             <img src="/output/${item.img}" alt="" loading="lazy" decoding="async">
             <div class="gallery-card-info">
                 <div class="gallery-card-actions">
+                    <button class="gallery-card-btn add-collection" title="Add prompt to collection" aria-label="Add prompt to collection"><span aria-hidden="true">+</span></button>
                     <button class="gallery-card-btn download" title="Download image" aria-label="Download image"><span aria-hidden="true">&darr;</span></button>
                     <button class="gallery-card-btn delete" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
                 </div>
@@ -99,6 +102,11 @@ async function renderGallery() {
         card.querySelector('.gallery-card-btn.download').addEventListener('click', (e) => {
             e.stopPropagation();
             downloadImage(item);
+        });
+
+        card.querySelector('.gallery-card-btn.add-collection').addEventListener('click', (e) => {
+            e.stopPropagation();
+            emit('collection:add', { importJson: item.prompt_json || '' });
         });
 
         card.querySelector('.gallery-card-btn.delete').addEventListener('click', async (e) => {
