@@ -51,6 +51,11 @@ export function initStylePresets() {
 
   select.addEventListener('change', () => applyPreset(select.value));
 
+  // Any external JSON load overwrites the style fields, so the previously
+  // selected preset no longer reflects the form. Reset to "None" so the
+  // user can re-apply a preset without the two-step pick-another-then-back dance.
+  on('state:loaded', () => { select.value = ''; });
+
   document.getElementById('btn-save-preset')?.addEventListener('click', () => {
     const nameInput = document.getElementById('preset-name-input');
     const name = nameInput?.value.trim();

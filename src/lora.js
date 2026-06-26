@@ -40,13 +40,13 @@ const LORAS = [
     source_url: 'https://huggingface.co/Yofardev/test_mil_v1/resolve/main/test_mil_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
-  ...[500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500].map(step => ({
-    id: `test-mil-v1-${step}`,
-    label: `Test Mil v1 (step ${step})`,
-    filename: `test_mil_v1_${String(step).padStart(9, '0')}.safetensors`,
-    source_url: `https://huggingface.co/Yofardev/test_mil_v1/resolve/main/test_mil_v1_${String(step).padStart(9, '0')}.safetensors`,
+  {
+    id: 'retro-pokemon-v1',
+    label: 'Retro Pokémon (v1)',
+    filename: 'retro_pokémon_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/retro_pokemon_id4_v1/resolve/main/retro_pok%C3%A9mon_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
-  })),
+  },
 ];
 
 // ponytail: Set preserves insertion order → active LoRAs stack in click order

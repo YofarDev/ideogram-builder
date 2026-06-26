@@ -128,10 +128,11 @@ export function initSettings() {
     const mode = preset.mode;
     document.getElementById('mode_' + (mode === 'photo' ? 'photo' : 'artstyle')).checked = true;
     setPhotoArtMode(mode);
-    document.getElementById('aesthetics').value = preset.aesthetics || '';
-    document.getElementById('lighting').value = preset.lighting || '';
-    document.getElementById('medium').value = preset.medium || '';
-    document.getElementById('art_style').value = preset.photo_art || '';
+    // Only overwrite fields the preset actually specifies; leave others as-is.
+    if (preset.aesthetics) document.getElementById('aesthetics').value = preset.aesthetics;
+    if (preset.lighting) document.getElementById('lighting').value = preset.lighting;
+    if (preset.medium) document.getElementById('medium').value = preset.medium;
+    if (preset.photo_art) document.getElementById('art_style').value = preset.photo_art;
     emit('state:changed');
   });
 

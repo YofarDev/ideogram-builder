@@ -198,7 +198,8 @@ export function initVision() {
     }
   });
 
-  on('image:ready', ({ imageUrl }) => {
+  on('image:ready', ({ imageUrl, source }) => {
+    if (source === 'generation') return; // ponytail: don't clobber vision reference with generated results
     if (internalImageLoad) {
       internalImageLoad = false;
       return;
