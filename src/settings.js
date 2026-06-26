@@ -124,39 +124,6 @@ export function initSettings() {
   }
   syncTurboStrengthVisibility();
 
-  // LoRA override lifecycle: snapshot form → apply overrides → restore on clear
-  let loraSnapshot = null;
-  const OVERRIDE_FIELDS = ['aesthetics', 'lighting', 'medium', 'art_style'];
-
-  on('lora:selected', ({ overrides }) => {
-    loraSnapshot = {};
-    OVERRIDE_FIELDS.forEach(id => {
-      loraSnapshot[id] = document.getElementById(id).value;
-    });
-    loraSnapshot.photoArtMode = state.photoArtMode;
-
-    if (overrides && typeof overrides === 'object') {
-      Object.entries(overrides).forEach(([id, val]) => {
-        const el = document.getElementById(id);
-        if (el && val != null) el.value = val;
-      });
-      // art_style only emits in ARTSTYLE mode → force it so the override survives
-      if ('art_style' in overrides) setPhotoArtMode(MODE_ARTSTYLE);
-    }
-    emit('state:changed');
-  });
-
-  on('lora:cleared', () => {
-    if (!loraSnapshot) return;
-    OVERRIDE_FIELDS.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = loraSnapshot[id];
-    });
-    setPhotoArtMode(loraSnapshot.photoArtMode);
-    loraSnapshot = null;
-    emit('state:changed');
-  });
-
   on('style-preset:applied', ({ preset }) => {
     const mode = preset.mode;
     document.getElementById('mode_' + (mode === 'photo' ? 'photo' : 'artstyle')).checked = true;

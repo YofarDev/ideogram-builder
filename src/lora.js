@@ -1,8 +1,8 @@
-// lora.js — LoRA library (hardcoded), selection, override application
-// Owns the lora panel DOM. Talks to rest of app via events + state only.
+// lora.js — LoRA library (hardcoded), multi-selection
+// Owns the lora panel DOM. Talks to rest of app via state only.
 
 import { state } from './state.js';
-import { on, emit } from './events.js';
+import { on } from './events.js';
 
 const LORAS = [
   {
@@ -11,7 +11,6 @@ const LORAS = [
     filename: 'kiki_ideogram4_v2.safetensors',
     source_url: 'https://huggingface.co/Yofardev/kiki_ideogram4_v2/resolve/main/kiki_ideogram4_v2.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
-    overrides: { art_style: 'Studio Ghibli style', medium: 'anime_screencap' },
   },
   {
     id: 'naoki-urasawa-v1',
@@ -19,7 +18,6 @@ const LORAS = [
     filename: 'naoki_urasawa_ideogram4_v1.safetensors',
     source_url: 'https://huggingface.co/Yofardev/naoki_urasawa_ideogram4_v1/resolve/main/naoki_urasawa_ideogram4_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
-    overrides: {},
   },
   {
     id: 'tintin-v3',
@@ -27,7 +25,6 @@ const LORAS = [
     filename: 'tintin_v3.safetensors',
     source_url: 'https://huggingface.co/Yofardev/tintin_id4_v3/resolve/main/tintin_v3.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
-    overrides: {},
   },
   {
     id: 'yofardev-v1',
@@ -35,14 +32,35 @@ const LORAS = [
     filename: 'yofardev_v1.safetensors',
     source_url: 'https://huggingface.co/Yofardev/yofardev_id4_v1/resolve/main/yofardev_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
-    overrides: {},
   },
+  {
+    id: 'test-mil-v1-final',
+    label: 'Test Mil v1 (final)',
+    filename: 'test_mil_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/test_mil_v1/resolve/main/test_mil_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  ...[500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500].map(step => ({
+    id: `test-mil-v1-${step}`,
+    label: `Test Mil v1 (step ${step})`,
+    filename: `test_mil_v1_${String(step).padStart(9, '0')}.safetensors`,
+    source_url: `https://huggingface.co/Yofardev/test_mil_v1/resolve/main/test_mil_v1_${String(step).padStart(9, '0')}.safetensors`,
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  })),
 ];
 
-let activeId = null;
+// ponytail: Set preserves insertion order → active LoRAs stack in click order
+const activeIds = new Set();
 
 function getEntry(id) {
   return LORAS.find(l => l.id === id);
+}
+
+function syncState() {
+  state.loras = [...activeIds].map(id => {
+    const e = getEntry(id);
+    return { filename: e.filename, source_url: e.source_url, strengths: { ...e.strengths } };
+  });
 }
 
 function renderCards() {
@@ -50,7 +68,7 @@ function renderCards() {
   if (!list) return;
 
   list.innerHTML = LORAS.map(entry => {
-    const isActive = entry.id === activeId;
+    const isActive = activeIds.has(entry.id);
     const strVal = entry.strengths.positive;
     return `
       <div class="lora-card${isActive ? ' active' : ''}" data-id="${entry.id}">
@@ -67,12 +85,7 @@ function renderCards() {
   list.querySelectorAll('.lora-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.lora-card-strength')) return;
-      const id = card.dataset.id;
-      if (activeId === id) {
-        clearActive();
-      } else {
-        selectLora(id);
-      }
+      toggleLora(card.dataset.id);
     });
   });
 
@@ -84,24 +97,11 @@ function renderCards() {
   });
 }
 
-function selectLora(id) {
-  const entry = getEntry(id);
-  if (!entry) return;
-  activeId = id;
-  state.loras = [{
-    filename: entry.filename,
-    source_url: entry.source_url,
-    strengths: { ...entry.strengths },
-  }];
-  emit('lora:selected', { overrides: { ...entry.overrides } });
-  renderCards();
-}
-
-function clearActive() {
-  if (!activeId) return;
-  activeId = null;
-  state.loras = [];
-  emit('lora:cleared');
+function toggleLora(id) {
+  if (!getEntry(id)) return;
+  if (activeIds.has(id)) activeIds.delete(id);
+  else activeIds.add(id);
+  syncState();
   renderCards();
 }
 
@@ -114,13 +114,16 @@ function updateStrength(id, value) {
     const valSpan = card.querySelector('.lora-card-strength-value');
     if (valSpan) valSpan.textContent = value.toFixed(1);
   }
-  if (id === activeId && state.loras[0]) {
-    state.loras[0].strengths = { ...entry.strengths };
-  }
+  if (activeIds.has(id)) syncState();
 }
 
 export function initLora() {
-  activeId = null;
+  activeIds.clear();
+  state.loras = [];
   renderCards();
-  on('canvas:reset', clearActive);
+  on('canvas:reset', () => {
+    activeIds.clear();
+    syncState();
+    renderCards();
+  });
 }
