@@ -85,7 +85,7 @@ export function addItem(importJson) {
   const c = getActive();
   if (!c) return null;
   if (!importJson || !importJson.trim()) return null;
-  c.items.unshift({ id: uid(), importJson });
+  c.items.push({ id: uid(), importJson });
   save();
   render();
   return c;
