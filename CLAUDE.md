@@ -40,6 +40,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
 | `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
 | `lora.js` | LoRA library (localStorage), selection, override application | state, events |
+| `collections.js` | Collections tab UI, localStorage CRUD, batch generation | events, queue (enqueueImportJson), toast |
 | `app.js` | Button wiring, init orchestration | all modules |
 
 ## Event Catalog
@@ -58,6 +59,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
 | `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
 | `box:desc` | `{ id }` | settings (recaption) | canvas (update label) |
+| `collection:add` | `{ importJson }` | gallery (card button), editor (JSON header button) | collections (addItem) |
 
 
 > **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly.
@@ -74,6 +76,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing gallery/history?** → `src/gallery.js`
 - **Editing form fields / mode toggle?** → `src/settings.js`
 - **Editing layer panel?** → `src/layers.js`
+- **Editing prompt collections?** → `src/collections.js` (+ `enqueueImportJson` in `src/queue.js`)
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
 - **Adding a new event?** → Add to this catalog, emit from source, listen in target
