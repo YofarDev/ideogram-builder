@@ -285,12 +285,13 @@ function renderDetail(item, p, els) {
   const styleHtml = rows.length
     ? rows.map(([k, v]) => `<div class="coll-detail-row"><span class="coll-detail-k">${k}</span><span class="coll-detail-v">${escapeHtml(v)}</span></div>`).join('')
     : `<div class="coll-detail-empty">No style metadata.</div>`;
-  const elList = els.length ? els.map((el, i) => {
+  const elChips = els.length ? els.map((el, i) => {
     const b = el.bbox || [];
-    const geo = b.length === 4 ? `x ${Math.round(b[1] / 10)}% · y ${Math.round(b[0] / 10)}%` : '';
-    const dots = (el.color_palette || []).slice(0, 5).map(col => `<span class="coll-swatch sm" style="background:${escapeHtml(col)}"></span>`).join('');
-    return `<li class="coll-el"><span class="coll-el-idx">${i + 1}</span><span class="coll-el-type">${escapeHtml(el.type || 'obj')}</span><span class="coll-el-desc">${escapeHtml(el.desc || '')}</span><span class="coll-el-geo">${geo}</span>${dots ? `<span class="coll-el-pal">${dots}</span>` : ''}</li>`;
-  }).join('') : `<li class="coll-detail-empty">No elements.</li>`;
+    const geo = b.length === 4 ? ` · x ${Math.round(b[1] / 10)}% y ${Math.round(b[0] / 10)}%` : '';
+    const dots = (el.color_palette || []).slice(0, 4).map(col => `<span class="coll-swatch sm" style="background:${escapeHtml(col)}"></span>`).join('');
+    const tip = escapeHtml(`${i + 1}. ${el.type || 'obj'}: ${el.desc || ''}${geo}`);
+    return `<span class="coll-el-chip" title="${tip}"><span class="coll-el-idx">${i + 1}</span><span class="coll-el-type">${escapeHtml(el.type || 'obj')}</span>${dots ? `<span class="coll-el-pal">${dots}</span>` : ''}</span>`;
+  }).join('') : `<span class="coll-detail-empty">No elements.</span>`;
 
   return `
     <div class="coll-detail">
@@ -300,7 +301,7 @@ function renderDetail(item, p, els) {
       </div>
       <div class="coll-detail-main">
         <div class="coll-detail-subhead">Elements</div>
-        <ul class="coll-el-list">${elList}</ul>
+        <div class="coll-el-chips">${elChips}</div>
         <div class="coll-actions">
           <button class="btn btn-primary" data-act="generate" data-id="${item.id}">Generate this one</button>
           <button class="btn btn-secondary" data-act="load" data-id="${item.id}">Load into Editor</button>
