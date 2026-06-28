@@ -54,73 +54,11 @@ const LORAS = [
     source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
-  {
-    id: 'ovi-style-500',
-    label: 'Ovi Style (500 steps)',
-    filename: 'ovi_style_v1_000000500.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000000500.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-1000',
-    label: 'Ovi Style (1000 steps)',
-    filename: 'ovi_style_v1_000001000.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000001000.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-1500',
-    label: 'Ovi Style (1500 steps)',
-    filename: 'ovi_style_v1_000001500.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000001500.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-2000',
-    label: 'Ovi Style (2000 steps)',
-    filename: 'ovi_style_v1_000002000.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000002000.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-2500',
-    label: 'Ovi Style (2500 steps)',
-    filename: 'ovi_style_v1_000002500.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000002500.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-3000',
-    label: 'Ovi Style (3000 steps)',
-    filename: 'ovi_style_v1_000003000.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000003000.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-3500',
-    label: 'Ovi Style (3500 steps)',
-    filename: 'ovi_style_v1_000003500.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000003500.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-4000',
-    label: 'Ovi Style (4000 steps)',
-    filename: 'ovi_style_v1_000004000.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000004000.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
-  {
-    id: 'ovi-style-4500',
-    label: 'Ovi Style (4500 steps)',
-    filename: 'ovi_style_v1_000004500.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/ovi_style_id4_v1/resolve/main/ovi_style_v1_000004500.safetensors',
-    strengths: { positive: 1.0, unconditional: 0.5 },
-  },
 ];
 
 // ponytail: Set preserves insertion order → active LoRAs stack in click order
 const activeIds = new Set();
+let collapsed = false;
 
 function getEntry(id) {
   return LORAS.find(l => l.id === id);
@@ -137,7 +75,9 @@ function renderCards() {
   const list = document.getElementById('lora-list');
   if (!list) return;
 
-  list.innerHTML = LORAS.map(entry => {
+  const entries = collapsed ? LORAS.filter(e => activeIds.has(e.id)) : LORAS;
+
+  list.innerHTML = entries.map(entry => {
     const isActive = activeIds.has(entry.id);
     const strVal = entry.strengths.positive;
     return `
@@ -167,11 +107,22 @@ function renderCards() {
   });
 }
 
+function updateToggleIcon() {
+  const toggle = document.getElementById('lora-toggle');
+  if (!toggle) return;
+  const icon = toggle.querySelector('.lora-header-icon');
+  if (icon) icon.textContent = collapsed ? '▶' : '▼';
+  toggle.setAttribute('aria-expanded', String(!collapsed));
+}
+
 function toggleLora(id) {
   if (!getEntry(id)) return;
   if (activeIds.has(id)) activeIds.delete(id);
   else activeIds.add(id);
   syncState();
+  collapsed = true;
+  localStorage.setItem('ideogram_lora_collapsed', 'true');
+  updateToggleIcon();
   renderCards();
 }
 
@@ -187,9 +138,26 @@ function updateStrength(id, value) {
   if (activeIds.has(id)) syncState();
 }
 
+function initToggle() {
+  const toggle = document.getElementById('lora-toggle');
+  if (!toggle) return;
+
+  const saved = localStorage.getItem('ideogram_lora_collapsed');
+  collapsed = saved === 'true';
+
+  toggle.addEventListener('click', () => {
+    collapsed = !collapsed;
+    localStorage.setItem('ideogram_lora_collapsed', String(collapsed));
+    updateToggleIcon();
+    renderCards();
+  });
+}
+
 export function initLora() {
   activeIds.clear();
+  collapsed = false;
   state.loras = [];
+  initToggle();
   renderCards();
   on('canvas:reset', () => {
     activeIds.clear();

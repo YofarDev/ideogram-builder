@@ -1331,6 +1331,18 @@
         }
 
         /* LoRA Card Chips — compact tag-based layout */
+        .lora-header {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .lora-header-icon {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.15s;
+        }
         .lora-card-list {
             display: flex;
             flex-direction: column;
@@ -2769,17 +2781,25 @@
         <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <div class="toolbar-spacer"></div>
+        <div class="backend-toggle pill-group" id="backend-toggle" role="radiogroup" aria-label="Generation backend">
+            <input type="radio" id="backend-runpod" name="backend" value="runpod" checked>
+            <label for="backend-runpod" class="pill-label">RunPod</label>
+            <input type="radio" id="backend-modal" name="backend" value="modal">
+            <label for="backend-modal" class="pill-label">Modal</label>
+        </div>
         <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
             <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
             <label for="workflow-turbo" class="pill-label">Turbo</label>
             <input type="radio" id="workflow-classic" name="workflow" value="v1">
             <label for="workflow-classic" class="pill-label">Classic</label>
         </div>
-        <div class="backend-toggle pill-group" id="backend-toggle" role="radiogroup" aria-label="Generation backend">
-            <input type="radio" id="backend-runpod" name="backend" value="runpod" checked>
-            <label for="backend-runpod" class="pill-label">RunPod</label>
-            <input type="radio" id="backend-modal" name="backend" value="modal">
-            <label for="backend-modal" class="pill-label">Modal</label>
+        <div class="steps-toggle pill-group" id="steps-toggle" role="radiogroup" aria-label="Speed">
+            <input type="radio" id="steps_fast" name="steps" value="2" data-preset="Turbo">
+            <label for="steps_fast" class="pill-label">Fast</label>
+            <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
+            <label for="steps_default" class="pill-label">Default</label>
+            <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
+            <label for="steps_quality" class="pill-label">Quality</label>
         </div>
     </header>
 
@@ -2793,17 +2813,7 @@
                 <div class="panel-body">
                     <fieldset class="panel-section">
                         <legend class="panel-section-title">Generation</legend>
-                        <div class="input-group">
-                            <span id="steps-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Speed</span>
-                            <div class="pill-group" role="radiogroup" aria-labelledby="steps-label">
-                                <input type="radio" id="steps_turbo" name="steps" value="2" data-preset="Turbo">
-                                <label for="steps_turbo" class="pill-label">Turbo</label>
-                                <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
-                                <label for="steps_default" class="pill-label">Default</label>
-                                <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
-                                <label for="steps_quality" class="pill-label">Quality</label>
-                            </div>
-                        </div>
+
                         <div class="input-group" id="turbo-strength-group">
                             <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
                                 Turbo Strength
@@ -2811,7 +2821,10 @@
                             <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8" style="width:80px;">
                         </div>
                             <div class="input-group lora-section">
-                                <label>LoRA</label>
+                                <div class="lora-header" id="lora-toggle" role="button" tabindex="0" aria-expanded="true">
+                                    <span class="lora-header-icon">▼</span>
+                                    <label>LoRA</label>
+                                </div>
                                 <div class="lora-card-list" id="lora-list"></div>
                             </div>
                         <div class="input-group">
