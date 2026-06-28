@@ -2593,6 +2593,80 @@
         .main-content.draw-fullscreen #btn-enter-fullscreen { display: none; }
         .main-content.draw-fullscreen #btn-exit-fullscreen { display: inline-flex; }
 
+        /* Prominent description dock — fullscreen-only, shown when a box is selected (.show) */
+        .desc-dock {
+            display: none;
+            position: absolute;
+            left: 12px;
+            right: 360px;          /* clear the 340px fullscreen-rail + gaps */
+            bottom: 12px;
+            z-index: 60;           /* above canvas, below modals (z-index: 100) */
+            justify-content: center;
+            pointer-events: none;  /* outer strip lets canvas clicks pass through */
+        }
+
+        .main-content.draw-fullscreen .desc-dock.show {
+            display: flex;
+            animation: desc-dock-rise 0.18s ease-out;
+        }
+
+        @keyframes desc-dock-rise {
+            from { transform: translateY(12px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        .desc-dock-inner {
+            pointer-events: auto;
+            width: 100%;
+            max-width: 760px;
+            background: oklch(21.5% 0.008 65 / 0.92);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-strong);
+            backdrop-filter: blur(6px);
+            padding: 12px 16px 14px;
+        }
+
+        .desc-dock-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .desc-dock-label {
+            font-family: var(--font-display);
+            font-size: 13px;
+            color: var(--accent);
+            letter-spacing: 0.02em;
+        }
+
+        .desc-dock textarea {
+            width: 100%;
+            min-height: 110px;
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.55;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            outline: none;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .desc-dock textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .desc-dock textarea::placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
         /* Generate modal */
         .modal-overlay {
             position: fixed;
@@ -3071,10 +3145,6 @@
                         <input type="text" id="box-text" placeholder="Enter text to render">
                     </div>
                     <div class="input-group">
-                        <label for="box-desc">Description</label>
-                        <textarea id="box-desc" rows="5" placeholder="Describe this element"></textarea>
-                    </div>
-                    <div class="input-group">
                         <label>Position &amp; Size (px)</label>
                         <div class="box-geom-grid">
                             <label class="box-geom-cell"><span>X</span><input type="number" id="box-x" step="1" min="0"></label>
@@ -3108,6 +3178,18 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- FULLSCREEN-ONLY: prominent description editor for the selected box -->
+        <div class="desc-dock" id="desc-dock" aria-hidden="true">
+            <div class="desc-dock-inner">
+                <div class="desc-dock-head">
+                    <span class="layer-color-dot" id="desc-dock-dot" aria-hidden="true"></span>
+                    <span class="desc-dock-label" id="desc-dock-label">Object</span>
+                </div>
+                <label class="sr-only" for="box-desc">Description</label>
+                <textarea id="box-desc" placeholder="Describe this element…"></textarea>
             </div>
         </div>
     </div>

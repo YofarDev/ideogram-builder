@@ -152,6 +152,8 @@ export function initSettings() {
 
   on('box:selected', ({ id }) => {
     const boxPanel = document.getElementById('box-panel');
+    const descDock = document.getElementById('desc-dock');
+    const isFullscreen = document.querySelector('.main-content').classList.contains('draw-fullscreen');
     if (id) {
       const box = state.boxes.find(b => b.id === id);
       if (!box) return;
@@ -164,8 +166,23 @@ export function initSettings() {
       const swatch = document.getElementById('box-color-swatch');
       if (swatch) swatch.style.background = box.color || 'var(--accent)';
       document.getElementById('recaption-group').style.display = state.imageDataUrl ? 'block' : 'none';
+
+      if (descDock) {
+        descDock.classList.add('show');
+        descDock.setAttribute('aria-hidden', 'false');
+        const idx = state.boxes.indexOf(box);
+        const labelEl = document.getElementById('desc-dock-label');
+        const dotEl = document.getElementById('desc-dock-dot');
+        if (labelEl) labelEl.textContent = box.mode === 'text' ? `Text ${idx + 1}` : `Object ${idx + 1}`;
+        if (dotEl) dotEl.style.background = box.color || 'var(--accent)';
+        if (isFullscreen) document.getElementById('box-desc').focus();
+      }
     } else {
       boxPanel.style.display = 'none';
+      if (descDock) {
+        descDock.classList.remove('show');
+        descDock.setAttribute('aria-hidden', 'true');
+      }
     }
   });
 
