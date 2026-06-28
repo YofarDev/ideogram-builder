@@ -169,7 +169,7 @@ export function initSettings() {
 
       if (descDock) {
         descDock.classList.add('show');
-        descDock.setAttribute('aria-hidden', 'false');
+        descDock.setAttribute('aria-hidden', isFullscreen ? 'false' : 'true');
         const idx = state.boxes.indexOf(box);
         const labelEl = document.getElementById('desc-dock-label');
         const dotEl = document.getElementById('desc-dock-dot');

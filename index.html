@@ -43,6 +43,7 @@
             --border: var(--hairline);
             --border-strong: var(--hairline-strong);
 
+            --fullscreen-rail-width: 340px;
             --radius: 8px;
             --radius-sm: 5px;
             --font-display: 'DM Serif Display', Georgia, serif;
@@ -2580,7 +2581,7 @@
         /* Layers + Box Properties appear in the fullscreen rail */
         .main-content.draw-fullscreen .fullscreen-rail {
             display: flex;
-            width: 340px;
+            width: var(--fullscreen-rail-width);
             flex-shrink: 0;
             overflow-y: auto;
         }
@@ -2598,7 +2599,7 @@
             display: none;
             position: absolute;
             left: 12px;
-            right: 360px;          /* clear the 340px fullscreen-rail + gaps */
+            right: calc(var(--fullscreen-rail-width) + 20px);
             bottom: 12px;
             z-index: 60;           /* above canvas, below modals (z-index: 100) */
             justify-content: center;
@@ -2619,7 +2620,7 @@
             pointer-events: auto;
             width: 100%;
             max-width: 760px;
-            background: oklch(21.5% 0.008 65 / 0.92);
+            background: color-mix(in srgb, var(--surface-2) 92%, transparent);
             border: 1px solid var(--hairline-strong);
             border-radius: var(--radius);
             box-shadow: var(--shadow-strong);
