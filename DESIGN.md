@@ -31,6 +31,7 @@ All values in OKLCH. Neutrals are tinted toward the accent hue (chroma held near
 | `--accent` | `oklch(74% 0.115 80)` | Gold. Focus, selection, primary CTA |
 | `--accent-hover` | `oklch(78% 0.115 82)` | Brighter hover state |
 | `--accent-dim` | `oklch(74% 0.115 80 / 0.12)` | Accent fills at low saturation |
+| `--accent-faint` | `oklch(74% 0.115 80 / 0.05)` | Subtle hover tints on rows / dropzones |
 | `--accent-glow` | `oklch(74% 0.115 80 / 0.25)` | Selection rings, hover glows |
 | `--on-accent` | `oklch(14.5% 0.008 75)` | Text/icon color on gold fills |
 | `--danger` | `oklch(56% 0.13 50)` | Destructive actions only |
