@@ -4,7 +4,7 @@ export const MODE_PHOTO = 0;
 export const MODE_ARTSTYLE = 1;
 
 export const state = {
-  canvas: { width: 1024, height: 1024, scale: 1, maxDisplayHeight: 800 },
+  canvas: { width: 768, height: 1152, scale: 1, maxDisplayHeight: 800 },
   boxes: [],
   globalPalette: [],
   selectedBoxId: null,

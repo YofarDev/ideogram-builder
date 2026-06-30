@@ -106,7 +106,7 @@ async function renderGallery() {
 
         card.querySelector('.gallery-card-btn.add-collection').addEventListener('click', (e) => {
             e.stopPropagation();
-            emit('collection:add', { importJson: item.prompt_json || '' });
+            emit('collection:add', { importJson: item.prompt_json || '', imageUrl: `/output/${item.img}` });
         });
 
         card.querySelector('.gallery-card-btn.delete').addEventListener('click', async (e) => {

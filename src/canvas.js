@@ -14,6 +14,7 @@ let dragStartX = 0, dragStartY = 0;
 let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 let hasDragged = false;
 let activeRect = null; // cached once per interaction
+let dockHiddenForInteraction = false;
 
 // Window-scoped pointermove handler — attached lazily on pointerdown,
 // detached on pointerup, so we don't run getBoundingClientRect on every
@@ -22,6 +23,11 @@ function windowPointerMove(e) {
   if (!activeRect) return;
   const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
   const currentY = (e.clientY - activeRect.top) / state.canvas.scale;
+
+  if (!dockHiddenForInteraction && (isDragging || isResizing)) {
+    dockHiddenForInteraction = true;
+    document.getElementById('desc-dock')?.classList.remove('show');
+  }
 
   if (isDragging && currentBoxDOM) {
     currentBoxDOM.style.left = (initialBoxX + currentX - dragStartX) + 'px';
@@ -57,6 +63,15 @@ function windowPointerUp() {
   isDragging = false;
   isResizing = false;
   hasDragged = false;
+  if (dockHiddenForInteraction) {
+    dockHiddenForInteraction = false;
+    if (state.selectedBoxId) {
+      const dock = document.getElementById('desc-dock');
+      if (dock && document.querySelector('.main-content')?.classList.contains('draw-fullscreen')) {
+        dock.classList.add('show');
+      }
+    }
+  }
   currentBoxDOM = null;
   activeRect = null;
   window.removeEventListener('pointermove', windowPointerMove);

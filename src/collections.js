@@ -81,11 +81,11 @@ export function deleteActive() {
   showToast(`Deleted "${name}".`, 'info');
 }
 
-export function addItem(importJson) {
+export function addItem(importJson, imageUrl) {
   const c = getActive();
   if (!c) return null;
   if (!importJson || !importJson.trim()) return null;
-  c.items.push({ id: uid(), importJson });
+  c.items.push({ id: uid(), importJson, imageUrl: imageUrl || null });
   save();
   render();
   return c;
@@ -105,7 +105,7 @@ export function duplicateItem(itemId) {
   if (!c) return;
   const i = c.items.findIndex(it => it.id === itemId);
   if (i === -1) return;
-  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson });
+  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson, imageUrl: c.items[i].imageUrl });
   save();
   render();
 }
@@ -250,6 +250,7 @@ function renderItems() {
     return `
       <article class="coll-card${open ? ' expanded' : ''}" data-card="${item.id}">
         <div class="coll-card-head">
+          ${item.imageUrl ? `<img class="coll-thumb" src="${escapeHtml(item.imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
           <canvas class="coll-preview" width="160" height="160" aria-hidden="true"></canvas>
           <button class="coll-card-chevron" data-toggle aria-label="${open ? 'Collapse' : 'Expand details'}">${open ? '\u25BE' : '\u25B8'}</button>
         </div>
@@ -393,8 +394,8 @@ function bind() {
     else showToast('Create a collection first.', 'error');
   });
 
-  on('collection:add', ({ importJson }) => {
-    const c = addItem(importJson);
+  on('collection:add', ({ importJson, imageUrl }) => {
+    const c = addItem(importJson, imageUrl);
     if (c) showToast(`Added to "${c.name}".`, 'success');
     else showToast('Create a collection first.', 'error');
   });
