@@ -3,14 +3,15 @@ import { state } from '../state.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
-const { initAIEnhancer } = await import('../ai-enhancer.js')
-
 const DOM_HTML = `
   <button id="btn-ai-enhance">AI Enhance</button>
+  <button id="btn-rewrite-caption">Rewrite</button>
   <select id="ai-model"></select>
   <textarea id="ai-prompt"></textarea>
   <div id="ai-status" class="ai-status"></div>
   <textarea id="json-output"></textarea>
+  <span class="tab-btn" data-tab="editor"></span>
+  <select id="ai-aspect-ratio"><option value="1024x1024">1:1</option><option value="1024x768">4:3</option><option value="768x1152">2:3</option><option value="1920x1080">16:9</option></select>
 `
 
 const CONFIG = {
@@ -28,20 +29,6 @@ const VALID_RESPONSE = {
   })}}],
 }
 
-function setupFetchMock(responses) {
-  const mock = vi.fn()
-  responses.forEach((r, i) => {
-    const status = r.error ? r.status : 200
-    mock.mockResolvedValueOnce({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(r.body || r),
-      text: () => Promise.resolve(r.error || JSON.stringify(r)),
-    })
-  })
-  return mock
-}
-
 beforeEach(() => {
   document.body.innerHTML = DOM_HTML
   state.boxes = []
@@ -50,29 +37,41 @@ beforeEach(() => {
   state.globalPalette = []
   state.canvas = { width: 1024, height: 1024, scale: 1 }
   state.photoArtMode = 1
-  // initAIEnhancer fetches /api/config — mock it
-  global.fetch = vi.fn().mockResolvedValue({
+})
+
+async function initModule(fetchMock) {
+  vi.resetModules()
+  global.fetch = fetchMock
+  const mod = await import('../ai-enhancer.js')
+  mod.initAIEnhancer()
+  await vi.waitFor(() => expect(document.getElementById('btn-ai-enhance').disabled).toBe(false))
+  return mod
+}
+
+function configMock() {
+  return vi.fn().mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(CONFIG),
   })
-  initAIEnhancer()
-})
+}
 
 describe('aspectRatioStr (via fetch body)', () => {
   async function captureUserMessage(width, height) {
     state.canvas.width = width
     state.canvas.height = height
     document.getElementById('ai-prompt').value = 'test prompt'
-    document.getElementById('ai-model').value = 'deepseek::deepseek-v4-flash'
+    document.getElementById('ai-aspect-ratio').value = `${width}x${height}`
 
     let capturedBody = null
-    global.fetch = vi.fn().mockImplementation(async (url, opts) => {
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
       capturedBody = JSON.parse(opts.body)
       return { ok: true, json: () => Promise.resolve(VALID_RESPONSE) }
     })
+    await initModule(apiMock)
 
     document.getElementById('btn-ai-enhance').click()
-    await vi.waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await vi.waitFor(() => expect(apiMock).toHaveBeenCalledWith(expect.stringContaining('/chat/completions'), expect.anything()))
     return capturedBody.messages[1].content
   }
 
@@ -102,12 +101,14 @@ describe('enhancePrompt errors', () => {
     document.getElementById('ai-prompt').value = prompt
     document.getElementById('ai-model').value = model
     document.getElementById('btn-ai-enhance').click()
-    await vi.waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    await vi.waitFor(() => {
+      expect(document.getElementById('ai-status').textContent).toBeTruthy()
+    })
   }
 
   it('empty prompt shows "Enter a prompt first"', async () => {
+    await initModule(configMock())
     document.getElementById('ai-prompt').value = ''
-    document.getElementById('ai-model').value = 'deepseek::model'
     document.getElementById('btn-ai-enhance').click()
     await vi.waitFor(() => {
       expect(document.getElementById('ai-status').textContent).toContain('Enter a prompt')
@@ -115,8 +116,14 @@ describe('enhancePrompt errors', () => {
   })
 
   it('no model selected shows error', async () => {
-    document.getElementById('ai-prompt').value = 'test'
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({
+        deepseek: { api_key: 'k', models: ['m'] },
+      }),
+    })
+    await initModule(fetchMock)
     document.getElementById('ai-model').value = ''
+    document.getElementById('ai-prompt').value = 'test'
     document.getElementById('btn-ai-enhance').click()
     await vi.waitFor(() => {
       expect(document.getElementById('ai-status').textContent).toContain('No model')
@@ -124,34 +131,47 @@ describe('enhancePrompt errors', () => {
   })
 
   it('successful call writes JSON and emits state:loaded', async () => {
-    const emitted = []
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: true, json: () => Promise.resolve(VALID_RESPONSE) }
+    })
+    await initModule(apiMock)
+
     const { on } = await import('../events.js')
+    const emitted = []
     on('state:loaded', (d) => emitted.push(d))
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true, json: () => Promise.resolve(VALID_RESPONSE),
-    })
-
-    await clickEnhance()
+    document.getElementById('ai-prompt').value = 'test'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => expect(emitted.length).toBe(1))
     const output = document.getElementById('json-output').value
     expect(output).toContain('high_level_description')
-    expect(emitted.length).toBe(1)
   })
 
   it('HTTP error shows status code', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false, status: 429, text: () => Promise.resolve('rate limited'),
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: false, status: 429, text: () => Promise.resolve('rate limited') }
     })
-    await clickEnhance()
-    expect(document.getElementById('ai-status').textContent).toContain('429')
+    await initModule(apiMock)
+    document.getElementById('ai-prompt').value = 'test'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => {
+      expect(document.getElementById('ai-status').textContent).toContain('429')
+    })
   })
 
   it('empty choices shows "Empty response"', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true, json: () => Promise.resolve({ choices: [{ message: { content: '' } }] }),
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: true, json: () => Promise.resolve({ choices: [{ message: { content: '' } }] }) }
     })
-    await clickEnhance()
-    expect(document.getElementById('ai-status').textContent).toContain('Empty response')
+    await initModule(apiMock)
+    document.getElementById('ai-prompt').value = 'test'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => {
+      expect(document.getElementById('ai-status').textContent).toContain('Empty response')
+    })
   })
 
   it('missing elements shows error', async () => {
@@ -162,10 +182,15 @@ describe('enhancePrompt errors', () => {
         compositional_deconstruction: { background: 'bg', elements: undefined },
       })}}],
     }
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true, json: () => Promise.resolve(noElements),
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: true, json: () => Promise.resolve(noElements) }
     })
-    await clickEnhance()
-    expect(document.getElementById('ai-status').textContent).toContain('elements')
+    await initModule(apiMock)
+    document.getElementById('ai-prompt').value = 'test'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => {
+      expect(document.getElementById('ai-status').textContent).toContain('elements')
+    })
   })
 })

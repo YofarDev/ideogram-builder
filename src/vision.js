@@ -5,20 +5,18 @@ import { showToast } from './toast.js';
 let isProcessing = false;
 let processed = false;
 let internalImageLoad = false;
-const MAX_DIM = 2048;
+const MAX_DIM = 512;
 
 function downscaleImage(dataUrl, maxDim) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      let { width, height } = img;
-      if (width <= maxDim && height <= maxDim) {
-        resolve(dataUrl);
-        return;
-      }
-      const scale = Math.min(maxDim / width, maxDim / height);
-      width = Math.round(width * scale);
-      height = Math.round(height * scale);
+      // Always re-encode to JPEG at <= maxDim: a small-pixel PNG can still be
+      // multi-MB raw, which VLM endpoints reject/drop. scale is capped at 1 so
+      // images already <= maxDim are never upscaled, only re-encoded.
+      const scale = Math.min(1, maxDim / img.width, maxDim / img.height);
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -50,8 +48,14 @@ export function initVision() {
   const pipelineSelect = document.getElementById('vision-pipeline');
   const pipelineLabel = document.getElementById('vision-pipeline-label');
   const noSamCheckbox = document.getElementById('vision-no-sam');
+  const bboxFormatSelect = document.getElementById('vision-bbox-format');
   const savedPipeline = localStorage.getItem('vision_pipeline');
   if (savedPipeline && pipelineSelect) pipelineSelect.value = savedPipeline;
+  const savedBboxFormat = localStorage.getItem('vision_bbox_format');
+  if (savedBboxFormat && bboxFormatSelect) bboxFormatSelect.value = savedBboxFormat;
+  bboxFormatSelect?.addEventListener('change', () => {
+    localStorage.setItem('vision_bbox_format', bboxFormatSelect.value);
+  });
   fetch('/api/config', { signal: AbortSignal.timeout(5000) })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(config => {
@@ -247,6 +251,7 @@ export function initVision() {
       const downscaled = await downscaleImage(dataUrl, MAX_DIM);
 
       const body = { image: downscaled, model: selectedModel };
+      body.bbox_format = bboxFormatSelect?.value || 'xyxy';
       if (selectedModel === 'local') {
         body.local_model = visionModelSelect.options[visionModelSelect.selectedIndex].textContent;
         const pipeline = pipelineSelect?.value || 'current';
@@ -279,7 +284,8 @@ export function initVision() {
 
         if (!resp.ok) {
           const errData = await resp.json().catch(() => null);
-          throw new Error(errData?.error || `Server error (${resp.status})`);
+          const detail = errData?.detail ? ` — ${String(errData.detail).slice(0, 160)}` : '';
+          throw new Error((errData?.error || `Server error (${resp.status})`) + detail);
         }
 
         const data = await resp.json();

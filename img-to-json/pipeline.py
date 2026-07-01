@@ -77,6 +77,7 @@ def run(
     low_memory: bool = False,
     debug=None,
     model: str = "Qwen3-VL-4B-Instruct-8bit",
+    bbox_format: str = "xyxy",
 ):
     pre = preprocess(image_path)
     if verbose:
@@ -90,7 +91,7 @@ def run(
         })
         debug.save_image("01_preprocess/image_padded.png", pre.image_padded)
 
-    analysis = analyze(pre.image_orig, verbose=verbose, debug=debug, model_name=model)
+    analysis = analyze(pre.image_orig, verbose=verbose, debug=debug, model_name=model, bbox_format=bbox_format)
     if verbose:
         obj_count = len(analysis.get("objects", []))
         logger.info("Step 2 — Local VLM: %d objects detected", obj_count)

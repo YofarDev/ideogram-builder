@@ -49,6 +49,13 @@ def main():
         type=str,
         help="Path to JSON file with objects list (for --bbox-only mode)",
     )
+    parser.add_argument(
+        "--bbox-format",
+        type=str,
+        default="xyxy",
+        choices=["xyxy", "yxyx"],
+        help="Bbox order the VLM is asked to emit (final JSON is always yxyx)",
+    )
 
     args = parser.parse_args()
 
@@ -72,6 +79,7 @@ def main():
         low_memory=args.low_memory,
         debug=debug_logger,
         model=args.model,
+        bbox_format=args.bbox_format,
     )
     if args.split:
         from pipeline_split import run
@@ -98,12 +106,13 @@ def _run_bbox_only(args):
     from mlx_vlm.prompt_utils import apply_chat_template
     from models.local_vlm_loader import get_local_vlm
     from steps.local_vlm_analysis import _parse_json
+    from utils.bbox import to_yxyx, format_prompt
 
     image = Image.open(args.image_path).convert("RGB")
     objects = json.loads(Path(args.objects).read_text())
     prompt_dir = Path(__file__).resolve().parent / "prompts"
 
-    system_prompt = (prompt_dir / "bbox_fallback.txt").read_text().strip()
+    system_prompt = format_prompt((prompt_dir / "bbox_fallback.txt").read_text().strip(), args.bbox_format)
     user_msg = "Locate these objects:\n" + "\n".join(
         f"- {o['name']}: {o.get('desc', '')[:100]}" for o in objects
     )
@@ -125,10 +134,8 @@ def _run_bbox_only(args):
     parsed = _parse_json(result.text)
     if parsed:
         for o in parsed.get("objects", []):
-            bbox = o.get("bbox")
-            if bbox:
-                x1, y1, x2, y2 = bbox
-                o["bbox"] = [y1, x1, y2, x2]
+            if "bbox" in o:
+                o["bbox"] = to_yxyx(o.get("bbox"), args.bbox_format)
         print(json.dumps(parsed))
     else:
         print(json.dumps({"objects": []}))

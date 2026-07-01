@@ -117,6 +117,7 @@ def run(
     debug=None,
     style_override=None,
     model: str = "Qwen3-VL-4B-Instruct-8bit",
+    bbox_format: str = "xyxy",
 ):
     pre = preprocess(image_path)
     if verbose:
@@ -185,7 +186,8 @@ def run(
         try:
             result = subprocess.run(
                 [sys.executable, str(img_dir / "main.py"), "--bbox-only",
-                 image_path, "--objects", tmp_objects.name, "--model", model],
+                 image_path, "--objects", tmp_objects.name, "--model", model,
+                 "--bbox-format", bbox_format],
                 capture_output=True, text=True, timeout=120,
                 cwd=str(img_dir),
             )
