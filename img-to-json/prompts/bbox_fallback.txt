@@ -15,7 +15,7 @@ Output format — return ONLY this JSON structure:
   ]
 }
 
-bbox is [y_min, x_min, y_max, x_max] — four integers 0-1000, normalized image coordinates.
+bbox is [{bbox_desc}] — four integers 0-1000, normalized image coordinates.
 Origin is top-left: y=0 is the top edge, x=0 is the left edge, y=1000 is the bottom, x=1000 is the right.
 
 Rules:

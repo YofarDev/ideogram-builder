@@ -2071,12 +2071,16 @@
         body:has(.main-content.vision-active) .workflow-toggle,
         body:has(.main-content.gallery-active) .backend-toggle,
         body:has(.main-content.prompt-active) .backend-toggle,
-        body:has(.main-content.vision-active) .backend-toggle {
+        body:has(.main-content.vision-active) .backend-toggle,
+        body:has(.main-content.gallery-active) .steps-toggle,
+        body:has(.main-content.prompt-active) .steps-toggle,
+        body:has(.main-content.vision-active) .steps-toggle {
             display: none;
         }
 
         body:has(.main-content.collections-active) .workflow-toggle,
-        body:has(.main-content.collections-active) .backend-toggle {
+        body:has(.main-content.collections-active) .backend-toggle,
+        body:has(.main-content.collections-active) .steps-toggle {
             display: none;
         }
 
@@ -3088,6 +3092,12 @@
                         <select id="vision-style-preset" class="ai-model-select" style="display:none;">
                             <option value="">None</option>
                         </select>
+                        <span class="vision-toolbar-label" id="vision-bbox-format-label">Bbox</span>
+                        <label class="sr-only" for="vision-bbox-format">Bounding-box order the VLM should output</label>
+                        <select id="vision-bbox-format" class="ai-model-select">
+                            <option value="xyxy">xyxy</option>
+                            <option value="yxyx">yxyx</option>
+                        </select>
                         <button id="btn-vision-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
                     </div>
                     <div class="vision-model-unavailable" id="vision-model-unavailable" style="display:none;" role="note">
@@ -3124,7 +3134,7 @@
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                 </div>
                                 <span class="vision-dropzone-text">Drop an image here, or click to browse</span>
-                                <span class="vision-dropzone-hint">Max 2048px, auto-downscaled</span>
+                                <span class="vision-dropzone-hint">Auto-downscaled to max 512px</span>
                                 <input type="file" id="vision-file-input" accept="image/*" hidden>
                             </div>
                             <div class="vision-preview" id="vision-preview">

@@ -17,7 +17,7 @@ The output is loaded into a bounding-box editor where each element becomes a sel
       "desc": "<detailed 30-60 word description>",
       "has_text": <true|false>,
       "visible_text": "<exact text string if has_text is true, else null>",
-      "bbox": [y1, x1, y2, x2]
+      "bbox": [{bbox_order}]
     }
   ]
 }
@@ -45,7 +45,7 @@ NOTE: text elements are exempt from the 30-60 word target and the "identity firs
 
 ### BBOX format
 
-[y_min, x_min, y_max, x_max] in 0-1000 normalized coordinates, top-left origin.
+[{bbox_desc}] in 0-1000 normalized coordinates, top-left origin.
 Provide approximate bboxes for ALL objects — the user needs them for the canvas editor.
 Cover foreground, midground, and background regions with spatial bboxes.
 

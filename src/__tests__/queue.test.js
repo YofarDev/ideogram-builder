@@ -152,9 +152,11 @@ describe('queue', () => {
     await vi.waitFor(() => {
       expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
     })
-    expect(emit).toHaveBeenCalledWith('image:ready', {
+    expect(emit).toHaveBeenNthCalledWith(3, 'image:ready', {
       imageUrl: 'blob:success',
       dataUrl: 'data:image/png;base64,ZZ',
+      importJson: '{"high_level_description":"test"}',
+      source: 'generation',
     })
   })
 

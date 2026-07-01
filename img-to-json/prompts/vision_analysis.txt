@@ -38,8 +38,8 @@ Rules:
 ### ELEMENTS — detailed spatial breakdown
 
 Each element is one of:
-{"type":"obj","bbox":[y1,x1,y2,x2],"desc":"...","color_palette":["#RRGGBB"]}
-{"type":"text","bbox":[y1,x1,y2,x2],"text":"literal text","desc":"...","color_palette":["#RRGGBB"]}
+{"type":"obj","bbox":[{bbox_order}],"desc":"...","color_palette":["#RRGGBB"]}
+{"type":"text","bbox":[{bbox_order}],"text":"literal text","desc":"...","color_palette":["#RRGGBB"]}
 
 Break the scene into elements that form a coherent composition. Each element represents a distinct visual region or subject — think of them as layers in a composition. Cover foreground, midground, and background regions.
 
@@ -60,7 +60,7 @@ NOTE: text elements are exempt from the 30-60 word target and the "identity firs
 
 ### BBOX format
 
-[y_min, x_min, y_max, x_max] in 0-1000 normalized coordinates, top-left origin.
+[{bbox_desc}] in 0-1000 normalized coordinates, top-left origin.
 Include bboxes on ALL elements — the user needs them for the canvas editor.
 
 Bbox values are normalized to 0-1000 in BOTH axes. A [0,0,500,500] bbox is square only on a 1:1 image; on 16:9 it becomes wide, on 9:16 tall. Scale spans so (x2-x1)/(y2-y1) ≈ width/height for square regions.

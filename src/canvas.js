@@ -197,7 +197,7 @@ export function clearBoxes() {
 export function selectBox(id) {
   state.selectedBoxId = id;
   document.querySelectorAll('.bounding-box').forEach(el => el.classList.remove('selected'));
-  if (id) document.getElementById(id).classList.add('selected');
+  if (id) document.getElementById(id)?.classList.add('selected');
   emit('box:selected', { id });
 }
 
