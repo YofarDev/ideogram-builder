@@ -10,7 +10,7 @@ export function loadSession() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object') return null;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
     return data;
   } catch {
     return null;
@@ -125,13 +125,24 @@ export function restore() {
   // 2. Content → state:loaded rebuilds boxes/fields/palette/layers
   applyContent(blob.content);
 
-  // 3. Remaining config (no event dispatch → no regenerate cascade)
-  if (config.mode === 'photo') {
-    if (el('mode_photo')) el('mode_photo').checked = true;
-  } else {
-    if (el('mode_artstyle')) el('mode_artstyle').checked = true;
+  // 3. Remaining config — dispatch change/input so settings.js handlers sync
+  //    state.* (mode→photoArtMode, steps→preset, seed→seed). Only the mode
+  //    handler emits state:changed → json-builder regenerates #json-output,
+  //    which is safe/idempotent here (fields were just restored above).
+  const modeRadio = config.mode === 'photo' ? el('mode_photo') : el('mode_artstyle');
+  if (modeRadio) {
+    modeRadio.checked = true;
+    modeRadio.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  if (el('seed-input') && !isNaN(config.seed)) el('seed-input').value = config.seed;
+  if (el('seed-input') && !isNaN(config.seed)) {
+    el('seed-input').value = config.seed;
+    el('seed-input').dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  const stepsRadio = document.querySelector(`input[name="steps"][data-preset="${config.steps}"]`);
+  if (stepsRadio) {
+    stepsRadio.checked = true;
+    stepsRadio.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   applySelectWhenReady('ai-model', config.aiModel);
   applySelectWhenReady('vision-model', config.visionModel);
   applySelectWhenReady('recaption-model', config.recaptionModel);

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { state } from '../state.js'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
+import { state, MODE_PHOTO, MODE_ARTSTYLE } from '../state.js'
 import { emit, resetAllListeners } from '../events.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
@@ -248,6 +248,86 @@ describe('restore — config + model selects + UI', () => {
     session.restore()
     expect(fsSpy).not.toHaveBeenCalled()
     expect(pvSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('restore — state sync via settings handlers', () => {
+  // Minimal DOM containing every element settings.initSettings() touches at
+  // registration time (top-level getElementById calls) plus the controls the
+  // mode/seed/steps handlers mutate. Loaded fresh so real handlers register.
+  const STATE_SYNC_DOM = `
+    <textarea id="json-output"></textarea>
+    <select id="aspect-ratio"><option value="768x1152">2:3</option></select>
+    <input type="radio" id="mode_photo" name="art_mode" value="photo">
+    <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+    <span id="mode_label">Art Style</span>
+    <input id="box-mode" value="obj">
+    <input id="box-text" value="">
+    <textarea id="box-desc"></textarea>
+    <input id="high_level_description" value="">
+    <input id="aesthetics" value="">
+    <input id="lighting" value="">
+    <input id="medium" value="illustration">
+    <input id="art_style" value="">
+    <input id="background" value="">
+    <input type="radio" name="steps" data-preset="Turbo">
+    <input type="radio" name="steps" data-preset="Default" checked>
+    <input type="radio" name="steps" data-preset="Quality">
+    <input id="turbo-strength" type="range" value="0.8">
+    <input id="seed-input" value="-1">
+    <button id="btn-random-seed">Random</button>
+    <input id="box-x" value="0">
+    <input id="box-y" value="0">
+    <input id="box-w" value="0">
+    <input id="box-h" value="0">
+    <button id="btn-reroll-color">Reroll</button>
+  `
+
+  beforeAll(() => {
+    if (!AbortSignal.timeout) {
+      AbortSignal.timeout = () => new AbortController().signal
+    }
+  })
+
+  beforeEach(async () => {
+    document.body.innerHTML = STATE_SYNC_DOM
+    state.boxes = []
+    state.selectedBoxId = null
+    state.boxCounter = 0
+    state.seed = -1
+    state.preset = 'Default'
+    state.photoArtMode = MODE_ARTSTYLE
+    resetAllListeners()
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    const settings = await import('../settings.js?fresh=' + Date.now())
+    settings.initSettings()
+  })
+
+  it('syncs seed, steps preset, and photoArtMode to state via settings handlers', () => {
+    // content:null is the exact I1 scenario (photoArtMode must not stay ARTSTYLE).
+    session.writeSession({
+      version: 1,
+      content: null,
+      config: { mode: 'photo', seed: 999, steps: 'Quality' },
+      ui: {},
+    })
+    session.restore()
+    expect(state.seed).toBe(999)
+    expect(state.preset).toBe('Quality')
+    expect(state.photoArtMode).toBe(MODE_PHOTO)
+  })
+
+  it('restores art_style mode + Default preset defaults', () => {
+    session.writeSession({
+      version: 1,
+      content: null,
+      config: { mode: 'art_style', seed: 42, steps: 'Default' },
+      ui: {},
+    })
+    session.restore()
+    expect(state.seed).toBe(42)
+    expect(state.preset).toBe('Default')
+    expect(state.photoArtMode).toBe(MODE_ARTSTYLE)
   })
 })
 

@@ -80,7 +80,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing prompt collections?** → `src/collections.js` (+ `enqueueImportJson` in `src/queue.js`)
 - **Editing PNG import logic?** → `src/png-import.js`
 - **Adding a new button?** → Add ID in `index.html`, wire in `src/app.js`
-- **Editing session persistence (save/restore on reload)?** → `src/session.js` (+ `initSession()` call at end of `src/app.js`)
+- **Editing session persistence (save/restore on reload)?** → `src/session.js` (+ `initSession()` call after `initCanvas()` in `src/app.js`)
 - **Adding a new event?** → Add to this catalog, emit from source, listen in target
 
 ## RunPod Backend (`runpod/`)
