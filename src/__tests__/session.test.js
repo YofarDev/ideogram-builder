@@ -250,3 +250,28 @@ describe('restore — config + model selects + UI', () => {
     expect(pvSpy).not.toHaveBeenCalled()
   })
 })
+
+describe('wipeContent (reset)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('nulls content while preserving config + ui', () => {
+    session.writeSession({
+      version: 1,
+      content: '{"x":1}',
+      config: { size: '2', steps: 'Quality' },
+      ui: { tab: 'gallery' },
+    })
+    session.wipeContent()
+    const blob = session.loadSession()
+    expect(blob.content).toBeNull()
+    expect(blob.config).toEqual({ size: '2', steps: 'Quality' })
+    expect(blob.ui).toEqual({ tab: 'gallery' })
+  })
+
+  it('is a no-op when no blob exists', () => {
+    expect(() => session.wipeContent()).not.toThrow()
+    expect(session.loadSession()).toBeNull()
+  })
+})

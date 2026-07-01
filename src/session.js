@@ -142,3 +142,11 @@ export function restore() {
   if (ui.fullscreen) el('btn-enter-fullscreen')?.click();
   if (ui.preview) el('btn-preview')?.click();
 }
+
+/** Clear saved prompt content (called on canvas:reset). Keeps config + ui. */
+export function wipeContent() {
+  const blob = loadSession();
+  if (!blob) return;
+  blob.content = null;
+  writeSession(blob);
+}
