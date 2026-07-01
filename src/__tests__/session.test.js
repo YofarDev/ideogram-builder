@@ -190,7 +190,7 @@ describe('restore — config + model selects + UI', () => {
     localStorage.clear()
   })
 
-  it('sets mode radio without dispatching events (no cascade)', () => {
+  it('sets the mode radio checked state', () => {
     session.writeSession({ version: 1, content: null, config: { mode: 'photo' }, ui: {} })
     session.restore()
     expect(document.getElementById('mode_photo').checked).toBe(true)
