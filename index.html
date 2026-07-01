@@ -1055,6 +1055,32 @@
 
         .coll-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
+        .coll-tokens { margin: 0 0 14px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+        .coll-token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+        .coll-token-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .coll-token-label { font-family: var(--font-body); font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: .03em; }
+        .coll-token-input { font-family: var(--font-body); font-size: 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 5px 8px; outline: none; width: 100%; box-sizing: border-box; }
+        .coll-token-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+        .coll-edit { display: block; }
+        .coll-edit-main { display: flex; flex-direction: column; gap: 10px; }
+        .coll-edit-textarea {
+            width: 100%;
+            min-height: 360px;
+            font-family: 'DM Mono', 'SF Mono', Monaco, monospace;
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            outline: none;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .coll-edit-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
         .coll-footer { position: sticky; bottom: 0; }
         .coll-footer .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
