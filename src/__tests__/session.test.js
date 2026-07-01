@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { state } from '../state.js'
+import { emit, resetAllListeners } from '../events.js'
+
+vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
 let session
 
@@ -94,5 +98,78 @@ describe('captureSnapshot', () => {
     expect(snap.config.steps).toBe('Default')
     expect(snap.config.mode).toBe('art_style')
     expect(snap.ui.tab).toBe('editor')
+  })
+})
+
+const RESTORE_DOM = `
+  <textarea id="json-output"></textarea>
+  <select id="aspect-ratio">
+    <option value="768x1152" selected>2:3</option>
+    <option value="1024x1024">1:1</option>
+  </select>
+  <button class="size-btn active" data-size="1">1M</button>
+  <button class="size-btn" data-size="2">2M</button>
+  <div class="main-content"><div class="canvas-container"><div id="canvas-wrapper"></div></div></div>
+  <img id="canvas-overlay">
+`
+
+describe('restore — dimensions + content', () => {
+  let canvasModule
+
+  beforeEach(async () => {
+    document.body.innerHTML = RESTORE_DOM
+    state.boxes = []
+    state.selectedBoxId = null
+    state.boxCounter = 0
+    state.canvas = { width: 768, height: 1152, scale: 1, maxDisplayHeight: 800 }
+    resetAllListeners()
+    canvasModule = await import('../canvas.js?fresh=' + Date.now())
+    canvasModule.initCanvas()
+    canvasModule.initCanvasEvents()
+    localStorage.clear()
+  })
+
+  it('restore is a no-op when no blob is stored', () => {
+    session.restore()
+    expect(document.getElementById('json-output').value).toBe('')
+    expect(state.boxes.length).toBe(0)
+  })
+
+  it('sets aspect-ratio value + dispatches change', () => {
+    session.writeSession({ version: 1, content: null, config: { aspectRatio: '1024x1024', size: '1' }, ui: {} })
+    let changed = false
+    document.getElementById('aspect-ratio').addEventListener('change', () => { changed = true })
+    session.restore()
+    expect(document.getElementById('aspect-ratio').value).toBe('1024x1024')
+    expect(changed).toBe(true)
+  })
+
+  it('sets the size-btn active state from config.size', () => {
+    session.writeSession({ version: 1, content: null, config: { aspectRatio: '1024x1024', size: '2' }, ui: {} })
+    session.restore()
+    const active = document.querySelector('.size-btn.active')
+    expect(active?.dataset.size).toBe('2')
+  })
+
+  it('restores content: sets json-output and rebuilds boxes via state:loaded', () => {
+    const content = JSON.stringify({
+      high_level_description: 'scene',
+      compositional_deconstruction: {
+        background: 'sky',
+        elements: [
+          { type: 'obj', bbox: [0, 0, 500, 500], desc: 'cat' },
+        ],
+      },
+    })
+    session.writeSession({ version: 1, content, config: { aspectRatio: '1024x1024', size: '1' }, ui: {} })
+    session.restore()
+    expect(document.getElementById('json-output').value).toBe(content)
+    expect(state.boxes.length).toBe(1)
+  })
+
+  it('ignores corrupt stored content', () => {
+    session.writeSession({ version: 1, content: 'not json', config: { aspectRatio: '1024x1024', size: '1' }, ui: {} })
+    expect(() => session.restore()).not.toThrow()
+    expect(state.boxes.length).toBe(0)
   })
 })

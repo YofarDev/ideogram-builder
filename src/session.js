@@ -57,3 +57,48 @@ export function captureSnapshot() {
     },
   };
 }
+
+let armed = false;
+
+/** Restore dimensions (size tier + aspect ratio) from the blob. */
+function applyDimensions(config) {
+  // Size tier FIRST — updateDimensions reads .size-btn.active
+  const size = config.size || '1';
+  document.querySelectorAll('.size-btn').forEach((b) => {
+    const on = b.dataset.size === size;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  // Aspect ratio — dispatch change so settings.updateDimensions sizes the canvas
+  const ar = document.getElementById('aspect-ratio');
+  if (ar) {
+    const val = config.aspectRatio || localStorage.getItem('ideogram_aspect_ratio');
+    if (val && Array.from(ar.options).some((o) => o.value === val)) {
+      ar.value = val;
+      ar.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+}
+
+/** Restore prompt content via the existing state:loaded path. */
+function applyContent(content) {
+  if (!content) return;
+  const out = document.getElementById('json-output');
+  if (out) out.value = content;
+  try {
+    emit('state:loaded', { json: JSON.parse(content) });
+  } catch {
+    /* corrupt content — leave textarea as-is, skip box rebuild */
+  }
+}
+
+/** Restore the full session: dimensions → content → config → UI. */
+export function restore() {
+  const blob = loadSession();
+  if (!blob) return;
+
+  applyDimensions(blob.config || {});
+  applyContent(blob.content);
+
+  // (config + model selects + UI are added in Task 4)
+}
