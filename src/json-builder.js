@@ -18,10 +18,9 @@ export function initJsonBuilder() {
   });
 
   on('state:loaded', () => {
-    // Not calling generateJSON() here — all state:loaded callers already set
-    // the textarea value, and canvas boxes haven't been rebuilt yet so any
-    // generateJSON() would produce stale output. The Load JSON button in this
-    // same module explicitly calls generateJSON() after the event loop.
+    // No-op: each state:loaded caller sets #json-output itself before emitting
+    // (see gallery.loadItem, collections.loadItemToEditor). generateJSON() here
+    // would run before canvas rebuilds boxes → stale output.
   });
 
   // Capture textarea value on pointerdown, before canvas pointerup

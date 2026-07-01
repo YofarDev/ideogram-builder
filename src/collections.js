@@ -12,6 +12,7 @@ const LS_ACTIVE = 'ideogram_active_collection';
 let collections = [];
 let activeId = null;
 let expandedId = null;
+let editingId = null;
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -48,6 +49,32 @@ export function labelFor(importJson) {
 function parsePrompt(importJson) {
   try { return JSON.parse(importJson) || {}; }
   catch { return {}; }
+}
+
+// ponytail: template tokens — global string replace over the raw JSON, no structured rewrite.
+function extractTokens(importJson) {
+  if (!importJson) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of importJson.matchAll(/{{\s*([\w-]+)\s*}}/g)) {
+    const name = m[1];
+    if (!seen.has(name)) { seen.add(name); out.push(name); }
+  }
+  return out;
+}
+
+function resolveTokens(itemId, importJson) {
+  const tokens = extractTokens(importJson);
+  if (!tokens.length) return importJson;
+  const card = document.querySelector(`.coll-card[data-card="${itemId}"]`);
+  if (!card) return importJson;
+  let out = importJson;
+  tokens.forEach(t => {
+    const inp = card.querySelector(`input[data-token="${t}"]`);
+    const val = inp ? inp.value : '';
+    out = out.replace(new RegExp(`\\{\\{\\s*${t}\\s*\\}\\}`, 'g'), val);
+  });
+  return out;
 }
 
 export function createCollection(name) {
@@ -110,23 +137,43 @@ export function duplicateItem(itemId) {
   render();
 }
 
+function saveEdit(itemId) {
+  const c = getActive();
+  const it = c?.items.find(i => i.id === itemId);
+  if (!it) return;
+  const ta = document.querySelector(`.coll-card[data-card="${itemId}"] .coll-edit-textarea`);
+  if (!ta) return;
+  const val = ta.value;
+  try { JSON.parse(val); }
+  catch { showToast('Invalid JSON — fix syntax before saving.', 'error'); return; }
+  it.importJson = val;
+  editingId = null;
+  save();
+  render();
+  showToast('Prompt updated.', 'success');
+}
+
 export function generateItem(itemId) {
   const it = getActive()?.items.find(i => i.id === itemId);
   if (!it) return;
-  enqueueImportJson(it.importJson);
+  enqueueImportJson(resolveTokens(itemId, it.importJson));
   showToast('Queued this prompt.', 'success');
 }
 
 export function loadItemToEditor(itemId) {
   const it = getActive()?.items.find(i => i.id === itemId);
   if (!it) return;
-  const json = parsePrompt(it.importJson);
+  const resolved = resolveTokens(itemId, it.importJson);
+  const json = parsePrompt(resolved);
   if (!json.high_level_description && !json.compositional_deconstruction) {
     showToast('This prompt has no loadable structure.', 'error');
     return;
   }
+  const out = document.getElementById('json-output');
+  if (out) out.value = resolved;
   emit('state:loaded', { json });
   document.getElementById('tab-btn-editor')?.click();
+  emit('canvas:relayout');
 }
 
 export function generateCollection() {
@@ -273,6 +320,19 @@ function renderItems() {
 }
 
 function renderDetail(item, p, els) {
+  if (item.id === editingId) {
+    return `
+      <div class="coll-detail coll-edit">
+        <div class="coll-edit-main">
+          <div class="coll-detail-subhead">Edit prompt JSON</div>
+          <textarea class="coll-edit-textarea" spellcheck="false" data-edit="${item.id}">${escapeHtml(item.importJson)}</textarea>
+          <div class="coll-actions">
+            <button class="btn btn-primary" data-act="save" data-id="${item.id}">Save</button>
+            <button class="btn btn-ghost" data-act="cancel" data-id="${item.id}">Cancel</button>
+          </div>
+        </div>
+      </div>`;
+  }
   const s = p.style_description || {};
   const bg = p.compositional_deconstruction?.background || '';
   const rows = [
@@ -294,6 +354,15 @@ function renderDetail(item, p, els) {
     return `<span class="coll-el-chip" title="${tip}"><span class="coll-el-idx">${i + 1}</span><span class="coll-el-type">${escapeHtml(el.type || 'obj')}</span>${dots ? `<span class="coll-el-pal">${dots}</span>` : ''}</span>`;
   }).join('') : `<span class="coll-detail-empty">No elements.</span>`;
 
+  const tokens = extractTokens(item.importJson);
+  const tokensHtml = tokens.length ? `
+    <div class="coll-tokens">
+      <div class="coll-detail-subhead">Variables</div>
+      <div class="coll-token-grid">
+        ${tokens.map(t => `<label class="coll-token-field"><span class="coll-token-label">{{${escapeHtml(t)}}}</span><input class="coll-token-input" data-token="${escapeHtml(t)}" type="text" placeholder="value"></label>`).join('')}
+      </div>
+    </div>` : '';
+
   return `
     <div class="coll-detail">
       <div class="coll-detail-side">
@@ -301,11 +370,13 @@ function renderDetail(item, p, els) {
         <div class="coll-detail-style">${styleHtml}</div>
       </div>
       <div class="coll-detail-main">
+        ${tokensHtml}
         <div class="coll-detail-subhead">Elements</div>
         <div class="coll-el-chips">${elChips}</div>
         <div class="coll-actions">
           <button class="btn btn-primary" data-act="generate" data-id="${item.id}">Generate this one</button>
           <button class="btn btn-secondary" data-act="load" data-id="${item.id}">Load into Editor</button>
+          <button class="btn btn-ghost" data-act="edit" data-id="${item.id}">Edit</button>
           <button class="btn btn-ghost" data-act="dup" data-id="${item.id}">Duplicate</button>
           <button class="btn btn-danger" data-act="remove" data-id="${item.id}">Remove</button>
         </div>
@@ -330,12 +401,16 @@ function bind() {
       const id = act.dataset.id;
       if (act.dataset.act === 'generate') generateItem(id);
       else if (act.dataset.act === 'load') loadItemToEditor(id);
+      else if (act.dataset.act === 'edit') { editingId = id; render(); }
+      else if (act.dataset.act === 'save') saveEdit(id);
+      else if (act.dataset.act === 'cancel') { editingId = null; render(); }
       else if (act.dataset.act === 'dup') duplicateItem(id);
       else if (act.dataset.act === 'remove') removeItem(id);
       return;
     }
     const card = e.target.closest('[data-card]');
     if (card) {
+      if (e.target.closest('.coll-tokens') || e.target.closest('.coll-edit')) return;
       const id = card.dataset.card;
       const expanding = expandedId !== id;
       expandedId = expanding ? id : null;
