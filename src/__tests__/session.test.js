@@ -173,3 +173,80 @@ describe('restore — dimensions + content', () => {
     expect(state.boxes.length).toBe(0)
   })
 })
+
+describe('restore — config + model selects + UI', () => {
+  beforeEach(() => {
+    document.body.innerHTML = RESTORE_DOM + `
+      <input type="radio" id="mode_photo" name="art_mode" value="photo">
+      <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+      <input type="number" id="seed-input" value="-1">
+      <select id="ai-model"></select>
+      <button class="tab-btn active" data-tab="editor">Editor</button>
+      <button class="tab-btn" data-tab="prompt">Prompt</button>
+      <button id="btn-enter-fullscreen"></button>
+      <button id="btn-preview"></button>
+    `
+    resetAllListeners()
+    localStorage.clear()
+  })
+
+  it('sets mode radio without dispatching events (no cascade)', () => {
+    session.writeSession({ version: 1, content: null, config: { mode: 'photo' }, ui: {} })
+    session.restore()
+    expect(document.getElementById('mode_photo').checked).toBe(true)
+    expect(document.getElementById('mode_artstyle').checked).toBe(false)
+  })
+
+  it('sets seed input value', () => {
+    session.writeSession({ version: 1, content: null, config: { seed: 999 }, ui: {} })
+    session.restore()
+    expect(document.getElementById('seed-input').value).toBe('999')
+  })
+
+  it('applies model select value immediately when option exists', () => {
+    const sel = document.getElementById('ai-model')
+    sel.innerHTML = '<option value="deepseek::m">m</option>'
+    session.writeSession({ version: 1, content: null, config: { aiModel: 'deepseek::m' }, ui: {} })
+    session.restore()
+    expect(sel.value).toBe('deepseek::m')
+  })
+
+  it('applies model select value via observer when option added later', async () => {
+    const sel = document.getElementById('ai-model')
+    session.writeSession({ version: 1, content: null, config: { aiModel: 'google::gemini' }, ui: {} })
+    session.restore()
+    expect(sel.value).toBe('')
+    // Simulate async population from /api/config
+    const opt = document.createElement('option')
+    opt.value = 'google::gemini'
+    sel.appendChild(opt)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(sel.value).toBe('google::gemini')
+  })
+
+  it('clicks the saved tab button', () => {
+    session.writeSession({ version: 1, content: null, config: {}, ui: { tab: 'prompt' } })
+    const promptBtn = document.querySelector('.tab-btn[data-tab="prompt"]')
+    const spy = vi.spyOn(promptBtn, 'click')
+    session.restore()
+    expect(spy).toHaveBeenCalled()
+  })
+
+  it('clicks fullscreen + preview buttons when saved true', () => {
+    session.writeSession({ version: 1, content: null, config: {}, ui: { fullscreen: true, preview: true } })
+    const fsSpy = vi.spyOn(document.getElementById('btn-enter-fullscreen'), 'click')
+    const pvSpy = vi.spyOn(document.getElementById('btn-preview'), 'click')
+    session.restore()
+    expect(fsSpy).toHaveBeenCalled()
+    expect(pvSpy).toHaveBeenCalled()
+  })
+
+  it('does not click fullscreen/preview when saved false', () => {
+    session.writeSession({ version: 1, content: null, config: {}, ui: { fullscreen: false, preview: false } })
+    const fsSpy = vi.spyOn(document.getElementById('btn-enter-fullscreen'), 'click')
+    const pvSpy = vi.spyOn(document.getElementById('btn-preview'), 'click')
+    session.restore()
+    expect(fsSpy).not.toHaveBeenCalled()
+    expect(pvSpy).not.toHaveBeenCalled()
+  })
+})

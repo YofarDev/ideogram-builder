@@ -92,13 +92,53 @@ function applyContent(content) {
   }
 }
 
+/** Apply a <select> value once its <option> exists (options arrive async via /api/config). */
+function applySelectWhenReady(id, value) {
+  if (!value) return;
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  if (sel.querySelector(`option[value="${value}"]`)) {
+    sel.value = value;
+    return;
+  }
+  const observer = new MutationObserver(() => {
+    if (sel.querySelector(`option[value="${value}"]`)) {
+      sel.value = value;
+      observer.disconnect();
+    }
+  });
+  observer.observe(sel, { childList: true, subtree: true });
+  setTimeout(() => observer.disconnect(), 10000);
+}
+
 /** Restore the full session: dimensions → content → config → UI. */
 export function restore() {
   const blob = loadSession();
   if (!blob) return;
+  const config = blob.config || {};
+  const ui = blob.ui || {};
+  const el = (id) => document.getElementById(id);
 
-  applyDimensions(blob.config || {});
+  // 1. Dimensions (before content — boxes need correct canvas size)
+  applyDimensions(config);
+
+  // 2. Content → state:loaded rebuilds boxes/fields/palette/layers
   applyContent(blob.content);
 
-  // (config + model selects + UI are added in Task 4)
+  // 3. Remaining config (no event dispatch → no regenerate cascade)
+  if (config.mode === 'photo') {
+    if (el('mode_photo')) el('mode_photo').checked = true;
+  } else {
+    if (el('mode_artstyle')) el('mode_artstyle').checked = true;
+  }
+  if (el('seed-input') && !isNaN(config.seed)) el('seed-input').value = config.seed;
+  applySelectWhenReady('ai-model', config.aiModel);
+  applySelectWhenReady('vision-model', config.visionModel);
+  applySelectWhenReady('recaption-model', config.recaptionModel);
+
+  // 4. UI — reuse existing handlers via synthetic clicks
+  const tabBtn = document.querySelector(`.tab-btn[data-tab="${ui.tab || 'editor'}"]`);
+  if (tabBtn) tabBtn.click();
+  if (ui.fullscreen) el('btn-enter-fullscreen')?.click();
+  if (ui.preview) el('btn-preview')?.click();
 }
