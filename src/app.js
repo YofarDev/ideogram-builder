@@ -13,6 +13,7 @@ import { initVision } from './vision.js';
 import { initLora } from './lora.js';
 import { initStylePresets } from './style-presets.js';
 import { initCollections } from './collections.js';
+import { initSession } from './session.js';
 import { showToast } from './toast.js';
 import { emit, on } from './events.js';
 
@@ -51,6 +52,9 @@ import { state } from './state.js';
 
 // Initial render
 initCanvas();
+// Restore saved session (settings, content, boxes, UI) — must run after initCanvas
+// because restore dispatches change/click events and rebuilds boxes on the canvas.
+initSession();
 
 // --- Fullscreen drawing mode ---
 function applyFullscreenHeight() {
