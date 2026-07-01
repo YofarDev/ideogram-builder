@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { state } from '../state.js'
 import { emit, resetAllListeners } from '../events.js'
 
@@ -273,5 +273,77 @@ describe('wipeContent (reset)', () => {
   it('is a no-op when no blob exists', () => {
     expect(() => session.wipeContent()).not.toThrow()
     expect(session.loadSession()).toBeNull()
+  })
+})
+
+describe('initSession wiring', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    document.body.innerHTML = `
+      <textarea id="json-output">{"a":1}</textarea>
+      <select id="aspect-ratio"><option value="768x1152" selected>2:3</option></select>
+      <button class="size-btn active" data-size="1">1M</button>
+      <div class="main-content"></div>
+      <button class="tab-btn active" data-tab="editor">Editor</button>
+    `
+    resetAllListeners()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('debounces save on state:changed (400ms)', () => {
+    session.initSession()
+    emit('state:changed')
+    expect(session.loadSession()).toBeNull() // not yet
+    vi.advanceTimersByTime(400)
+    expect(session.loadSession().content).toBe('{"a":1}')
+  })
+
+  it('coalesces rapid state:changed into one save', () => {
+    session.initSession()
+    emit('state:changed')
+    vi.advanceTimersByTime(200)
+    emit('state:changed')
+    vi.advanceTimersByTime(200)
+    // first emit's 400ms hasn't fully elapsed when second reset the clock;
+    // only one write happens after the full debounce window
+    emit('state:changed')
+    vi.advanceTimersByTime(400)
+    expect(session.loadSession().content).toBe('{"a":1}')
+  })
+
+  it('flushes immediately on pagehide', () => {
+    session.initSession()
+    emit('state:changed')
+    window.dispatchEvent(new Event('pagehide'))
+    expect(session.loadSession().content).toBe('{"a":1}')
+  })
+
+  it('flushes on visibilitychange to hidden', () => {
+    session.initSession()
+    emit('state:changed')
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(session.loadSession().content).toBe('{"a":1}')
+  })
+
+  it('canvas:reset wipes content only after restore armed the guard', () => {
+    session.writeSession({ version: 1, content: '{"keep":1}', config: {}, ui: {} })
+    session.initSession() // restore runs → armed = true
+    emit('canvas:reset')
+    expect(session.loadSession().content).toBeNull()
+    expect(session.loadSession().config).toEqual({})
+  })
+
+  it('canvas:reset before initSession does not wipe (startup guard)', () => {
+    session.writeSession({ version: 1, content: '{"keep":1}', config: {}, ui: {} })
+    // initCanvas() emits canvas:reset at startup, BEFORE initSession registers the listener.
+    // Simulate: emit canvas:reset with no listener yet.
+    emit('canvas:reset')
+    session.initSession()
+    expect(session.loadSession().content).toBe('{"keep":1}')
   })
 })

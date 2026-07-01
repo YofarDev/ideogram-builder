@@ -150,3 +150,36 @@ export function wipeContent() {
   blob.content = null;
   writeSession(blob);
 }
+
+const SAVE_DEBOUNCE_MS = 400;
+let saveTimer = null;
+
+/** Initialize session persistence: restore, then wire save + reset handlers. */
+export function initSession() {
+  const flush = () => {
+    clearTimeout(saveTimer);
+    writeSession(captureSnapshot());
+  };
+
+  on('state:changed', () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flush, SAVE_DEBOUNCE_MS);
+  });
+
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush();
+  });
+
+  // Reset Canvas: wipe prompt content, keep config + UI.
+  // Registered before restore but guarded — any canvas:reset emitted during
+  // restore (none today) is ignored until `armed` flips true below.
+  on('canvas:reset', () => {
+    if (armed) wipeContent();
+  });
+
+  // Restore saved state, then arm the reset guard. (armed lives in module scope;
+  // set here — not inside restore() — so it flips even when no blob exists.)
+  restore();
+  armed = true;
+}
