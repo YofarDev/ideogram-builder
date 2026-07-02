@@ -1,141 +1,19 @@
-// collections.js — Prompt collections (localStorage), Collections tab DOM, batch generation.
-// Owns its data (module-local). Sibling comms via events only.
+// collections.js — Actions layer: bindings, init, file export/import, re-exports.
+// Wires data (collections-data) to UI (collections-ui) and external events.
 
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
-import { enqueueImportJson } from './queue.js';
-import { drawPreview } from './collections-preview.js';
+import { render } from './collections-ui.js';
+import {
+  collections, activeId, expandedId, editingId,
+  getAll, getActive, parsePrompt, labelFor,
+  uid, load, save, setExpandedId, setEditingId,
+  createCollection, setActive, renameActive, deleteActive,
+  addItem, removeItem, duplicateItem,
+  extractTokens, resolveTokens,
+} from './collections-data.js';
 
-const LS_COLLECTIONS = 'ideogram_collections';
-const LS_ACTIVE = 'ideogram_active_collection';
-
-let collections = [];
-let activeId = null;
-let expandedId = null;
-let editingId = null;
-
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function load() {
-  try { collections = JSON.parse(localStorage.getItem(LS_COLLECTIONS)) || []; }
-  catch { collections = []; }
-  activeId = localStorage.getItem(LS_ACTIVE) || null;
-  if (!collections.find(c => c.id === activeId)) activeId = collections[0]?.id ?? null;
-}
-
-function save() {
-  localStorage.setItem(LS_COLLECTIONS, JSON.stringify(collections));
-  if (activeId) localStorage.setItem(LS_ACTIVE, activeId);
-}
-
-// ponytail: load on import so a fresh module instance reads persisted state;
-// initCollections() re-calls load() (idempotent) then binds + renders.
-load();
-
-export function getAll() { return collections; }
-export function getActive() { return collections.find(c => c.id === activeId) || null; }
-
-export function labelFor(importJson) {
-  const p = parsePrompt(importJson);
-  if (p.high_level_description) return p.high_level_description;
-  const el = p.compositional_deconstruction?.elements?.[0];
-  if (el?.desc) return el.desc;
-  if (p.compositional_deconstruction?.background) return p.compositional_deconstruction.background;
-  return (importJson || '').slice(0, 60);
-}
-
-function parsePrompt(importJson) {
-  try { return JSON.parse(importJson) || {}; }
-  catch { return {}; }
-}
-
-// ponytail: template tokens — global string replace over the raw JSON, no structured rewrite.
-function extractTokens(importJson) {
-  if (!importJson) return [];
-  const seen = new Set();
-  const out = [];
-  for (const m of importJson.matchAll(/{{\s*([\w-]+)\s*}}/g)) {
-    const name = m[1];
-    if (!seen.has(name)) { seen.add(name); out.push(name); }
-  }
-  return out;
-}
-
-function resolveTokens(itemId, importJson) {
-  const tokens = extractTokens(importJson);
-  if (!tokens.length) return importJson;
-  const card = document.querySelector(`.coll-card[data-card="${itemId}"]`);
-  if (!card) return importJson;
-  let out = importJson;
-  tokens.forEach(t => {
-    const inp = card.querySelector(`input[data-token="${t}"]`);
-    const val = inp ? inp.value : '';
-    out = out.replace(new RegExp(`\\{\\{\\s*${t}\\s*\\}\\}`, 'g'), val);
-  });
-  return out;
-}
-
-export function createCollection(name) {
-  const c = { id: uid(), name: (name || 'Untitled').slice(0, 60), items: [], createdAt: Date.now() };
-  collections.unshift(c);
-  activeId = c.id;
-  expandedId = null;
-  save();
-  render();
-  return c;
-}
-
-export function setActive(id) {
-  if (collections.find(c => c.id === id)) { activeId = id; expandedId = null; save(); render(); }
-}
-
-export function renameActive(name) {
-  const c = getActive();
-  if (c) { c.name = (name || 'Untitled').slice(0, 60); save(); render(); }
-}
-
-export function deleteActive() {
-  const i = collections.findIndex(c => c.id === activeId);
-  if (i === -1) return;
-  const name = collections[i].name;
-  collections.splice(i, 1);
-  activeId = collections[0]?.id ?? null;
-  expandedId = null;
-  save();
-  render();
-  showToast(`Deleted "${name}".`, 'info');
-}
-
-export function addItem(importJson, imageUrl) {
-  const c = getActive();
-  if (!c) return null;
-  if (!importJson || !importJson.trim()) return null;
-  c.items.push({ id: uid(), importJson, imageUrl: imageUrl || null });
-  save();
-  render();
-  return c;
-}
-
-export function removeItem(itemId) {
-  const c = getActive();
-  if (!c) return;
-  c.items = c.items.filter(i => i.id !== itemId);
-  if (expandedId === itemId) expandedId = null;
-  save();
-  render();
-}
-
-export function duplicateItem(itemId) {
-  const c = getActive();
-  if (!c) return;
-  const i = c.items.findIndex(it => it.id === itemId);
-  if (i === -1) return;
-  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson, imageUrl: c.items[i].imageUrl });
-  save();
-  render();
-}
+export { getAll, getActive, labelFor, createCollection, setActive, renameActive, deleteActive, addItem, removeItem, duplicateItem };
 
 function saveEdit(itemId) {
   const c = getActive();
@@ -145,18 +23,18 @@ function saveEdit(itemId) {
   if (!ta) return;
   const val = ta.value;
   try { JSON.parse(val); }
-  catch { showToast('Invalid JSON — fix syntax before saving.', 'error'); return; }
+  catch { showToast('Invalid JSON \u2014 fix syntax before saving.', 'error'); return; }
   it.importJson = val;
-  editingId = null;
+  setEditingId(null);
   save();
-  render();
+  emit('collection:data-changed');
   showToast('Prompt updated.', 'success');
 }
 
 export function generateItem(itemId) {
   const it = getActive()?.items.find(i => i.id === itemId);
   if (!it) return;
-  enqueueImportJson(resolveTokens(itemId, it.importJson));
+  emit('queue:enqueue', { importJson: resolveTokens(itemId, it.importJson) });
   showToast('Queued this prompt.', 'success');
 }
 
@@ -179,11 +57,9 @@ export function loadItemToEditor(itemId) {
 export function generateCollection() {
   const c = getActive();
   if (!c || c.items.length === 0) { showToast('Collection is empty.', 'error'); return; }
-  c.items.forEach(i => enqueueImportJson(i.importJson));
+  c.items.forEach(i => emit('queue:enqueue', { importJson: i.importJson }));
   showToast(`Queued ${c.items.length} jobs from "${c.name}".`, 'success');
 }
-
-// --- Export / Import (pure client) ---
 
 function exportActive() {
   const c = getActive();
@@ -212,179 +88,14 @@ function importCollection(file) {
       const c = { id: uid(), name: (data.name || 'Imported').slice(0, 60), items, createdAt: Date.now() };
       collections.unshift(c);
       activeId = c.id;
-      expandedId = null;
+      setExpandedId(null);
       save();
-      render();
+      emit('collection:data-changed');
       showToast(`Imported "${c.name}" (${items.length}).`, 'success');
     } catch { showToast('Could not read that file.', 'error'); }
   };
   reader.readAsText(file);
 }
-
-// --- render ---
-
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str ?? '';
-  return d.innerHTML;
-}
-
-function relTime(ts) {
-  if (!ts) return '';
-  const s = Math.round((Date.now() - ts) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.floor(s / 60) + 'm ago';
-  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-  return Math.floor(s / 86400) + 'd ago';
-}
-
-function paletteDots(els) {
-  const colors = [];
-  els.forEach(el => (el.color_palette || []).forEach(col => { if (colors.length < 6 && !colors.includes(col)) colors.push(col); }));
-  if (!colors.length) return '';
-  return `<span class="coll-palette">${colors.map(col => `<span class="coll-swatch" style="background:${escapeHtml(col)}"></span>`).join('')}</span>`;
-}
-
-function render() {
-  if (!document.getElementById('collection-container')) return;
-  renderChips();
-  renderHeader();
-  renderItems();
-  const btn = document.getElementById('btn-collection-generate');
-  const c = getActive();
-  if (btn) btn.disabled = !c || c.items.length === 0;
-}
-
-function renderChips() {
-  const wrap = document.getElementById('collection-chips');
-  if (!wrap) return;
-  wrap.innerHTML = collections.map(c =>
-    `<button class="coll-chip${c.id === activeId ? ' active' : ''}" data-chip="${c.id}" role="tab" aria-selected="${c.id === activeId}">${escapeHtml(c.name)}<span class="coll-chip-count">${c.items.length}</span></button>`
-  ).join('') + `<button class="coll-chip coll-chip-new" id="coll-chip-new" title="New collection" aria-label="New collection">+</button>`;
-}
-
-function renderHeader() {
-  const c = getActive();
-  const titleEl = document.getElementById('collection-title');
-  const metaEl = document.getElementById('collection-meta');
-  if (titleEl) titleEl.textContent = c?.name ?? 'No collection';
-  if (metaEl) {
-    const n = c?.items.length ?? 0;
-    const parts = [`${n} prompt${n === 1 ? '' : 's'}`];
-    if (c?.createdAt) parts.push('edited ' + relTime(c.createdAt));
-    metaEl.textContent = parts.join(' · ');
-  }
-  const del = document.getElementById('btn-collection-delete');
-  const exp = document.getElementById('btn-collection-export');
-  if (del) del.disabled = !c;
-  if (exp) exp.disabled = !c || c.items.length === 0;
-}
-
-function renderItems() {
-  const grid = document.getElementById('collection-grid');
-  if (!grid) return;
-  const c = getActive();
-  if (!c || c.items.length === 0) {
-    grid.innerHTML = `<div class="coll-empty">No prompts yet. Add from the Gallery, the Editor JSON panel, or paste below.</div>`;
-    return;
-  }
-  grid.innerHTML = c.items.map(item => {
-    const p = parsePrompt(item.importJson);
-    const els = p.compositional_deconstruction?.elements || [];
-    const title = p.high_level_description || labelFor(item.importJson);
-    const mode = els[0]?.type || '—';
-    const open = item.id === expandedId;
-    return `
-      <article class="coll-card${open ? ' expanded' : ''}" data-card="${item.id}">
-        <div class="coll-card-head">
-          ${item.imageUrl ? `<img class="coll-thumb" src="${escapeHtml(item.imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}
-          <canvas class="coll-preview" width="160" height="160" aria-hidden="true"></canvas>
-          <button class="coll-card-chevron" data-toggle aria-label="${open ? 'Collapse' : 'Expand details'}">${open ? '\u25BE' : '\u25B8'}</button>
-        </div>
-        <div class="coll-card-body">
-          <div class="coll-card-title">${escapeHtml(title)}</div>
-          <div class="coll-card-meta">
-            <span class="coll-chip-meta">${els.length} box${els.length === 1 ? '' : 'es'}</span>
-            <span class="coll-chip-meta">${escapeHtml(mode)}</span>
-            ${paletteDots(els)}
-          </div>
-        </div>
-        ${open ? renderDetail(item, p, els) : ''}
-      </article>`;
-  }).join('');
-
-  c.items.forEach(item => {
-    const canvas = grid.querySelector(`.coll-card[data-card="${item.id}"] .coll-preview`);
-    if (canvas) drawPreview(canvas, parsePrompt(item.importJson).compositional_deconstruction?.elements || [], 160);
-  });
-}
-
-function renderDetail(item, p, els) {
-  if (item.id === editingId) {
-    return `
-      <div class="coll-detail coll-edit">
-        <div class="coll-edit-main">
-          <div class="coll-detail-subhead">Edit prompt JSON</div>
-          <textarea class="coll-edit-textarea" spellcheck="false" data-edit="${item.id}">${escapeHtml(item.importJson)}</textarea>
-          <div class="coll-actions">
-            <button class="btn btn-primary" data-act="save" data-id="${item.id}">Save</button>
-            <button class="btn btn-ghost" data-act="cancel" data-id="${item.id}">Cancel</button>
-          </div>
-        </div>
-      </div>`;
-  }
-  const s = p.style_description || {};
-  const bg = p.compositional_deconstruction?.background || '';
-  const rows = [
-    s.aesthetics && ['Aesthetics', s.aesthetics],
-    s.lighting && ['Lighting', s.lighting],
-    s.medium && ['Medium', s.medium],
-    s.art_style && ['Art style', s.art_style],
-    s.photo && ['Photo', s.photo],
-    bg && ['Background', bg],
-  ].filter(Boolean);
-  const styleHtml = rows.length
-    ? rows.map(([k, v]) => `<div class="coll-detail-row"><span class="coll-detail-k">${k}</span><span class="coll-detail-v">${escapeHtml(v)}</span></div>`).join('')
-    : `<div class="coll-detail-empty">No style metadata.</div>`;
-  const elChips = els.length ? els.map((el, i) => {
-    const b = el.bbox || [];
-    const geo = b.length === 4 ? ` · x ${Math.round(b[1] / 10)}% y ${Math.round(b[0] / 10)}%` : '';
-    const dots = (el.color_palette || []).slice(0, 4).map(col => `<span class="coll-swatch sm" style="background:${escapeHtml(col)}"></span>`).join('');
-    const tip = escapeHtml(`${i + 1}. ${el.type || 'obj'}: ${el.desc || ''}${geo}`);
-    return `<span class="coll-el-chip" title="${tip}"><span class="coll-el-idx">${i + 1}</span><span class="coll-el-type">${escapeHtml(el.type || 'obj')}</span>${dots ? `<span class="coll-el-pal">${dots}</span>` : ''}</span>`;
-  }).join('') : `<span class="coll-detail-empty">No elements.</span>`;
-
-  const tokens = extractTokens(item.importJson);
-  const tokensHtml = tokens.length ? `
-    <div class="coll-tokens">
-      <div class="coll-detail-subhead">Variables</div>
-      <div class="coll-token-grid">
-        ${tokens.map(t => `<label class="coll-token-field"><span class="coll-token-label">{{${escapeHtml(t)}}}</span><input class="coll-token-input" data-token="${escapeHtml(t)}" type="text" placeholder="value"></label>`).join('')}
-      </div>
-    </div>` : '';
-
-  return `
-    <div class="coll-detail">
-      <div class="coll-detail-side">
-        ${p.high_level_description ? `<p class="coll-detail-hld">${escapeHtml(p.high_level_description)}</p>` : ''}
-        <div class="coll-detail-style">${styleHtml}</div>
-      </div>
-      <div class="coll-detail-main">
-        ${tokensHtml}
-        <div class="coll-detail-subhead">Elements</div>
-        <div class="coll-el-chips">${elChips}</div>
-        <div class="coll-actions">
-          <button class="btn btn-primary" data-act="generate" data-id="${item.id}">Generate this one</button>
-          <button class="btn btn-secondary" data-act="load" data-id="${item.id}">Load into Editor</button>
-          <button class="btn btn-ghost" data-act="edit" data-id="${item.id}">Edit</button>
-          <button class="btn btn-ghost" data-act="dup" data-id="${item.id}">Duplicate</button>
-          <button class="btn btn-danger" data-act="remove" data-id="${item.id}">Remove</button>
-        </div>
-      </div>
-    </div>`;
-}
-
-// --- bind ---
 
 function bind() {
   const root = document.getElementById('collection-container');
@@ -401,9 +112,9 @@ function bind() {
       const id = act.dataset.id;
       if (act.dataset.act === 'generate') generateItem(id);
       else if (act.dataset.act === 'load') loadItemToEditor(id);
-      else if (act.dataset.act === 'edit') { editingId = id; render(); }
+      else if (act.dataset.act === 'edit') { setEditingId(id); emit('collection:data-changed'); }
       else if (act.dataset.act === 'save') saveEdit(id);
-      else if (act.dataset.act === 'cancel') { editingId = null; render(); }
+      else if (act.dataset.act === 'cancel') { setEditingId(null); emit('collection:data-changed'); }
       else if (act.dataset.act === 'dup') duplicateItem(id);
       else if (act.dataset.act === 'remove') removeItem(id);
       return;
@@ -413,8 +124,8 @@ function bind() {
       if (e.target.closest('.coll-tokens') || e.target.closest('.coll-edit')) return;
       const id = card.dataset.card;
       const expanding = expandedId !== id;
-      expandedId = expanding ? id : null;
-      render();
+      setExpandedId(expanding ? id : null);
+      emit('collection:data-changed');
       if (expanding) {
         document.querySelector(`.coll-card[data-card="${id}"]`)
           ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -422,7 +133,6 @@ function bind() {
     }
   });
 
-  // header inline rename
   const titleEl = document.getElementById('collection-title');
   const titleEdit = document.getElementById('collection-title-edit');
   const commitRename = () => {
@@ -443,7 +153,12 @@ function bind() {
 
   document.getElementById('btn-collection-delete')?.addEventListener('click', () => {
     const c = getActive();
-    if (c && confirm(`Delete collection "${c.name}"? This cannot be undone.`)) deleteActive();
+    if (!c) return;
+    const name = c.name;
+    if (confirm(`Delete collection "${name}"? This cannot be undone.`)) {
+      deleteActive();
+      showToast(`Deleted "${name}".`, 'info');
+    }
   });
   document.getElementById('btn-collection-export')?.addEventListener('click', exportActive);
   const importInput = document.getElementById('collection-import-input');
@@ -479,5 +194,6 @@ function bind() {
 export function initCollections() {
   load();
   bind();
+  on('collection:data-changed', render);
   render();
 }

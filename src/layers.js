@@ -2,7 +2,6 @@
 
 import { state } from './state.js';
 import { on, emit } from './events.js';
-import { selectBox } from './canvas.js';
 
 let dragSrcId = null;
 
@@ -115,7 +114,7 @@ function buildRow(box) {
   // Click to select (pointerdown, not click — draggable suppresses click)
   row.addEventListener('pointerdown', (e) => {
     if (e.target.closest('.layer-btn')) return;
-    selectBox(box.id);
+    emit('box:select', { id: box.id });
   });
 
   // Drag & drop reorder

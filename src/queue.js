@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { emit } from './events.js';
+import { emit, on } from './events.js';
 import { showToast } from './toast.js';
 import { runJob } from './backend.js';
 
@@ -154,5 +154,6 @@ export function initQueue() {
             if (btn) removeJob(Number(btn.dataset.id));
         });
     }
+    on('queue:enqueue', ({ importJson }) => enqueueImportJson(importJson));
     render();
 }

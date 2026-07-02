@@ -1,8 +1,15 @@
-// canvas.js — Canvas init, bounding box draw/drag/resize/select
+// canvas.js — Pointer interactions, event listeners, overlay management.
+// Imports core canvas functions from canvas-core.
 
 import { state, nextBoxId, randomLayerColor } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
+import {
+  createBoxDOM, selectBox, reorderBoxes, deleteSelectedBox,
+  setPreviewMode, clearBoxes, initCanvas, resizeCanvas, renderBoxes,
+} from './canvas-core.js';
+
+export { initCanvas, clearBoxes, selectBox, reorderBoxes, deleteSelectedBox, setPreviewMode };
 
 // Interaction state (module-scoped, not in global state)
 let isDrawing = false;
@@ -13,11 +20,8 @@ let startX = 0, startY = 0;
 let dragStartX = 0, dragStartY = 0;
 let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 let hasDragged = false;
-let activeRect = null; // cached once per interaction
+let activeRect = null;
 
-// Window-scoped pointermove handler — attached lazily on pointerdown,
-// detached on pointerup, so we don't run getBoundingClientRect on every
-// mouse twitch across the page.
 function windowPointerMove(e) {
   if (!activeRect) return;
   const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
@@ -64,169 +68,12 @@ function windowPointerUp() {
   emit('state:changed');
 }
 
-function renderBoxes() {
-  state.boxes.forEach(box => {
-    const dom = document.getElementById(box.id);
-    if (dom) {
-      dom.style.left = (box.x / 1000 * state.canvas.width) + 'px';
-      dom.style.top = (box.y / 1000 * state.canvas.height) + 'px';
-      dom.style.width = (box.w / 1000 * state.canvas.width) + 'px';
-      dom.style.height = (box.h / 1000 * state.canvas.height) + 'px';
-    }
-  });
-}
-
-function createBoxDOM(box, { selected = false } = {}) {
-  const dom = document.createElement('div');
-  dom.className = 'bounding-box' + (selected ? ' selected' : '');
-  dom.id = box.id;
-  const cw = state.canvas.width, ch = state.canvas.height;
-  dom.style.left = (box.x / 1000 * cw) + 'px';
-  dom.style.top = (box.y / 1000 * ch) + 'px';
-  dom.style.width = (box.w / 1000 * cw) + 'px';
-  dom.style.height = (box.h / 1000 * ch) + 'px';
-  if (box.color) dom.style.setProperty('--box-color', box.color);
-
-  const handle = document.createElement('div');
-  handle.className = 'resize-handle';
-  dom.appendChild(handle);
-
-  for (const pos of ['tl', 'tr', 'bl', 'br']) {
-    const corner = document.createElement('div');
-    corner.className = `corner-handle ${pos}`;
-    dom.appendChild(corner);
-  }
-
-  const label = document.createElement('span');
-  label.className = 'box-label';
-  label.textContent = box.text || box.desc || '';
-  dom.appendChild(label);
-
-  return dom;
-}
-
-// Fit the canvas into the available center-column space, keeping aspect ratio.
-// Sets the wrapper's transform scale and the container's exact size; the container
-// is centered in #tab-editor via margin:auto. Pointer math still uses state.canvas.scale.
-function applyCanvasScale() {
-  const canvas = document.getElementById('canvas-wrapper');
-  const container = document.querySelector('.canvas-container');
-  const { width, height } = state.canvas;
-
-  canvas.style.width = width + 'px';
-  canvas.style.height = height + 'px';
-
-  // Available space inside the editor tab (center column), minus the toolbar + gaps + padding.
-  // The queue panel floats as a dropdown, so it no longer consumes vertical space here.
-  const editor = document.getElementById('tab-editor');
-  const toolbar = document.getElementById('editor-toolbar');
-  const padX = 32, padY = 32, gap = 12;
-  const availW = Math.max(0, (editor ? editor.clientWidth : 0) - padX);
-  const availH = Math.max(0, (editor ? editor.clientHeight : 0)
-    - (toolbar ? toolbar.offsetHeight : 0) - gap - padY);
-
-  const fitW = width > 0 ? availW / width : 1;
-  const fitH = height > 0 ? availH / height : 1;
-  let scale = Math.min(fitW, fitH, 1);
-  if (!(scale > 0)) scale = 1;
-  state.canvas.scale = scale;
-
-  canvas.style.transformOrigin = 'top left';
-  canvas.style.transform = `scale(${scale})`;
-
-  container.style.width = (width * scale + padX) + 'px';
-  container.style.height = (height * scale + padY) + 'px';
-}
-
-function resizeCanvas() {
-  applyCanvasScale();
-  renderBoxes();
-}
-
-export function initCanvas() {
-  const canvas = document.getElementById('canvas-wrapper');
-  const { width, height } = state.canvas;
-
-  applyCanvasScale();
-
-  canvas.style.backgroundImage = '';
-  canvas.style.backgroundSize = '';
-
-  const overlay = document.getElementById('canvas-overlay');
-  if (overlay) {
-    overlay.src = '';
-    overlay.classList.remove('visible');
-  }
-  const opacityGroup = document.getElementById('opacity-group');
-  if (opacityGroup) opacityGroup.style.display = 'none';
-
-  canvas.classList.add('empty-state');
-  canvas.classList.remove('has-boxes');
-
-  emit('canvas:reset');
-  clearBoxes();
-}
-
-export function clearBoxes() {
-  const canvas = document.getElementById('canvas-wrapper');
-  canvas.querySelectorAll('.bounding-box').forEach(el => el.remove());
-  state.boxes.length = 0;
-  state.selectedBoxId = null;
-  canvas.classList.add('empty-state');
-  canvas.classList.remove('has-boxes');
-  emit('box:selected', { id: null });
-}
-
-export function selectBox(id) {
-  state.selectedBoxId = id;
-  document.querySelectorAll('.bounding-box').forEach(el => el.classList.remove('selected'));
-  if (id) document.getElementById(id)?.classList.add('selected');
-  emit('box:selected', { id });
-}
-
-export function reorderBoxes() {
-  const canvas = document.getElementById('canvas-wrapper');
-  state.boxes.forEach((box, i) => {
-    const dom = document.getElementById(box.id);
-    if (dom) {
-      canvas.appendChild(dom);
-      dom.style.zIndex = box.id === state.selectedBoxId ? 10 : i + 2;
-    }
-  });
-}
-
-export function deleteSelectedBox() {
-  if (!state.selectedBoxId) return;
-  const box = state.boxes.find(b => b.id === state.selectedBoxId);
-  const desc = box?.desc || box?.text || 'this box';
-  if (!confirm(`Delete "${desc}"? This cannot be undone.`)) return;
-
-  const canvas = document.getElementById('canvas-wrapper');
-  const dom = document.getElementById(state.selectedBoxId);
-  if (dom) dom.remove();
-  state.boxes = state.boxes.filter(b => b.id !== state.selectedBoxId);
-  selectBox(null);
-  if (state.boxes.length === 0) {
-    canvas.classList.add('empty-state');
-    canvas.classList.remove('has-boxes');
-  }
-  emit('state:changed');
-}
-
-export function setPreviewMode(enabled) {
-  state.ui.previewMode = enabled;
-  const container = document.querySelector('.canvas-container');
-  if (container) container.classList.toggle('preview-mode', enabled);
-}
-
 export function initCanvasEvents() {
   const canvas = document.getElementById('canvas-wrapper');
 
-  // --- Pointer down: start drawing, dragging, or resizing ---
   canvas.addEventListener('pointerdown', (e) => {
     const scale = state.canvas.scale;
     activeRect = canvas.getBoundingClientRect();
-    // Always cache rect + arm window listeners for the duration of the interaction
     window.addEventListener('pointermove', windowPointerMove);
     window.addEventListener('pointerup', windowPointerUp);
 
@@ -264,7 +111,6 @@ export function initCanvasEvents() {
 
     } else if (e.target.classList.contains('bounding-box')) {
       if (e.altKey) {
-        // Alt+click: cycle through overlapping boxes at click point
         const px = (e.clientX - activeRect.left) / scale;
         const py = (e.clientY - activeRect.top) / scale;
 
@@ -302,8 +148,6 @@ export function initCanvasEvents() {
     }
   });
 
-  // --- Pointer move on canvas: live drawing + drag detection ---
-  // Single listener (previously duplicated).
   canvas.addEventListener('pointermove', (e) => {
     if (!activeRect) return;
     const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
@@ -320,7 +164,6 @@ export function initCanvasEvents() {
     }
   });
 
-  // --- Keyboard: Delete/Backspace removes selected box ---
   window.addEventListener('keydown', (e) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedBoxId) {
       const tag = document.activeElement?.tagName;
@@ -330,7 +173,7 @@ export function initCanvasEvents() {
     }
   });
 
-  // --- Event listeners ---
+  on('box:select', ({ id }) => { selectBox(id); });
 
   on('canvas:rebuild', (data) => {
     if (data?.oldWidth && state.boxes.length > 0) {
@@ -373,7 +216,6 @@ export function initCanvasEvents() {
     if (box && label) label.textContent = box.text || box.desc || '';
   });
 
-  // --- Layer event listeners ---
   on('layers:reordered', () => reorderBoxes());
 
   on('box:visibility', ({ id, visible }) => {

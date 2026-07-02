@@ -1,5 +1,5 @@
-import { on } from './events.js';
-import { emit } from './events.js';
+import { on, emit } from './events.js';
+import { escapeHtml } from './escape-html.js';
 
 export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -145,12 +145,6 @@ function loadItem(item) {
 
     switchTab('editor');
     emit('canvas:relayout');
-}
-
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
 }
 
 function downloadImage(item) {

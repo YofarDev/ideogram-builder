@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { state } from '../state.js'
 import { emit } from '../events.js'
+import { resetConfigCache } from '../vision-config.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
@@ -57,6 +58,7 @@ describe('vision', () => {
         _meta: {},
       }),
     })
+    resetConfigCache()
     visionModule.initVision()
     const sel = document.getElementById('vision-model')
     await vi.waitFor(() => expect(sel.options.length).toBeGreaterThan(0))

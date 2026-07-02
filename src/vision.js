@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
+import { fetchConfig, populateModelSelect, populateLLMVisionModels } from './vision-config.js';
 
 let isProcessing = false;
 let processed = false;
@@ -41,7 +42,7 @@ export function initVision() {
 
   document.getElementById('btn-vision-config')?.addEventListener('click', () => fetch('/api/open-config'));
 
-  // Populate vision model dropdown from config
+  // Populate vision model dropdown from config (via vision-config.js)
   const visionModelSelect = document.getElementById('vision-model');
   const modelRow = document.getElementById('vision-model-row');
   const unavailableEl = document.getElementById('vision-model-unavailable');
@@ -56,66 +57,17 @@ export function initVision() {
   bboxFormatSelect?.addEventListener('change', () => {
     localStorage.setItem('vision_bbox_format', bboxFormatSelect.value);
   });
-  fetch('/api/config', { signal: AbortSignal.timeout(5000) })
-    .then(r => r.ok ? r.json() : Promise.reject())
-    .then(config => {
-      const vision = config.vision;
-      const localAvailable = config._meta?.local_available === true;
-      let hasExternalModels = false;
 
-      if (vision) {
-        Object.entries(vision).forEach(([provider, p]) => {
-          if (!p?.models?.length) return;
-          if (p.models.every(m => !m)) return;
-
-          if (provider === 'local') {
-            if (!localAvailable) return;
-          } else {
-            if (!p?.api_key) return;
-            hasExternalModels = true;
-          }
-
-          const group = document.createElement('optgroup');
-          group.label = provider === 'local' ? 'Local' : provider.charAt(0).toUpperCase() + provider.slice(1);
-
-          p.models.forEach(m => {
-            if (!m) return;
-            const opt = document.createElement('option');
-            opt.value = provider === 'local' ? 'local' : `${provider}::${m}`;
-            opt.textContent = m;
-            group.appendChild(opt);
-          });
-
-          visionModelSelect.appendChild(group);
-        });
-      }
-
-      // ponytail: has_vision providers also usable as vision models (gemini etc.)
-      ['deepseek', 'google', 'openrouter', 'mimo'].forEach(provider => {
-        const p = config[provider];
-        if (!p?.has_vision || !p?.api_key || !p?.models?.length) return;
-        if (p.models.every(m => !m)) return;
-        const group = document.createElement('optgroup');
-        group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
-        p.models.forEach(m => {
-          if (!m) return;
-          const opt = document.createElement('option');
-          opt.value = `${provider}::${m}`;
-          opt.textContent = m;
-          group.appendChild(opt);
-        });
-        visionModelSelect.appendChild(group);
-      });
-
-      if (!visionModelSelect.options.length) {
-        modelRow.style.display = 'none';
-        unavailableEl.style.display = 'flex';
-      }
-      visionModelSelect.dispatchEvent(new Event('change'));
-    })
-    .catch(() => {
-      // silent fallback — local only
-    });
+  fetchConfig().then(config => {
+    if (!config) return;
+    populateModelSelect(visionModelSelect, config, 'vision', 'api_key');
+    populateLLMVisionModels(visionModelSelect, config);
+    if (!visionModelSelect.options.length) {
+      modelRow.style.display = 'none';
+      unavailableEl.style.display = 'flex';
+    }
+    visionModelSelect.dispatchEvent(new Event('change'));
+  });
 
   // Show/hide local options when model selection changes
   const visionOptions = document.getElementById('vision-options');
