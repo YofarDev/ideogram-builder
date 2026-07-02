@@ -56,27 +56,6 @@ initCanvas();
 // because restore dispatches change/click events and rebuilds boxes on the canvas.
 initSession();
 
-// --- Fullscreen drawing mode ---
-function applyFullscreenHeight() {
-  const topbar = document.getElementById('editor-toolbar');
-  const overhead = (topbar ? topbar.offsetHeight : 52) + 96; // toolbar + paddings + gaps + margin
-  state.canvas.maxDisplayHeight = Math.max(400, window.innerHeight - overhead);
-}
-
-function setFullscreen(on) {
-  state.ui.drawFullscreen = on;
-  document.querySelector('.main-content').classList.toggle('draw-fullscreen', on);
-  if (on) {
-    applyFullscreenHeight();
-  } else {
-    state.canvas.maxDisplayHeight = 800;
-  }
-  emit('canvas:relayout');
-}
-
-document.getElementById('btn-enter-fullscreen').addEventListener('click', () => setFullscreen(true));
-document.getElementById('btn-exit-fullscreen').addEventListener('click', () => setFullscreen(false));
-
 document.getElementById('btn-preview').addEventListener('click', () => {
   const enabled = !state.ui.previewMode;
   setPreviewMode(enabled);
@@ -90,11 +69,36 @@ on('canvas:reset', () => {
   }
 });
 
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && state.ui.drawFullscreen) setFullscreen(false);
+// Collapsible cards — every .card-toggle toggles its nearest .collapsible card.
+// Prompt JSON starts collapsed; all other cards start expanded.
+document.querySelectorAll('.card-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const card = btn.closest('.collapsible');
+    if (!card) return;
+    const collapsed = card.classList.toggle('collapsed');
+    btn.setAttribute('aria-expanded', String(!collapsed));
+  });
 });
 
-window.addEventListener('resize', () => {
-  if (state.ui.drawFullscreen) applyFullscreenHeight();
-  emit('canvas:relayout');
+// Queue dropdown — toggled by the Queue button next to Generate; closes on
+// outside click or Escape. The panel floats over the canvas (see .queue-panel CSS).
+const queueBtn = document.getElementById('btn-queue');
+const queuePanel = document.getElementById('queue-panel');
+function setQueueOpen(open) {
+  queuePanel.hidden = !open;
+  queueBtn.setAttribute('aria-expanded', String(open));
+}
+queueBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  setQueueOpen(queuePanel.hidden);
 });
+document.addEventListener('click', (e) => {
+  if (!queuePanel.hidden && !queuePanel.contains(e.target) && e.target !== queueBtn) {
+    setQueueOpen(false);
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !queuePanel.hidden) setQueueOpen(false);
+});
+
+window.addEventListener('resize', () => emit('canvas:relayout'));

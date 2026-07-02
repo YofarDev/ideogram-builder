@@ -32,6 +32,12 @@ def _vlog(*parts):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        # Dev server: never serve stale JS/CSS after edits (forces the browser
+        # to revalidate on every request).
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        super().end_headers()
+
     def _send_json(self, status, data):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")

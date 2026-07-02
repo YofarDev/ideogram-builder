@@ -12,7 +12,6 @@ const DOM_HTML = `
         <div id="canvas-wrapper" style="position:relative"></div>
       </div>
     </div>
-    <div id="desc-dock" class="desc-dock"><div id="desc-dock-label"></div><div id="desc-dock-dot"></div><textarea id="box-desc"></textarea></div>
     <div id="queue-panel"></div>
     <div id="box-panel" style="display:none"></div>
     <div id="generate-status"></div>

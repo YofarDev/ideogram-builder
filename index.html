@@ -44,7 +44,6 @@
             --border: var(--hairline);
             --border-strong: var(--hairline-strong);
 
-            --fullscreen-rail-width: 340px;
             --radius: 8px;
             --radius-sm: 5px;
             --font-display: 'DM Serif Display', Georgia, serif;
@@ -334,12 +333,6 @@
             gap: 12px;
             min-height: 0;
             overflow-y: auto;
-        }
-
-        .fullscreen-rail {
-            display: none;
-            flex-direction: column;
-            gap: 12px;
         }
 
         /* Editor tab fills the center column as a flex column */
@@ -1285,14 +1278,6 @@
             gap: 8px;
         }
 
-        .panel-header h3 {
-            font-family: var(--font-display);
-            font-size: 15px;
-            font-weight: 400;
-            color: var(--text);
-            letter-spacing: -0.01em;
-        }
-
         .panel-body {
             padding: 14px 16px 16px;
         }
@@ -1887,11 +1872,43 @@
             gap: 8px;
         }
 
-        .json-title {
-            font-family: var(--font-display);
-            font-size: 13px;
+        /* Collapsible cards — .collapsible on the card, .card-toggle button in its header */
+        .card-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
             color: var(--text);
+            font-family: var(--font-display);
+            font-size: 15px;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            text-align: left;
+            flex: 1;
+            min-width: 0;
         }
+
+        .card-toggle:hover { color: var(--accent); }
+
+        .card-chevron {
+            font-size: 10px;
+            color: var(--text-muted);
+            transition: transform 0.15s;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .collapsible:not(.collapsed) .card-chevron { transform: rotate(90deg); }
+
+        /* Hide every body element when a card is collapsed (header stays visible) */
+        .collapsible.collapsed > *:not(.panel-header):not(.json-header) { display: none; }
+
+        /* Collapsed JSON section shrinks to just its header */
+        .json-section.collapsed { flex: 0 0 auto; }
+        .json-header .card-toggle { font-size: 13px; }
 
         /* Layers Panel */
         .layers-list {
@@ -2119,6 +2136,7 @@
             background: var(--surface);
             border: 1px solid var(--hairline);
             border-radius: var(--radius);
+            position: relative; /* anchors the #queue-panel dropdown */
         }
 
         .vision-section {
@@ -2605,127 +2623,6 @@
             }
         }
 
-        /* Fullscreen drawing mode — toggled via .main-content.draw-fullscreen */
-        #btn-exit-fullscreen { display: none; }
-
-        .main-content.draw-fullscreen {
-            position: fixed;
-            inset: 0;
-            z-index: 50;
-            overflow: hidden;
-            background: var(--bg);
-            display: flex;
-            gap: 12px;
-            padding: 12px;
-            align-items: stretch;
-        }
-
-        /* In fullscreen: hide both sidebars; the center column + fullscreen-rail remain */
-        .main-content.draw-fullscreen .left-sidebar,
-        .main-content.draw-fullscreen .right-sidebar {
-            display: none;
-        }
-
-        .main-content.draw-fullscreen .center-col {
-            flex: 1;
-            min-width: 0;
-        }
-
-        /* The Generate button + AI section + generate row are hidden (gen-only) */
-        .main-content.draw-fullscreen .gen-only {
-            display: none;
-        }
-
-        /* Layers + Box Properties appear in the fullscreen rail */
-        .main-content.draw-fullscreen .fullscreen-rail {
-            display: flex;
-            width: var(--fullscreen-rail-width);
-            flex-shrink: 0;
-            overflow-y: auto;
-        }
-
-        .main-content.draw-fullscreen .canvas-container {
-            flex: 1;
-            min-height: 0;
-        }
-
-        .main-content.draw-fullscreen #btn-enter-fullscreen { display: none; }
-        .main-content.draw-fullscreen #btn-exit-fullscreen { display: inline-flex; }
-
-        /* Prominent description dock — fullscreen-only, shown when a box is selected (.show) */
-        .desc-dock {
-            display: none;
-            position: absolute;
-            left: 12px;
-            right: 12px;
-            bottom: 12px;
-            z-index: 60;           /* above canvas, below modals (z-index: 100) */
-            justify-content: flex-end;
-            pointer-events: none;  /* outer strip lets canvas clicks pass through */
-        }
-
-        .main-content.draw-fullscreen .desc-dock.show {
-            display: flex;
-            animation: desc-dock-rise 0.18s ease-out;
-        }
-
-        @keyframes desc-dock-rise {
-            from { transform: translateY(12px); opacity: 0; }
-            to   { transform: translateY(0);    opacity: 1; }
-        }
-
-        .desc-dock-inner {
-            pointer-events: auto;
-            width: 100%;
-            max-width: 760px;
-            background: color-mix(in srgb, var(--surface-2) 92%, transparent);
-            border: 1px solid var(--hairline-strong);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-strong);
-            backdrop-filter: blur(6px);
-            padding: 12px 16px 14px;
-        }
-
-        .desc-dock-head {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        .desc-dock-label {
-            font-family: var(--font-display);
-            font-size: 13px;
-            color: var(--accent);
-            letter-spacing: 0.02em;
-        }
-
-        .desc-dock textarea {
-            width: 100%;
-            min-height: 110px;
-            font-family: var(--font-body);
-            font-size: 15px;
-            line-height: 1.55;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 10px 12px;
-            outline: none;
-            resize: none;
-            transition: border-color 0.2s;
-        }
-
-        .desc-dock textarea:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-dim);
-        }
-
-        .desc-dock textarea::placeholder {
-            color: var(--text-dim);
-            font-style: italic;
-        }
-
         /* Generate modal */
         .modal-overlay {
             position: fixed;
@@ -2777,15 +2674,50 @@
             align-items: center;
             gap: 12px;
         }
+        /* Queue dropdown — toggled by #btn-queue, overlays the canvas */
         .queue-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 320px;
+            max-height: min(60vh, 520px);
+            overflow-y: auto;
             display: flex;
-            gap: 8px;
-            padding: 4px 4px 8px;
-            overflow-x: auto;
-            min-height: 0;
-            flex-shrink: 0;
+            flex-direction: column;
+            gap: 6px;
+            padding: 8px;
+            background: var(--surface);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-strong);
+            z-index: 40;
         }
-        .queue-panel:empty { display: none; }
+        .queue-panel[hidden] { display: none; }
+        .queue-panel:empty::before {
+            content: 'Queue is empty';
+            color: var(--text-dim);
+            font-style: italic;
+            font-size: 12px;
+            padding: 14px 8px;
+            text-align: center;
+        }
+        .queue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 16px;
+            margin-left: 6px;
+            padding: 0 5px;
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1;
+            color: var(--on-accent);
+            background: var(--accent);
+            border-radius: 999px;
+            font-variant-numeric: tabular-nums;
+        }
+        .queue-badge[hidden] { display: none; }
         .queue-card {
             display: flex;
             align-items: center;
@@ -2876,9 +2808,12 @@
     <div class="main-content">
         <!-- LEFT: Global Settings -->
         <div class="left-sidebar">
-            <div class="panel" id="global-settings-panel">
+            <div class="panel collapsible" id="global-settings-panel">
                 <div class="panel-header">
-                    <h3>Global Settings</h3>
+                    <button type="button" class="card-toggle" aria-expanded="true">
+                        <span class="card-chevron" aria-hidden="true">&#9656;</span>
+                        Global Settings
+                    </button>
                 </div>
                 <div class="panel-body">
                     <fieldset class="panel-section">
@@ -3005,17 +2940,15 @@
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
                     <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
-                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
-                    <button id="btn-enter-fullscreen" type="button" class="icon-btn" aria-label="Enter fullscreen drawing mode" title="Fullscreen drawing mode">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                    <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
+                        Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
                     </button>
-                    <button id="btn-exit-fullscreen" type="button" class="btn btn-secondary">Exit Fullscreen</button>
+                    <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
+                    <div id="queue-panel" class="queue-panel" aria-label="Generation queue" role="list" hidden></div>
                 </div>
 
-                <div id="queue-panel" class="queue-panel" aria-label="Generation queue" role="list"></div>
-
                 <div class="canvas-container">
-                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in fullscreen mode."><img id="canvas-overlay" alt=""></div>
+                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
                 </div>
             </div>
 
@@ -3182,45 +3115,26 @@
             </div>
         </div>
 
-        <!-- RIGHT: JSON output -->
+        <!-- RIGHT: Layers + Box Properties + Prompt JSON -->
         <div class="right-sidebar">
-            <div class="json-section">
-                <div class="json-header">
-                    <span class="json-title">Prompt JSON</span>
-                    <div class="json-header-actions">
-                        <button id="btn-add-to-collection" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                        </button>
-                        <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        </button>
-                        <button id="btn-paste-json" class="json-action-btn" aria-label="Paste and apply JSON from clipboard" title="Paste & apply">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                        </button>
-                        <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                        </button>
-                    </div>
-                </div>
-                <label class="sr-only" for="json-output">Prompt JSON output</label>
-                <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
-            </div>
-        </div>
-
-        <!-- FULLSCREEN-ONLY: Layers + Box Properties -->
-        <div class="fullscreen-rail">
-            <div class="panel" id="layers-panel">
+            <div class="panel collapsible" id="layers-panel">
                 <div class="panel-header">
-                    <h3>Layers</h3>
+                    <button type="button" class="card-toggle" aria-expanded="true">
+                        <span class="card-chevron" aria-hidden="true">&#9656;</span>
+                        Layers
+                    </button>
                     <span class="layer-count" id="layer-count" aria-label="Layer count">0</span>
                     <button id="btn-add-layer" type="button" class="icon-btn" style="margin-left:auto;padding:4px 10px;" aria-label="Add new layer" title="Add new layer">+</button>
                 </div>
                 <div id="layers-list" class="layers-list"></div>
             </div>
 
-            <div class="panel" id="box-panel" style="display: none;">
+            <div class="panel collapsible" id="box-panel" style="display: none;">
                 <div class="panel-header">
-                    <h3>Box Properties</h3>
+                    <button type="button" class="card-toggle" aria-expanded="true">
+                        <span class="card-chevron" aria-hidden="true">&#9656;</span>
+                        Box Properties
+                    </button>
                 </div>
                 <div class="panel-body">
                     <div class="input-group">
@@ -3233,6 +3147,10 @@
                     <div class="input-group" id="text-input-group" style="display: none;">
                         <label for="box-text">Text Content</label>
                         <input type="text" id="box-text" placeholder="Enter text to render">
+                    </div>
+                    <div class="input-group">
+                        <label for="box-desc">Description</label>
+                        <textarea id="box-desc" rows="3" placeholder="Describe this element…"></textarea>
                     </div>
                     <div class="input-group">
                         <label>Position &amp; Size (px)</label>
@@ -3269,19 +3187,33 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- FULLSCREEN-ONLY: prominent description editor for the selected box -->
-        <div class="desc-dock" id="desc-dock" aria-hidden="true">
-            <div class="desc-dock-inner">
-                <div class="desc-dock-head">
-                    <span class="layer-color-dot" id="desc-dock-dot" aria-hidden="true"></span>
-                    <span class="desc-dock-label" id="desc-dock-label">Object</span>
+            <div class="json-section collapsible collapsed" id="json-section">
+                <div class="json-header">
+                    <button type="button" class="card-toggle" aria-expanded="false">
+                        <span class="card-chevron" aria-hidden="true">&#9656;</span>
+                        Prompt JSON
+                    </button>
+                    <div class="json-header-actions">
+                        <button id="btn-add-to-collection" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                        <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        <button id="btn-paste-json" class="json-action-btn" aria-label="Paste and apply JSON from clipboard" title="Paste & apply">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        </button>
+                        <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        </button>
+                    </div>
                 </div>
-                <label class="sr-only" for="box-desc">Description</label>
-                <textarea id="box-desc" placeholder="Describe this element…"></textarea>
+                <label class="sr-only" for="json-output">Prompt JSON output</label>
+                <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
             </div>
         </div>
+
     </div>
 
     <div class="toast-container" id="toast-container"></div>

@@ -46,11 +46,6 @@ const DOM_HTML = `
       <button id="btn-recaption">Recaption</button>
     </div>
   </div>
-  <div id="desc-dock" class="desc-dock show" aria-hidden="false">
-    <span id="desc-dock-label"></span>
-    <span id="desc-dock-dot"></span>
-    <textarea id="box-desc"></textarea>
-  </div>
   <div class="main-content"></div>
   <textarea id="json-output">{}</textarea>
   <button id="btn-load-json">Load</button>

@@ -52,7 +52,6 @@ export function captureSnapshot() {
     },
     ui: {
       tab: activeTab?.dataset.tab || 'editor',
-      fullscreen: document.querySelector('.main-content')?.classList.contains('draw-fullscreen') || false,
       preview: el('btn-preview')?.classList.contains('active') || false,
     },
   };
@@ -150,7 +149,6 @@ export function restore() {
   // 4. UI — reuse existing handlers via synthetic clicks
   const tabBtn = document.querySelector(`.tab-btn[data-tab="${ui.tab || 'editor'}"]`);
   if (tabBtn) tabBtn.click();
-  if (ui.fullscreen) el('btn-enter-fullscreen')?.click();
   if (ui.preview) el('btn-preview')?.click();
 }
 

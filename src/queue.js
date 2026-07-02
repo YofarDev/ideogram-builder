@@ -6,7 +6,6 @@ import { runJob } from './backend.js';
 let queue = [];
 let isRunning = false;
 let counter = 1;
-let wasEmpty = true;
 
 const panel = () => document.getElementById('queue-panel');
 const genBtn = () => document.getElementById('btn-generate-image');
@@ -116,14 +115,14 @@ function render() {
     const el = panel();
     if (!el || !genBtn()) return;
 
-    const empty = queue.length === 0;
-    if (empty !== wasEmpty) {
-        wasEmpty = empty;
-        emit('canvas:relayout');
-    }
-
     const pending = queue.filter(j => j.status === 'queued' || j.status === 'running').length;
     genBtn().textContent = pending > 0 ? `Generate (+${pending} queued)` : 'Generate';
+
+    const badge = document.getElementById('queue-badge');
+    if (badge) {
+        if (pending > 0) { badge.textContent = pending; badge.hidden = false; }
+        else { badge.hidden = true; }
+    }
 
     el.innerHTML = queue.slice().reverse().map(job => {
         const thumb = job.thumbUrl

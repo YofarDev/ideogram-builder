@@ -21,7 +21,7 @@ describe('loadSession / writeSession', () => {
       version: 1,
       content: '{"high_level_description":"x"}',
       config: { size: '2', steps: 'Quality', mode: 'photo', seed: 42, aspectRatio: '1024x1024', aiModel: 'deepseek::m', visionModel: '', recaptionModel: '' },
-      ui: { tab: 'gallery', fullscreen: true, preview: false },
+      ui: { tab: 'gallery', preview: false },
     }
     session.writeSession(blob)
     expect(session.loadSession()).toEqual(blob)
@@ -61,7 +61,7 @@ const SNAPSHOT_DOM = `
   <select id="recaption-model"><option value="">None</option></select>
   <button class="tab-btn" data-tab="prompt">Prompt</button>
   <button class="tab-btn active" data-tab="gallery">Gallery</button>
-  <div class="main-content draw-fullscreen"><button id="btn-preview" class="active"></button></div>
+  <div class="main-content"><button id="btn-preview" class="active"></button></div>
 `
 
 describe('captureSnapshot', () => {
@@ -82,7 +82,7 @@ describe('captureSnapshot', () => {
       visionModel: 'local',
       recaptionModel: '',
     })
-    expect(snap.ui).toEqual({ tab: 'gallery', fullscreen: true, preview: true })
+    expect(snap.ui).toEqual({ tab: 'gallery', preview: true })
   })
 
   it('content is null when json-output is empty', () => {
@@ -183,7 +183,6 @@ describe('restore — config + model selects + UI', () => {
       <select id="ai-model"></select>
       <button class="tab-btn active" data-tab="editor">Editor</button>
       <button class="tab-btn" data-tab="prompt">Prompt</button>
-      <button id="btn-enter-fullscreen"></button>
       <button id="btn-preview"></button>
     `
     resetAllListeners()
@@ -232,21 +231,17 @@ describe('restore — config + model selects + UI', () => {
     expect(spy).toHaveBeenCalled()
   })
 
-  it('clicks fullscreen + preview buttons when saved true', () => {
-    session.writeSession({ version: 1, content: null, config: {}, ui: { fullscreen: true, preview: true } })
-    const fsSpy = vi.spyOn(document.getElementById('btn-enter-fullscreen'), 'click')
+  it('clicks the preview button when saved true', () => {
+    session.writeSession({ version: 1, content: null, config: {}, ui: { preview: true } })
     const pvSpy = vi.spyOn(document.getElementById('btn-preview'), 'click')
     session.restore()
-    expect(fsSpy).toHaveBeenCalled()
     expect(pvSpy).toHaveBeenCalled()
   })
 
-  it('does not click fullscreen/preview when saved false', () => {
-    session.writeSession({ version: 1, content: null, config: {}, ui: { fullscreen: false, preview: false } })
-    const fsSpy = vi.spyOn(document.getElementById('btn-enter-fullscreen'), 'click')
+  it('does not click preview when saved false', () => {
+    session.writeSession({ version: 1, content: null, config: {}, ui: { preview: false } })
     const pvSpy = vi.spyOn(document.getElementById('btn-preview'), 'click')
     session.restore()
-    expect(fsSpy).not.toHaveBeenCalled()
     expect(pvSpy).not.toHaveBeenCalled()
   })
 })
