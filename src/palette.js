@@ -1,17 +1,10 @@
-// palette.js — Color palette management (global max 16, per-box max 5)
-
 import { state } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 
 export function initPalette() {
-  document.getElementById('btn-add-global-color').addEventListener('click', () => addColor('global'));
-  document.getElementById('btn-add-box-color').addEventListener('click', () => addColor('box'));
-
-  // React to box selection — render box colors
   on('box:selected', () => renderColors('box'));
 
-  // React to state load — restore palettes
   on('state:loaded', ({ json }) => {
     state.globalPalette = json.style_description?.color_palette || [];
     renderColors('global');
@@ -19,10 +12,7 @@ export function initPalette() {
   });
 }
 
-function addColor(type) {
-  const picker = document.getElementById(type + '-color-picker');
-  const hex = picker.value.toUpperCase();
-
+function addColor(type, hex) {
   if (type === 'global') {
     if (state.globalPalette.length >= 16) return showToast('Maximum 16 colors allowed.', 'error');
     if (!state.globalPalette.includes(hex)) {
@@ -75,4 +65,23 @@ function renderColors(type) {
     swatch.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); removeColor(type, hex); } };
     container.appendChild(swatch);
   });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'icon-btn';
+  addBtn.textContent = '+';
+  addBtn.setAttribute('aria-label', 'Add color');
+  addBtn.setAttribute('title', 'Add color');
+  addBtn.onclick = () => {
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = '#d4a853';
+    picker.style.cssText = 'position:fixed;left:0;top:0;width:32px;height:32px;opacity:0;pointer-events:none;z-index:-1;';
+    picker.addEventListener('change', function onPick() {
+      addColor(type, this.value.toUpperCase());
+      this.remove();
+    });
+    document.body.appendChild(picker);
+    picker.click();
+  };
+  container.appendChild(addBtn);
 }

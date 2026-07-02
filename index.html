@@ -2866,66 +2866,51 @@
                     <fieldset class="panel-section">
                         <div class="input-group">
                             <label for="high_level_description">High Level Description</label>
-                            <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
+                            <textarea id="high_level_description" rows="5" placeholder="e.g. A serene landscape at dawn"></textarea>
                         </div>
                         <div class="input-group">
                             <label for="background">Background</label>
-                            <textarea id="background" rows="3" placeholder="Describe the background environment"></textarea>
+                            <textarea id="background" rows="5" placeholder="Describe the background environment"></textarea>
                         </div>
                     </fieldset>
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Style</legend>
-                        <div class="input-group">
-                            <span id="mode-group-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Mode</span>
-                            <div class="pill-group" role="radiogroup" aria-labelledby="mode-group-label">
-                                <input type="radio" id="mode_photo" name="art_mode" value="photo">
-                                <label for="mode_photo" class="pill-label">Photo</label>
-                                <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
-                                <label for="mode_artstyle" class="pill-label">Art Style</label>
-                            </div>
+                    <div class="workflow-toggle pill-group" role="radiogroup" aria-label="Mode" style="margin-bottom:6px;">
+                        <input type="radio" id="mode_photo" name="art_mode" value="photo">
+                        <label for="mode_photo" class="pill-label">Photo</label>
+                        <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+                        <label for="mode_artstyle" class="pill-label">Art Style</label>
+                    </div>
+                    <div class="input-group">
+                        <label for="medium">Medium</label>
+                        <input type="text" id="medium">
+                    </div>
+                    <div class="input-group">
+                        <label id="mode_label" for="art_style">Art Style</label>
+                        <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
+                    </div>
+                    <div class="input-group">
+                        <label for="aesthetics">Aesthetics</label>
+                        <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
+                    </div>
+                    <div class="input-group">
+                        <label for="lighting">Lighting</label>
+                        <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
+                    </div>
+                    <div class="input-group">
+                        <label>Preset</label>
+                        <div class="preset-row">
+                            <select id="style-preset-editor" class="ai-model-select">
+                                <option value="">None</option>
+                            </select>
                         </div>
-                        <div class="input-group">
-                            <label for="medium">Medium</label>
-                            <input type="text" id="medium">
+                        <div class="preset-row">
+                            <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Name">
+                            <button id="btn-save-preset" class="btn btn-ghost">Save</button>
+                            <button id="btn-delete-preset" class="btn btn-danger">Del</button>
                         </div>
-                        <div class="input-group">
-                            <label id="mode_label" for="art_style">Art Style</label>
-                            <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
-                        </div>
-                        <div class="input-group">
-                            <label for="aesthetics">Aesthetics</label>
-                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
-                        </div>
-                        <div class="input-group">
-                            <label for="lighting">Lighting</label>
-                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
-                        </div>
-                        <div class="input-group">
-                            <label>Preset</label>
-                            <div class="preset-row">
-                                <select id="style-preset-editor" class="ai-model-select">
-                                    <option value="">None</option>
-                                </select>
-                            </div>
-                            <div class="preset-row">
-                                <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Name">
-                                <button id="btn-save-preset" class="btn btn-ghost">Save</button>
-                                <button id="btn-delete-preset" class="btn btn-danger">Del</button>
-                            </div>
-                        </div>
-                    </fieldset>
-                    <fieldset class="panel-section">
-                        <legend class="panel-section-title">Color</legend>
-                        <div class="input-group">
-                            <span id="global-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Global Palette (max 16)</span>
-                            <div class="color-input-row">
-                                <label class="sr-only" for="global-color-picker">Global palette color</label>
-                                <input type="color" id="global-color-picker" value="#d4a853" aria-labelledby="global-palette-label">
-                                <button id="btn-add-global-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
-                            </div>
-                            <div id="global-colors" class="color-list"></div>
-                        </div>
-                    </fieldset>
+                    </div>
+                    <div class="input-group">
+                        <div id="global-colors" class="color-list"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3198,12 +3183,6 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <span id="box-palette-label" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">Box Color Palette (max 5)</span>
-                        <div class="color-input-row">
-                            <label class="sr-only" for="box-color-picker">Box palette color</label>
-                            <input type="color" id="box-color-picker" value="#d4a853" aria-labelledby="box-palette-label">
-                            <button id="btn-add-box-color" class="btn btn-ghost" style="padding:7px 12px;font-size:11px;">Add Color</button>
-                        </div>
                         <div id="box-colors" class="color-list"></div>
                     </div>
                     <div class="input-group" id="recaption-group">
