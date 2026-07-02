@@ -130,6 +130,38 @@
             gap: 8px;
         }
 
+        .seed-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .seed-group .seed-row input[type="number"] {
+            width: 80px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        .seed-group .seed-row input[type="number"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        .seed-group .seed-row input[type="number"]::-webkit-outer-spin-button,
+        .seed-group .seed-row input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         .ar-group label {
             font-size: 11px;
             font-weight: 500;
@@ -2817,8 +2849,6 @@
                 </div>
                 <div class="panel-body">
                     <fieldset class="panel-section">
-                        <legend class="panel-section-title">Generation</legend>
-
                         <div class="input-group" id="turbo-strength-group">
                             <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
                                 Turbo Strength
@@ -2832,16 +2862,8 @@
                                 </div>
                                 <div class="lora-card-list" id="lora-list"></div>
                             </div>
-                        <div class="input-group">
-                            <label for="seed-input">Seed</label>
-                            <div class="seed-row">
-                                <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
-                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
-                            </div>
-                        </div>
                     </fieldset>
                     <fieldset class="panel-section">
-                        <legend class="panel-section-title">Composition</legend>
                         <div class="input-group">
                             <label for="high_level_description">High Level Description</label>
                             <textarea id="high_level_description" rows="3" placeholder="e.g. A serene landscape at dawn"></textarea>
@@ -2863,20 +2885,20 @@
                             </div>
                         </div>
                         <div class="input-group">
-                            <label for="aesthetics">Aesthetics</label>
-                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
-                        </div>
-                        <div class="input-group">
-                            <label for="lighting">Lighting</label>
-                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
-                        </div>
-                        <div class="input-group">
                             <label for="medium">Medium</label>
                             <input type="text" id="medium">
                         </div>
                         <div class="input-group">
                             <label id="mode_label" for="art_style">Art Style</label>
                             <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
+                        </div>
+                        <div class="input-group">
+                            <label for="aesthetics">Aesthetics</label>
+                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
+                        </div>
+                        <div class="input-group">
+                            <label for="lighting">Lighting</label>
+                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
                         </div>
                         <div class="input-group">
                             <label>Preset</label>
@@ -2937,6 +2959,13 @@
                     <button id="btn-preview" type="button" class="icon-btn" aria-label="Toggle preview mode" title="Preview — hide overlays">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
+                    <div class="ar-group seed-group">
+                        <label for="seed-input">Seed</label>
+                        <div class="seed-row">
+                            <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
+                            <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
+                        </div>
+                    </div>
                     <div class="toolbar-spacer"></div>
                     <button id="btn-reset" class="btn btn-secondary">Reset Canvas</button>
                     <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
