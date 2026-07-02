@@ -210,4 +210,25 @@ describe('settings', () => {
     xInput.dispatchEvent(new Event('input'))
     expect(box.x).toBe(250)
   })
+
+  it('box geometry input clamps to [0,1000] and reflects the corrected px', async () => {
+    await initSettings()
+    const box = {
+      id: 'box_0', mode: 'obj', x: 0, y: 0, w: 500, h: 500,
+      text: '', desc: '', colors: [], color: '#f00',
+      visible: true, locked: false,
+    }
+    state.boxes.push(box)
+    state.selectedBoxId = 'box_0'
+    const xInput = document.getElementById('box-x')
+    xInput.value = '5000' // exceeds 1024px canvas width
+    xInput.dispatchEvent(new Event('input'))
+    expect(box.x).toBe(1000)
+    expect(xInput.value).toBe('1024')
+
+    xInput.value = '-100'
+    xInput.dispatchEvent(new Event('input'))
+    expect(box.x).toBe(0)
+    expect(xInput.value).toBe('0')
+  })
 })

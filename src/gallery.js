@@ -1,5 +1,6 @@
 import { on, emit } from './events.js';
 import { escapeHtml } from './escape-html.js';
+import { state } from './state.js';
 
 export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -13,6 +14,7 @@ export function initGallery() {
         mc.classList.toggle('gallery-active', tab === 'gallery');
         mc.classList.toggle('vision-active', tab === 'vision');
         mc.classList.toggle('prompt-active', tab === 'prompt');
+        mc.classList.toggle('json2caption-active', tab === 'json2caption');
         mc.classList.toggle('collections-active', tab === 'collections');
     }
     renderGallery();
@@ -49,6 +51,7 @@ function switchTab(tab) {
     mc.classList.toggle('gallery-active', tab === 'gallery');
     mc.classList.toggle('vision-active', tab === 'vision');
     mc.classList.toggle('prompt-active', tab === 'prompt');
+    mc.classList.toggle('json2caption-active', tab === 'json2caption');
     mc.classList.toggle('collections-active', tab === 'collections');
     if (tab === 'gallery') renderGallery();
 }
@@ -157,11 +160,12 @@ function downloadImage(item) {
 }
 
 async function saveToDisk(dataUrl, promptJson) {
+    const loraSuffix = state.loras.map(l => l.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
     try {
         await fetch('/api/save-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataUrl, promptJson: promptJson || '' }),
+            body: JSON.stringify({ dataUrl, promptJson: promptJson || '', loraSuffix }),
         });
     } catch {}
 }

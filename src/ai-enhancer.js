@@ -115,6 +115,15 @@ export function initAIEnhancer() {
   const rewriteBtn = document.getElementById('btn-rewrite-caption');
   if (rewriteBtn) rewriteBtn.addEventListener('click', rewriteCaption);
 
+  const j2cBtn = document.getElementById('btn-json2caption');
+  if (j2cBtn) j2cBtn.addEventListener('click', jsonToCaption);
+
+  const copyBtn = document.getElementById('btn-copy-caption');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const out = document.getElementById('ai-caption-output');
+    if (out.value) navigator.clipboard?.writeText(out.value);
+  });
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
 
@@ -158,12 +167,23 @@ export function initAIEnhancer() {
         modelSelect.innerHTML = '<option value="">No models available — check credentials</option>';
       }
       btn.disabled = false;
+      syncModel2();
     })
     .catch(() => {
       clearTimeout(timeout);
       modelSelect.innerHTML = '<option value="deepseek::deepseek-v4-flash">deepseek-v4-flash</option>';
       btn.disabled = false;
+      syncModel2();
     });
+}
+
+// ponytail: mirror #ai-model options into the JSON→Caption tab's selector — one config, two views
+function syncModel2() {
+  const src = document.getElementById('ai-model');
+  const m2 = document.getElementById('ai-model-2');
+  if (!m2 || !src) return;
+  m2.innerHTML = src.innerHTML;
+  if (src.value) m2.value = src.value;
 }
 
 function aspectRatioFromSelector() {
@@ -376,6 +396,120 @@ function setLoading(loading) {
   btn.disabled = loading;
   btn.textContent = loading ? 'Enhancing...' : 'AI Enhance';
   textarea.disabled = loading;
+}
+
+const CAPTION_SYSTEM_PROMPT = `You are given a structured JSON caption describing an image-generation prompt. Convert it into ONE detailed, vivid descriptive paragraph that reads naturally as flowing prose.
+
+Weave together, in an integrated description (not a list):
+- The main subject(s) and the overall setting
+- The spatial composition and arrangement of regions/elements (foreground to background, left to right, as implied by their positions)
+- The background environment and atmosphere
+- The visual style, medium, and art direction
+- The lighting and mood
+- The color palette
+- Any in-image text: describe its visual treatment (font, weight, color, placement) and quote its literal characters verbatim
+
+Rules:
+- Do NOT mention JSON, keys, bboxes, coordinates, or the word "element". The reader sees only a caption.
+- Do NOT output headings, bullets, preface, or markdown. Output ONLY the paragraph.
+- Be detailed and specific — every distinct region in the JSON should contribute something observable to the prose.
+- Preserve non-ASCII characters and proper names as-is.`;
+
+async function jsonToCaption() {
+  const input = document.getElementById('ai-json-input');
+  const jsonStr = (input.value || '').trim();
+  if (!jsonStr) {
+    showCaptionStatus('Paste JSON into the field above first', 'error');
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    showCaptionStatus('Input is not valid JSON', 'error');
+    return;
+  }
+
+  const selected = document.getElementById('ai-model-2').value;
+  if (!selected) {
+    showCaptionStatus('No model selected', 'error');
+    return;
+  }
+
+  const [provider, ...rest] = selected.split('::');
+  const model = rest.join('::');
+  const p = fullConfig?.[provider];
+  if (!p?.api_key) {
+    showCaptionStatus(`No API key for ${provider}`, 'error');
+    return;
+  }
+
+  const defaultBaseUrls = {
+    deepseek: 'https://api.deepseek.com/v1',
+    google: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    openrouter: 'https://openrouter.ai/api/v1',
+    mimo: 'https://api.xiaomimimo.com/v1',
+  };
+  const baseUrl = p.base_url || defaultBaseUrls[provider] || 'https://api.deepseek.com/v1';
+  const apiUrl = `${baseUrl}/chat/completions`;
+
+  const btn = document.getElementById('btn-json2caption');
+  const out = document.getElementById('ai-caption-output');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${p.api_key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: CAPTION_SYSTEM_PROMPT },
+          { role: 'user', content: JSON.stringify(parsed, null, 2) },
+        ],
+        max_tokens: 2048,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`API ${response.status}: ${text.slice(0, 100)}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty response from API');
+
+    out.value = content.trim();
+    showCaptionStatus('Caption generated', 'success');
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      showCaptionStatus('Request timed out after 30s', 'error');
+    } else {
+      showCaptionStatus(err.message, 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate Caption';
+  }
+}
+
+function showCaptionStatus(msg, type) {
+  const el = document.getElementById('ai-caption-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'ai-status ' + type;
 }
 
 function showStatus(msg, type) {

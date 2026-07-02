@@ -27,6 +27,14 @@ export function nextBoxId() {
   return 'box_' + state.boxCounter++;
 }
 
+// Normalized box coords live in [0,1000]. Clamp on every write to keep them valid.
+export function clampBox(box) {
+  box.x = Math.min(1000, Math.max(0, box.x));
+  box.y = Math.min(1000, Math.max(0, box.y));
+  box.w = Math.min(1000, Math.max(0, box.w));
+  box.h = Math.min(1000, Math.max(0, box.h));
+}
+
 // Identity color for layers — golden-ratio hue spacing keeps consecutive boxes distinct.
 let layerColorSeed = Math.floor(Math.random() * 360);
 export function randomLayerColor() {

@@ -1,7 +1,7 @@
 // canvas.js — Pointer interactions, event listeners, overlay management.
 // Imports core canvas functions from canvas-core.
 
-import { state, nextBoxId, randomLayerColor } from './state.js';
+import { state, nextBoxId, randomLayerColor, clampBox } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import {
@@ -22,6 +22,15 @@ let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 let hasDragged = false;
 let activeRect = null;
 
+function writeBoxFromDOM(box, dom) {
+  const cw = state.canvas.width, ch = state.canvas.height;
+  box.x = ((parseFloat(dom.style.left) || 0) / cw) * 1000;
+  box.y = ((parseFloat(dom.style.top) || 0) / ch) * 1000;
+  box.w = ((parseFloat(dom.style.width) || 0) / cw) * 1000;
+  box.h = ((parseFloat(dom.style.height) || 0) / ch) * 1000;
+  clampBox(box);
+}
+
 function windowPointerMove(e) {
   if (!activeRect) return;
   const currentX = (e.clientX - activeRect.left) / state.canvas.scale;
@@ -39,11 +48,7 @@ function windowPointerMove(e) {
 function windowPointerUp() {
   if (isDrawing && currentBoxDOM) {
     const box = state.boxes.find(b => b.id === currentBoxDOM.id);
-    const cw = state.canvas.width, ch = state.canvas.height;
-    box.w = ((parseFloat(currentBoxDOM.style.width) || 0) / cw) * 1000;
-    box.h = ((parseFloat(currentBoxDOM.style.height) || 0) / ch) * 1000;
-    box.x = ((parseFloat(currentBoxDOM.style.left) || 0) / cw) * 1000;
-    box.y = ((parseFloat(currentBoxDOM.style.top) || 0) / ch) * 1000;
+    writeBoxFromDOM(box, currentBoxDOM);
 
     if (!hasDragged || box.w < 10 || box.h < 10) {
       currentBoxDOM.remove();
@@ -54,8 +59,10 @@ function windowPointerUp() {
       const canvas = document.getElementById('canvas-wrapper');
       canvas.classList.remove('empty-state');
       canvas.classList.add('has-boxes');
-      emit('state:changed');
     }
+  } else if ((isDragging || isResizing) && currentBoxDOM) {
+    const box = state.boxes.find(b => b.id === currentBoxDOM.id);
+    if (box) writeBoxFromDOM(box, currentBoxDOM);
   }
   isDrawing = false;
   isDragging = false;
@@ -65,6 +72,7 @@ function windowPointerUp() {
   activeRect = null;
   window.removeEventListener('pointermove', windowPointerMove);
   window.removeEventListener('pointerup', windowPointerUp);
+  renderBoxes();
   emit('state:changed');
 }
 
@@ -231,6 +239,14 @@ export function initCanvasEvents() {
   const overlay = document.getElementById('canvas-overlay');
   const opacityGroup = document.getElementById('opacity-group');
 
+  function allLayersHidden() {
+    return state.boxes.length > 0 && state.boxes.every(b => !b.visible);
+  }
+
+  function updateOverlayPointerEvents() {
+    overlay.style.pointerEvents = allLayersHidden() && overlay.classList.contains('visible') ? 'auto' : '';
+  }
+
   on('image:ready', ({ imageUrl, dataUrl }) => {
     overlay.src = imageUrl;
     if (dataUrl) state.imageDataUrl = dataUrl;
@@ -238,6 +254,7 @@ export function initCanvasEvents() {
     overlay.style.opacity = '0.4';
     opacitySlider.value = '40';
     opacityGroup.style.display = 'flex';
+    updateOverlayPointerEvents();
   });
 
   const opacitySlider = document.getElementById('overlay-opacity');
@@ -246,6 +263,15 @@ export function initCanvasEvents() {
       overlay.style.opacity = opacitySlider.value / 100;
     });
   }
+
+  overlay.addEventListener('click', (e) => {
+    if (!allLayersHidden() || !overlay.src) return;
+    e.stopPropagation();
+    window.open(overlay.src, '_blank');
+  });
+
+  // Re-evaluate when any box visibility changes
+  on('box:visibility', () => updateOverlayPointerEvents());
 
   on('state:loaded', ({ json }) => {
     clearBoxes();
@@ -264,6 +290,7 @@ export function initCanvasEvents() {
         color: randomLayerColor(),
         visible: true, locked: false,
       };
+      clampBox(box);
       state.boxes.push(box);
 
       const dom = createBoxDOM(box);

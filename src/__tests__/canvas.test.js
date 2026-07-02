@@ -125,4 +125,30 @@ describe('canvas', () => {
     slider.dispatchEvent(new Event('input'))
     expect(overlay.style.opacity).toBe('0.8')
   })
+
+  it('dragging a box writes DOM position back into state', () => {
+    emit('box:create') // box at x:375,y:375,w:250,h:250 → left=384px on a 1024 canvas
+    const box = state.boxes[0]
+    const dom = document.getElementById(box.id)
+    expect(box.x).toBe(375)
+
+    dom.dispatchEvent(new MouseEvent('pointerdown', { clientX: 500, clientY: 500, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 600, clientY: 600 }))
+    window.dispatchEvent(new MouseEvent('pointerup'))
+
+    // DOM moved +100px → new left=484px → normalized ≈ 472.66
+    expect(box.x).toBeCloseTo(472.66, 1)
+    expect(box.y).toBeCloseTo(472.66, 1)
+  })
+
+  it('dragging a box off-canvas clamps coords to [0,1000]', () => {
+    emit('box:create')
+    const box = state.boxes[0]
+    const dom = document.getElementById(box.id)
+    dom.dispatchEvent(new MouseEvent('pointerdown', { clientX: 500, clientY: 500, bubbles: true }))
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: -5000, clientY: -5000 }))
+    window.dispatchEvent(new MouseEvent('pointerup'))
+    expect(box.x).toBe(0)
+    expect(box.y).toBe(0)
+  })
 })

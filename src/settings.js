@@ -1,4 +1,4 @@
-import { state, MODE_PHOTO, MODE_ARTSTYLE, randomLayerColor } from './state.js';
+import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { initRecaption } from './settings-recaption.js';
@@ -63,6 +63,16 @@ export function initSettings() {
 
   ['box-mode', 'box-text', 'box-desc'].forEach((id) => {
     document.getElementById(id).addEventListener('input', () => { updateBoxData(); emit('state:changed'); });
+  });
+
+  // Element Type segmented toggle (Object / Text) — writes the hidden #box-mode input
+  document.querySelectorAll('#box-mode-toggle .mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const hidden = document.getElementById('box-mode');
+      hidden.value = btn.dataset.mode;
+      syncModeToggle(btn.dataset.mode);
+      hidden.dispatchEvent(new Event('input', { bubbles: true }));
+    });
   });
 
   ['high_level_description', 'aesthetics', 'lighting', 'medium', 'art_style', 'background'].forEach((id) => {
@@ -158,12 +168,11 @@ export function initSettings() {
       if (!box) return;
       boxPanel.style.display = 'block';
       document.getElementById('box-mode').value = box.mode;
+      syncModeToggle(box.mode);
       document.getElementById('box-text').value = box.text;
       document.getElementById('box-desc').value = box.desc;
       document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
       populateGeometry(box);
-      const swatch = document.getElementById('box-color-swatch');
-      if (swatch) swatch.style.background = box.color || 'var(--accent)';
       document.getElementById('recaption-group').style.display = state.imageDataUrl ? 'block' : 'none';
     } else {
       boxPanel.style.display = 'none';
@@ -176,26 +185,18 @@ export function initSettings() {
       if (!state.selectedBoxId) return;
       const box = state.boxes.find(b => b.id === state.selectedBoxId);
       if (!box) return;
-      const v = parseFloat(document.getElementById(id).value);
-      if (isNaN(v)) return;
+      const raw = parseFloat(document.getElementById(id).value);
+      if (isNaN(raw)) return;
       const cw = state.canvas.width, ch = state.canvas.height;
+      const max = (id === 'box-x' || id === 'box-w') ? cw : ch;
+      const v = Math.min(max, Math.max(0, raw));
+      if (v !== raw) document.getElementById(id).value = v;
       if (id === 'box-x') box.x = (v / cw) * 1000;
       else if (id === 'box-y') box.y = (v / ch) * 1000;
-      else if (id === 'box-w') box.w = Math.max(1, (v / cw) * 1000);
-      else if (id === 'box-h') box.h = Math.max(1, (v / ch) * 1000);
+      else if (id === 'box-w') box.w = (v / cw) * 1000;
+      else if (id === 'box-h') box.h = (v / ch) * 1000;
       emit('box:geometry', { id: box.id });
     });
-  });
-
-  document.getElementById('btn-reroll-color').addEventListener('click', () => {
-    if (!state.selectedBoxId) return;
-    const box = state.boxes.find(b => b.id === state.selectedBoxId);
-    if (!box) return;
-    box.color = randomLayerColor();
-    const swatch = document.getElementById('box-color-swatch');
-    if (swatch) swatch.style.background = box.color;
-    emit('box:color', { id: box.id });
-    emit('state:changed');
   });
 
   // Keep X/Y/W/H in sync after canvas drag/resize
@@ -238,6 +239,14 @@ function setPhotoArtMode(mode) {
     document.getElementById('medium').disabled = false;
     document.getElementById('mode_label').innerText = 'Art Style';
   }
+}
+
+function syncModeToggle(mode) {
+  document.querySelectorAll('#box-mode-toggle .mode-btn').forEach((b) => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 }
 
 function updateBoxData() {

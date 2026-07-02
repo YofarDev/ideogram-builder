@@ -3,6 +3,7 @@ import base64
 import http.client
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -282,6 +283,11 @@ class Handler(SimpleHTTPRequestHandler):
             ext = "png" if "image/png" in header else "jpg"
             OUTPUT_DIR.mkdir(exist_ok=True)
             stem = f"img_{datetime.now():%Y%m%d_%H%M%S}"
+            lora_suffix = body.get("loraSuffix", "")
+            # ponytail: sanitize to alphanumerics/+/_/- to stay filesystem-safe
+            lora_suffix = re.sub(r"[^A-Za-z0-9+_\-]", "", lora_suffix)
+            if lora_suffix:
+                stem = f"{stem}_{lora_suffix}"
             filename = f"{stem}.{ext}"
             (OUTPUT_DIR / filename).write_bytes(base64.b64decode(b64))
 
