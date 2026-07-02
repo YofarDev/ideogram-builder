@@ -33,16 +33,6 @@ initQueue();
 initCollections();
 
 // Wire button handlers (no inline onclick in HTML)
-document.getElementById('btn-reset').addEventListener('click', () => {
-  if (state.boxes.length === 0 && !document.getElementById('json-output').value.trim()) {
-    initCanvas();
-    return;
-  }
-  if (confirm('Reset canvas? All boxes and settings will be lost.')) {
-    initCanvas();
-    showToast('Canvas reset.', 'info');
-  }
-});
 document.getElementById('btn-generate-image').addEventListener('click', () => enqueue());
 document.getElementById('btn-delete-box')?.addEventListener('click', () => deleteSelectedBox());
 document.getElementById('btn-config').addEventListener('click', () => fetch('/api/open-config'));
