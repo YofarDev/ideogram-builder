@@ -156,6 +156,7 @@ describe('queue', () => {
       imageUrl: 'blob:success',
       dataUrl: 'data:image/png;base64,ZZ',
       importJson: '{"high_level_description":"test"}',
+      loras: [],
       source: 'generation',
     })
   })

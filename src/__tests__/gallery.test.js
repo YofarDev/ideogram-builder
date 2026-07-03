@@ -101,6 +101,25 @@ describe('gallery', () => {
     })
   })
 
+  it('saveToDisk uses the loras from the event payload, not the live UI state', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+    const { state } = await import('../state.js')
+    state.loras = [{ filename: 'ui_selected.safetensors', source_url: 'u', strengths: {} }]
+    await initGalleryModule()
+    // The generation used a different lora than what is now selected in the UI.
+    emit('image:ready', {
+      dataUrl: 'data:image/png;base64,AA',
+      importJson: '{}',
+      loras: [{ filename: 'gen_used.safetensors', source_url: 'u', strengths: {} }],
+    })
+    await vi.waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/save-image', expect.anything())
+    })
+    const saveCall = global.fetch.mock.calls.find(c => c[0] === '/api/save-image')
+    const body = JSON.parse(saveCall[1].body)
+    expect(body.loraSuffix).toBe('gen_used')
+  })
+
   it('skips save when skipSave is true', async () => {
     global.fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
     await initGalleryModule()

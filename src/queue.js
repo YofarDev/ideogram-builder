@@ -91,7 +91,7 @@ async function drain() {
             });
             job.status = 'done';
             job.thumbUrl = imageUrl;
-            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, source: 'generation' });
+            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, loras: job.snapshot.loras, source: 'generation' });
         } catch (err) {
             if (err.name === 'AbortError') {
                 queue = queue.filter(j => j !== job);

@@ -30,13 +30,13 @@ export function initGallery() {
     let lastSaveDataUrl = '';
 
     // ponytail: disk is the source of truth — just save the image+prompt there, gallery lists the folder
-    on('image:ready', ({ dataUrl, importJson, skipSave }) => {
+    on('image:ready', ({ dataUrl, importJson, loras, skipSave }) => {
         if (skipSave || !dataUrl) return;
         const now = Date.now();
         if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
         lastSaveTime = now;
         lastSaveDataUrl = dataUrl;
-        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value);
+        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value, loras);
     });
 }
 
@@ -159,8 +159,9 @@ function downloadImage(item) {
     document.body.removeChild(a);
 }
 
-async function saveToDisk(dataUrl, promptJson) {
-    const loraSuffix = state.loras.map(l => l.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
+async function saveToDisk(dataUrl, promptJson, loras) {
+    const loraList = loras ?? state.loras;
+    const loraSuffix = loraList.map(l => l.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
     try {
         await fetch('/api/save-image', {
             method: 'POST',
