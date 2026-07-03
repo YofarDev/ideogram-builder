@@ -55,10 +55,10 @@ const LORAS = [
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
   {
-    id: 'tintin-v4-5k',
-    label: 'Tintin (v4, 5k)',
-    filename: 'tintin_id4_v2_000005000.safetensors',
-    source_url: 'https://huggingface.co/Yofardev/Tintin_id4_v4/resolve/main/tintin_id4_v2_000005000.safetensors',
+    id: 'tintin-v4',
+    label: 'Tintin (v4)',
+    filename: 'tintin_id4_v2.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/Tintin_id4_v4/resolve/main/tintin_id4_v2.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
   {
