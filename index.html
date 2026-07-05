@@ -2857,6 +2857,7 @@
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
         <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
+        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;" title="Open the folder where generated images are saved">Open Output Folder</button>
         <div class="toolbar-spacer"></div>
         <div class="backend-toggle pill-group" id="backend-toggle" role="radiogroup" aria-label="Generation backend">
             <input type="radio" id="backend-runpod" name="backend" value="runpod" checked>
@@ -3090,9 +3091,6 @@
 
             <div class="tab-content" id="tab-gallery" role="tabpanel" aria-labelledby="tab-btn-gallery">
                 <div id="gallery-container">
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-                        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;">Open Output Folder</button>
-                    </div>
                     <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
                     <div class="gallery-grid" id="gallery-grid"></div>
                 </div>
