@@ -13,6 +13,18 @@ const baseJson = () => ({
   ] },
 })
 
+const DOM_HTML = `
+  <button id="btn-audit" disabled></button>
+  <div id="audit-panel" hidden>
+    <select id="audit-model"><option value="local">local</option></select>
+    <button id="btn-audit-close"></button>
+    <div id="audit-suggestions"></div>
+    <button id="btn-audit-accept-all"></button>
+  </div>
+  <textarea id="json-output"></textarea>
+  <div id="vision-model-row"></div>
+`
+
 describe('audit helpers', () => {
   it('validateSuggestion accepts a well-formed add_element', () => {
     const s = { type: 'add_element', reason: 'x', element: { name: 'y', desc: 'z', has_text: false, visible_text: null, bbox: [0, 0, 0.1, 0.1] } }
@@ -84,5 +96,130 @@ describe('audit helpers', () => {
   it('applyUpdateField throws on missing dot-path', () => {
     const json = baseJson()
     expect(() => applyUpdateField(json, { field: 'style.mood', value: 'x' })).toThrow(/stale|missing/i)
+  })
+})
+
+describe('audit UI', () => {
+  const sampleSuggestions = (overrides = {}) => ({
+    type: 'add_element',
+    reason: 'missing glass',
+    element: { name: 'wine glass', desc: 'a glass', has_text: false, visible_text: null, bbox: [0.5, 0.5, 0.6, 0.6] },
+    ...overrides,
+  })
+
+  function setJsonOutput(json) {
+    document.getElementById('json-output').value = JSON.stringify(json)
+  }
+
+  function readJsonOutput() {
+    return JSON.parse(document.getElementById('json-output').value)
+  }
+
+  beforeEach(async () => {
+    document.body.innerHTML = DOM_HTML
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ suggestions: [] }) })
+    global.URL.createObjectURL = vi.fn()
+    const { state } = await import('../state.js')
+    state.imageDataUrl = 'data:image/png;base64,abc'
+    const auditModule = await import('../audit.js')
+    auditModule.initAudit()
+  })
+
+  it('opens panel and renders suggestions', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [sampleSuggestions()] }),
+    })
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => {
+      const cards = document.querySelectorAll('.audit-card')
+      expect(cards.length).toBe(1)
+    })
+    expect(document.getElementById('audit-panel').hasAttribute('hidden')).toBe(false)
+  })
+
+  it('drops malformed suggestions with a toast', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [
+        sampleSuggestions(),
+        { type: 'explode', reason: 'bad' },
+        { type: 'add_element', reason: 'no element' },
+      ] }),
+    })
+    const { showToast } = await import('../toast.js')
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('.audit-card').length).toBe(1)
+    })
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('malformed'), 'warning')
+  })
+
+  it('accept on add_element pushes element and emits state:loaded', async () => {
+    setJsonOutput({ compositional_deconstruction: { elements: [] } })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [sampleSuggestions()] }),
+    })
+    const { on } = await import('../events.js')
+    const seen = vi.fn()
+    on('state:loaded', seen)
+
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
+    document.querySelector('.audit-card-accept').click()
+
+    const updated = readJsonOutput()
+    expect(updated.compositional_deconstruction.elements.length).toBe(1)
+    expect(updated.compositional_deconstruction.elements[0].name).toBe('wine glass')
+    expect(seen).toHaveBeenCalled()
+  })
+
+  it('stale update_element shows inline error, no crash', async () => {
+    setJsonOutput({ compositional_deconstruction: { elements: [{ name: 'x', desc: 'y' }] } })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [
+        { type: 'update_element', index: 99, reason: 'x', patch: { desc: 'better' } },
+      ] }),
+    })
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
+    document.querySelector('.audit-card-accept').click()
+    expect(document.querySelector('.audit-card-error').textContent).toMatch(/stale/i)
+  })
+
+  it('reject removes the card', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [sampleSuggestions()] }),
+    })
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
+    document.querySelector('.audit-card-reject').click()
+    expect(document.querySelectorAll('.audit-card').length).toBe(0)
+  })
+
+  it('Accept all applies every pending suggestion', async () => {
+    setJsonOutput({ compositional_deconstruction: { elements: [] }, style: { lighting: 'soft' } })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ suggestions: [
+        sampleSuggestions(),
+        { type: 'update_field', field: 'style.lighting', reason: 'x', value: 'hard' },
+      ] }),
+    })
+    document.getElementById('btn-audit').disabled = false
+    document.getElementById('btn-audit').click()
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(2))
+    document.getElementById('btn-audit-accept-all').click()
+    const updated = readJsonOutput()
+    expect(updated.compositional_deconstruction.elements.length).toBe(1)
+    expect(updated.style.lighting).toBe('hard')
   })
 })
