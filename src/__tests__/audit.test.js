@@ -121,6 +121,7 @@ describe('audit UI', () => {
     global.URL.createObjectURL = vi.fn()
     const { state } = await import('../state.js')
     state.imageDataUrl = 'data:image/png;base64,abc'
+    document.getElementById('json-output').value = JSON.stringify({ compositional_deconstruction: { elements: [] } })
     const auditModule = await import('../audit.js')
     auditModule.initAudit()
   })

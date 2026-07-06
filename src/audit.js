@@ -70,7 +70,7 @@ export function applyUpdateField(json, suggestion) {
 
 // UI orchestration (Task 6)
 import { state } from './state.js'
-import { emit, on } from './events.js'
+import { emit } from './events.js'
 import { showToast } from './toast.js'
 
 let _panel, _list, _modelSelect, _btn, _closeBtn, _acceptAllBtn
@@ -85,13 +85,8 @@ export function initAudit() {
   _acceptAllBtn = document.getElementById('btn-audit-accept-all')
   if (!_btn || !_panel) return
 
-  // Enable the button only when an image is loaded
-  const updateBtnState = () => {
-    _btn.disabled = !state.imageDataUrl
-  }
-  updateBtnState()
-  on('image:ready', updateBtnState)
-
+  // Always enabled — if no image is loaded, the file picker fires on click.
+  _btn.disabled = false
   _btn.addEventListener('click', runAudit)
   _closeBtn?.addEventListener('click', () => { _panel.hidden = true })
   _acceptAllBtn?.addEventListener('click', acceptAll)
@@ -120,10 +115,54 @@ export function initAudit() {
     .catch(() => {})
 }
 
+function pickImageFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    const done = () => {
+      cleanup()
+      resolve(input.files?.[0] ?? null)
+    }
+    const cleanup = () => {
+      input.removeEventListener('change', done)
+      window.removeEventListener('focus', focusHandler)
+      input.remove()
+    }
+    const focusHandler = () => setTimeout(done, 100)
+    input.addEventListener('change', done)
+    window.addEventListener('focus', focusHandler)
+    input.style.display = 'none'
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => reject(new Error('Failed to read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
 async function runAudit() {
-  if (!state.imageDataUrl) return
   const model = _modelSelect.value
   if (!model) { showToast('Select a vision model for audit', 'error'); return }
+  if (!document.getElementById('json-output').value.trim()) {
+    showToast('No JSON in the editor to audit', 'error')
+    return
+  }
+
+  let imageDataUrl = state.imageDataUrl
+  if (!imageDataUrl) {
+    const file = await pickImageFile()
+    if (!file) return  // cancelled
+    imageDataUrl = await readFileAsDataUrl(file)
+    state.imageDataUrl = imageDataUrl
+    emit('image:ready', { imageUrl: imageDataUrl, dataUrl: imageDataUrl })
+  }
 
   _btn.disabled = true
   _btn.textContent = 'Auditing\u2026'
@@ -131,7 +170,7 @@ async function runAudit() {
   _panel.hidden = false
   _pending = []
 
-  const body = { image: state.imageDataUrl, json: document.getElementById('json-output').value, model }
+  const body = { image: imageDataUrl, json: document.getElementById('json-output').value, model }
   if (model === 'local') {
     body.local_model = _modelSelect.options[_modelSelect.selectedIndex].textContent
   }
