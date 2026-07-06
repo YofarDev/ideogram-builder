@@ -338,6 +338,74 @@ class Handler(SimpleHTTPRequestHandler):
             response["debug_dir"] = debug_dir
         self._send_json(200, response)
 
+    def _handle_audit_api(self, model, image_b64, existing_json, bbox_format="xyxy"):
+        """Cloud audit: one chat call with json_audit prompt + current JSON inline."""
+        resolved = self._resolve_cloud_provider(model)
+        if resolved is None:
+            return
+        provider, model_name, base_url, api_key = resolved
+        _vlog(f"audit-api: provider={provider} model={model_name}")
+
+        try:
+            system_prompt = (IMG_TO_JSON_DIR / "prompts" / "json_audit.txt").read_text().strip()
+        except FileNotFoundError:
+            self._send_json(500, {"error": "json_audit.txt prompt not found"})
+            return
+
+        user_text = "Audit this caption against the image. Current JSON:\n" + existing_json
+        try:
+            content = self._cloud_vlm_chat(base_url, api_key, model_name, system_prompt, user_text, image_b64)
+            parsed = json.loads(content)
+        except RuntimeError as e:
+            self._send_json(502, {"error": str(e)})
+            return
+        except json.JSONDecodeError:
+            self._send_json(502, {"error": "audit call returned invalid JSON", "detail": content[:500]})
+            return
+
+        suggestions = parsed.get("suggestions", []) if isinstance(parsed, dict) else []
+        _vlog(f"audit-api: ok, suggestions={len(suggestions)}")
+        self._send_json(200, {"suggestions": suggestions})
+
+    def _handle_audit_local(self, image_b64, ext, existing_json, local_model, bbox_format="xyxy"):
+        """Local audit: subprocess main.py --audit-mode. SAM never loads."""
+        img_data = base64.b64decode(image_b64.split(",", 1)[1] if "," in image_b64 else image_b64)
+        import tempfile
+        tmp_img = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+        tmp_json = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+        try:
+            tmp_img.write(img_data); tmp_img.close()
+            tmp_json.write(existing_json); tmp_json.close()
+
+            cmd = ["uv", "run", "--directory", str(IMG_TO_JSON_DIR), "python", "main.py",
+                   tmp_img.name, "--audit-mode", "--json-file", tmp_json.name,
+                   "--bbox-format", bbox_format]
+            if local_model:
+                cmd.extend(["--model", local_model])
+
+            try:
+                # ponytail: reuse the shared subprocess runner; it raises _Cancelled / RuntimeError.
+                # audit JSON shape differs from pipeline output (no [verifier] / [debug_dir] markers
+                # expected), but the cancellation/error shape is identical — accept unused return values.
+                json_output, _verifier, _debug = self._run_pipeline_subprocess(cmd)
+            except _Cancelled:
+                self._send_json(499, {"error": "Cancelled"})
+                return
+            except FileNotFoundError:
+                self._send_json(500, {"error": "img-to-json pipeline not found"})
+                return
+            except RuntimeError as e:
+                self._send_json(500, {"error": str(e)})
+                return
+        finally:
+            for p in (tmp_img.name, tmp_json.name):
+                try: os.unlink(p)
+                except OSError: pass
+
+        suggestions = json_output.get("suggestions", []) if isinstance(json_output, dict) else []
+        _vlog(f"audit-local: ok, suggestions={len(suggestions)}")
+        self._send_json(200, {"suggestions": suggestions})
+
     def do_GET(self):
         if self.path == "/api/config":
             try:
@@ -696,6 +764,32 @@ class Handler(SimpleHTTPRequestHandler):
                         self._handle_vision_api(model, image_b64, ext, bbox_format)
                 except _Cancelled:
                     self._send_json(499, {"error": "Cancelled"})
+        elif self.path == "/api/audit-json":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length))
+            image_b64 = body.get("image", "")
+            existing_json = body.get("json", "")
+            model = body.get("model", "")
+            bbox_format = body.get("bbox_format", "xyxy")
+
+            if not image_b64 or not existing_json or not model:
+                self._send_json(400, {"error": "Missing required fields: image, json, model"})
+                return
+            if _vision_state["proc"] is not None:
+                self._send_json(409, {"error": "Another vision job is in flight"})
+                return
+
+            try:
+                header, b64 = image_b64.split(",", 1)
+            except ValueError:
+                self._send_json(400, {"error": "invalid data URL"})
+                return
+            ext = "png" if "image/png" in header else "jpg"
+
+            if model == "local":
+                self._handle_audit_local(image_b64, ext, existing_json, body.get("local_model", ""), bbox_format)
+            else:
+                self._handle_audit_api(model, image_b64, existing_json, bbox_format)
         else:
             self._send_json(404, {"error": "not found"})
 
