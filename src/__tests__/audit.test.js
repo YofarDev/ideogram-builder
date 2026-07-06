@@ -5,18 +5,19 @@ vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
 const baseJson = () => ({
   high_level_description: 'a scene',
-  background: 'a wall',
-  style: { medium: 'photograph', aesthetics: 'minimal', lighting: 'soft', photo_or_art: '50mm' },
-  compositional_deconstruction: { elements: [
-    { name: 'cup', desc: 'a red cup', has_text: false, visible_text: null, bbox: [0.1, 0.1, 0.3, 0.3] },
-    { name: 'book', desc: 'a blue book', has_text: false, visible_text: null, bbox: [0.4, 0.4, 0.6, 0.6] },
-  ] },
+  compositional_deconstruction: {
+    background: 'a wall',
+    elements: [
+      { name: 'cup', desc: 'a red cup', has_text: false, visible_text: null, bbox: [0.1, 0.1, 0.3, 0.3] },
+      { name: 'book', desc: 'a blue book', has_text: false, visible_text: null, bbox: [0.4, 0.4, 0.6, 0.6] },
+    ],
+  },
+  style_description: { medium: 'photograph', aesthetics: 'minimal', lighting: 'soft', photo: '50mm' },
 })
 
 const DOM_HTML = `
   <select id="audit-model"><option value="local">local</option></select>
   <button id="btn-audit-run">Run Audit</button>
-  <button id="btn-audit-accept-all">Accept all</button>
   <div id="audit-suggestions"></div>
   <textarea id="vision-json"></textarea>
   <textarea id="json-output"></textarea>
@@ -81,18 +82,18 @@ describe('audit helpers', () => {
   it('applyUpdateField sets a top-level field', () => {
     const json = baseJson()
     applyUpdateField(json, { field: 'background', value: 'a brick wall' })
-    expect(json.background).toBe('a brick wall')
+    expect(json.compositional_deconstruction.background).toBe('a brick wall')
   })
 
   it('applyUpdateField sets a nested style field via dot-path', () => {
     const json = baseJson()
     applyUpdateField(json, { field: 'style.lighting', value: 'hard sun' })
-    expect(json.style.lighting).toBe('hard sun')
+    expect(json.style_description.lighting).toBe('hard sun')
   })
 
   it('applyUpdateField throws on missing dot-path', () => {
     const json = baseJson()
-    expect(() => applyUpdateField(json, { field: 'style.mood', value: 'x' })).toThrow(/stale|missing/i)
+    expect(() => applyUpdateField(json, { field: 'style.mood', value: 'x' })).toThrow(/stale|missing|unknown/i)
   })
 })
 
@@ -165,7 +166,7 @@ describe('audit UI', () => {
 
     document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
-    document.querySelector('.audit-card-accept').click()
+    document.querySelector('.audit-accept').click()
 
     const updated = readJsonOutput()
     expect(updated.compositional_deconstruction.elements.length).toBe(1)
@@ -183,7 +184,7 @@ describe('audit UI', () => {
     })
     document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
-    document.querySelector('.audit-card-accept').click()
+    document.querySelector('.audit-accept').click()
     expect(document.querySelector('.audit-card-error').textContent).toMatch(/stale/i)
   })
 
@@ -194,12 +195,14 @@ describe('audit UI', () => {
     })
     document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
-    document.querySelector('.audit-card-reject').click()
+    const card = document.querySelector('.audit-card')
+    card.querySelector('.audit-dismiss').click()
+    card.dispatchEvent(new Event('animationend'))
     expect(document.querySelectorAll('.audit-card').length).toBe(0)
   })
 
   it('Accept all applies every pending suggestion', async () => {
-    setJsonOutput({ compositional_deconstruction: { elements: [] }, style: { lighting: 'soft' } })
+    setJsonOutput({ compositional_deconstruction: { elements: [] }, style_description: { lighting: 'soft' } })
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ suggestions: [
@@ -209,10 +212,10 @@ describe('audit UI', () => {
     })
     document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(2))
-    document.getElementById('btn-audit-accept-all').click()
+    document.querySelector('.audit-accept-all').click()
     const updated = readJsonOutput()
     expect(updated.compositional_deconstruction.elements.length).toBe(1)
-    expect(updated.style.lighting).toBe('hard')
+    expect(updated.style_description.lighting).toBe('hard')
   })
 
   it('shows error toast when no image data in state', async () => {

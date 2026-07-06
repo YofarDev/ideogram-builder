@@ -12,6 +12,7 @@ const DOM_HTML = `
   <input id="vision-file-input" type="file">
   <div id="vision-preview"><img id="vision-preview-img"></div>
   <button id="vision-change-btn">Change</button>
+  <div class="vision-body"></div>
   <button id="btn-vision-process">Process Image</button>
   <input id="vision-instruction" type="text" style="display:none;">
   <button id="btn-vision-find-more" style="display:none;">Find more items</button>
