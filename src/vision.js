@@ -6,6 +6,8 @@ import { fetchConfig, populateModelSelect, populateLLMVisionModels } from './vis
 let isProcessing = false;
 let processed = false;
 let internalImageLoad = false;
+let isFindingMore = false;
+let lastProcessedImage = null;
 const MAX_DIM = 512;
 
 function downscaleImage(dataUrl, maxDim) {
@@ -36,9 +38,20 @@ export function initVision() {
   const previewImg = document.getElementById('vision-preview-img');
   const changeBtn = document.getElementById('vision-change-btn');
   const processBtn = document.getElementById('btn-vision-process');
+  const findMoreBtn = document.getElementById('btn-vision-find-more');
   const statusEl = document.getElementById('vision-status');
 
   let currentFile = null;
+
+  function updateFindMoreVisibility() {
+    const hasImage = !!(previewImg && previewImg.src);
+    const jsonVal = (document.getElementById('vision-json')?.value || '').trim();
+    const show = hasImage && !!jsonVal;
+    const display = show ? '' : 'none';
+    if (findMoreBtn) findMoreBtn.style.display = display;
+    const instr = document.getElementById('vision-instruction');
+    if (instr) instr.style.display = display;
+  }
 
   document.getElementById('btn-vision-config')?.addEventListener('click', () => fetch('/api/open-config'));
 
@@ -169,7 +182,15 @@ export function initVision() {
     previewImg.src = imageUrl;
     preview.classList.add('visible');
     dropzone.classList.add('has-image');
+    document.querySelector('.vision-body').classList.add('has-image');
+    updateFindMoreVisibility();
   });
+
+  on('state:loaded', () => updateFindMoreVisibility());
+
+  const visionJsonEl = document.getElementById('vision-json');
+  visionJsonEl?.addEventListener('input', updateFindMoreVisibility);
+  visionJsonEl?.addEventListener('paste', () => setTimeout(updateFindMoreVisibility, 0));
 
   function handleFile(file) {
     if (!file.type.startsWith('image/')) {
@@ -178,6 +199,7 @@ export function initVision() {
     }
     currentFile = file;
     processed = false;
+    lastProcessedImage = null;
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -185,6 +207,7 @@ export function initVision() {
       preview.classList.add('visible');
       dropzone.classList.add('has-image');
       document.querySelector('.vision-body').classList.add('has-image');
+      updateFindMoreVisibility();
       processBtn.textContent = 'Process Image';
       processBtn.className = 'btn btn-primary';
       processBtn.disabled = false;
@@ -325,9 +348,17 @@ export function initVision() {
           processBtn.textContent = 'Load in Editor';
           processBtn.className = 'btn done';
           processBtn.disabled = false;
-          statusEl.textContent = '';
+          const elCount = (data.json?.compositional_deconstruction?.elements || []).length;
+          statusEl.textContent = elCount ? `${elCount} items` : '';
           showToast('Image processed successfully.', 'success');
           currentFile = null;
+          lastProcessedImage = downscaled;
+          if (findMoreBtn) {
+            findMoreBtn.disabled = false;
+            findMoreBtn.classList.remove('done');
+            findMoreBtn.textContent = 'Find more items';
+          }
+          updateFindMoreVisibility();
         };
         img.src = dataUrl;
 
@@ -346,4 +377,80 @@ export function initVision() {
     };
     reader.readAsDataURL(currentFile);
   }
+
+  async function findMore() {
+    if (isFindingMore) return;
+    const imageUrl = lastProcessedImage || previewImg.src;
+    if (!imageUrl || !imageUrl.startsWith('data:')) {
+      showToast('No processed image to search.', 'error');
+      return;
+    }
+    const jsonVal = (document.getElementById('vision-json')?.value || document.getElementById('json-output').value).trim();
+    if (!jsonVal) { showToast('No JSON to extend.', 'error'); return; }
+
+    isFindingMore = true;
+    if (findMoreBtn) { findMoreBtn.disabled = true; findMoreBtn.textContent = 'Searching\u2026'; }
+    visionModelSelect.disabled = true;
+    statusEl.textContent = 'Searching for more items\u2026';
+
+    const selectedModel = document.getElementById('vision-model').value || 'local';
+    const body = { image: imageUrl, json: jsonVal, model: selectedModel, bbox_format: bboxFormatSelect?.value || 'xyxy' };
+    const instruction = (document.getElementById('vision-instruction')?.value || '').trim();
+    if (instruction) body.instruction = instruction;
+    if (selectedModel === 'local') {
+      body.local_model = visionModelSelect.options[visionModelSelect.selectedIndex].textContent;
+      body.low_memory = document.getElementById('vision-low-memory')?.checked || false;
+    }
+    if (document.getElementById('vision-debug')?.checked) body.debug = true;
+
+    try {
+      const resp = await fetch('/api/img-to-json/more', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => null);
+        throw new Error(err?.error || `Server error (${resp.status})`);
+      }
+      const data = await resp.json();
+      const newEls = data.new_elements || [];
+
+      if (newEls.length === 0) {
+        statusEl.textContent = 'No new items found \u00b7 likely complete';
+        if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = true; }
+        showToast('No additional items found.', 'info');
+        return;
+      }
+
+      let current;
+      try {
+        current = JSON.parse(document.getElementById('vision-json')?.value || document.getElementById('json-output').value);
+      } catch {
+        current = JSON.parse(jsonVal);
+      }
+      current.compositional_deconstruction ||= { elements: [] };
+      current.compositional_deconstruction.elements ||= [];
+      current.compositional_deconstruction.elements.push(...newEls);
+      const jsonStr = JSON.stringify(current, null, 2);
+      document.getElementById('json-output').value = jsonStr;
+      const vj = document.getElementById('vision-json');
+      if (vj) vj.value = jsonStr;
+      emit('state:loaded', { json: current });
+
+      const total = current.compositional_deconstruction.elements.length;
+      statusEl.textContent = `+${newEls.length} new \u00b7 ${total} total`;
+      if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = false; }
+      showToast(`Found ${newEls.length} more item${newEls.length === 1 ? '' : 's'}.`, 'success');
+    } catch (err) {
+      statusEl.textContent = 'Find-more failed';
+      showToast(err.message, 'error');
+      if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = false; }
+    } finally {
+      isFindingMore = false;
+      visionModelSelect.disabled = false;
+    }
+  }
+
+  findMoreBtn?.addEventListener('click', findMore);
 }

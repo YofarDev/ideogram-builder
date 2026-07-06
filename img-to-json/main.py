@@ -44,6 +44,11 @@ def main():
         help="Path to JSON file with pre-computed objects list (cloud-VLM split path; skips local object call)",
     )
     parser.add_argument(
+        "--objects-more",
+        type=str,
+        help="Path to JSON file with already-found items (list of {desc}); runs a find-more object round",
+    )
+    parser.add_argument(
         "--model",
         type=str,
         default="Qwen3-VL-4B-Instruct-8bit",
@@ -63,6 +68,13 @@ def main():
         "--audit-mode",
         action="store_true",
         help="Audit mode: given --json-file with current caption, emit critique suggestions JSON",
+    )
+    parser.add_argument(
+        "--audit-focus",
+        type=str,
+        default="full",
+        choices=["full", "missing"],
+        help="Audit focus: 'full' (mixed suggestions) or 'missing' (omitted objects only)",
     )
     parser.add_argument(
         "--json-file",
@@ -113,6 +125,8 @@ def main():
             kwargs["scene_override"] = json.loads(Path(args.scene_file).read_text())
         if args.objects_file:
             kwargs["objects_override"] = json.loads(Path(args.objects_file).read_text()).get("objects", [])
+        if args.objects_more:
+            kwargs["objects_more"] = json.loads(Path(args.objects_more).read_text())
     else:
         from pipeline import run
         kwargs["no_sam"] = args.no_sam
@@ -187,7 +201,8 @@ def _run_audit_mode(args):
     existing_caption = _json.loads(Path(args.json_file).read_text())
 
     prompt_dir = Path(__file__).resolve().parent / "prompts"
-    system_prompt = (prompt_dir / "json_audit.txt").read_text().strip()
+    prompt_name = "json_audit_missing.txt" if args.audit_focus == "missing" else "json_audit.txt"
+    system_prompt = (prompt_dir / prompt_name).read_text().strip()
     user_text = "Audit this caption against the image. Current JSON:\n" + _json.dumps(existing_caption)
 
     w, h = image.size

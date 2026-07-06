@@ -13,6 +13,8 @@ const DOM_HTML = `
   <div id="vision-preview"><img id="vision-preview-img"></div>
   <button id="vision-change-btn">Change</button>
   <button id="btn-vision-process">Process Image</button>
+  <input id="vision-instruction" type="text" style="display:none;">
+  <button id="btn-vision-find-more" style="display:none;">Find more items</button>
   <div id="vision-status"></div>
   <button id="btn-vision-config">Config</button>
   <select id="vision-model"></select>
@@ -32,6 +34,7 @@ const DOM_HTML = `
   <div id="dim-display">1024 × 1024</div>
   <select id="aspect-ratio"><option value="1024x1024">1:1</option></select>
   <textarea id="json-output"></textarea>
+  <textarea id="vision-json"></textarea>
   <button id="tab-btn-editor">Editor</button>
 `
 
@@ -139,5 +142,86 @@ describe('vision', () => {
     emit('image:ready', { imageUrl: 'ref.png' })
     expect(preview.classList.contains('visible')).toBe(true)
     expect(img.src).toMatch(/\/ref\.png$/)
+  })
+
+  it('shows Find more + instruction when image and JSON are present', () => {
+    const findMoreBtn = document.getElementById('btn-vision-find-more')
+    const instructionInput = document.getElementById('vision-instruction')
+    const previewImg = document.getElementById('vision-preview-img')
+    const visionJson = document.getElementById('vision-json')
+
+    previewImg.src = 'data:image/png;base64,abc'
+    visionJson.value = '{"compositional_deconstruction":{"elements":[]}}'
+    emit('state:loaded', { json: JSON.parse(visionJson.value) })
+
+    expect(findMoreBtn.style.display).not.toBe('none')
+    expect(instructionInput.style.display).not.toBe('none')
+  })
+
+  it('hides Find more + instruction when JSON is empty', () => {
+    const findMoreBtn = document.getElementById('btn-vision-find-more')
+    const instructionInput = document.getElementById('vision-instruction')
+    const previewImg = document.getElementById('vision-preview-img')
+    const visionJson = document.getElementById('vision-json')
+
+    previewImg.src = 'data:image/png;base64,abc'
+    visionJson.value = ''
+    emit('state:loaded', { json: {} })
+
+    expect(findMoreBtn.style.display).toBe('none')
+    expect(instructionInput.style.display).toBe('none')
+  })
+
+  it('typing into vision-json reveals Find more', () => {
+    const findMoreBtn = document.getElementById('btn-vision-find-more')
+    const previewImg = document.getElementById('vision-preview-img')
+    const visionJson = document.getElementById('vision-json')
+
+    previewImg.src = 'data:image/png;base64,abc'
+    visionJson.value = ''
+    emit('state:loaded', { json: {} })
+    expect(findMoreBtn.style.display).toBe('none')
+
+    visionJson.value = '{"compositional_deconstruction":{"elements":[{"desc":"x"}]}}'
+    visionJson.dispatchEvent(new Event('input'))
+
+    expect(findMoreBtn.style.display).not.toBe('none')
+  })
+
+  it('findMore sends instruction in body when input is non-empty', async () => {
+    const previewImg = document.getElementById('vision-preview-img')
+    const visionJson = document.getElementById('vision-json')
+    const instructionInput = document.getElementById('vision-instruction')
+    previewImg.src = 'data:image/png;base64,abc'
+    visionJson.value = '{"compositional_deconstruction":{"elements":[{"desc":"a"}]}}'
+    instructionInput.value = 'find missing people'
+
+    const calls = []
+    global.fetch = vi.fn(async (url, opts) => {
+      calls.push({ url, body: JSON.parse(opts.body) })
+      return { ok: true, json: () => Promise.resolve({ new_elements: [] }) }
+    })
+
+    document.getElementById('btn-vision-find-more').click()
+    await vi.waitFor(() => expect(calls.length).toBe(1))
+    expect(calls[0].url).toBe('/api/img-to-json/more')
+    expect(calls[0].body.instruction).toBe('find missing people')
+  })
+
+  it('findMore omits instruction when input is empty', async () => {
+    const previewImg = document.getElementById('vision-preview-img')
+    const visionJson = document.getElementById('vision-json')
+    previewImg.src = 'data:image/png;base64,abc'
+    visionJson.value = '{"compositional_deconstruction":{"elements":[{"desc":"a"}]}}'
+
+    const calls = []
+    global.fetch = vi.fn(async (url, opts) => {
+      calls.push({ url, body: JSON.parse(opts.body) })
+      return { ok: true, json: () => Promise.resolve({ new_elements: [] }) }
+    })
+
+    document.getElementById('btn-vision-find-more').click()
+    await vi.waitFor(() => expect(calls.length).toBe(1))
+    expect(calls[0].body).not.toHaveProperty('instruction')
   })
 })

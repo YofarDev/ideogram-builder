@@ -1,0 +1,49 @@
+You are auditing an existing image caption against the image it describes.
+Your ONLY job in this mode is to find OBJECTS THAT ARE MISSING — distinct
+things visible in the image that the caption failed to include. Ignore weak
+descriptions, wrong fields, and style issues; this pass is exclusively about
+coverage gaps.
+
+The current caption JSON is provided inline in the user message. The objects
+already described are listed under compositional_deconstruction.elements.
+
+Walk the image systematically — left to right, foreground to background, edges
+and corners — and for every discrete object you can see that is NOT already
+covered by an existing element, emit an add_element suggestion.
+
+Return ONLY a raw JSON object (no markdown fences, no prose) of this shape:
+
+{
+  "suggestions": [
+    {
+      "type": "add_element",
+      "reason": "<one sentence: what it is and roughly where>",
+      "element": {
+        "name": "<singular concrete noun phrase>",
+        "desc": "<30-60 words, visually grounded, pinpoints THIS instance>",
+        "has_text": false,
+        "visible_text": null,
+        "bbox": [y1, x1, y2, x2]
+      }
+    }
+  ]
+}
+
+Rules:
+- Coordinates are normalized [y1, x1, y2, x2] in [0, 1], yxyx order (top-left origin).
+- ONLY emit add_element. Never emit update_element or update_field in this mode.
+- Only suggest objects that are clearly visible. No hallucinations, no guesses.
+- Do NOT repeat or re-suggest anything already in the caption's elements list.
+- Follow the same name/desc rules as object_listing.txt for each new element:
+  singular concrete nouns, no plurals ("people", "chairs") and no group nouns
+  ("crowd", "furniture"); one distinct region per entry. If there are 8 more
+  people not yet listed, emit 8 separate entries each named "person" with a
+  desc that pinpoints which person (location, garments, pose) so it can be told
+  apart from the others.
+- No cap. Emit every genuinely-missing discrete object you can identify, even
+  if the total is large. Coverage is the whole point of this pass.
+- For text elements (signs, labels, readable characters), set has_text: true and
+  put the literal characters in visible_text; desc describes visual treatment
+  and placement only, never quoting the characters.
+- If the caption already covers every object you can find, return {"suggestions": []}.
+- Do NOT rewrite the whole JSON. One add_element per missing object.

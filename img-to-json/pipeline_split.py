@@ -120,9 +120,11 @@ def run(
     bbox_format: str = "xyxy",
     scene_override: dict | None = None,
     objects_override: list | None = None,
+    objects_more: list | None = None,
 ):
     # ponytail: scene_override/objects_override let the cloud-VLM path reuse this
     # module for SAM + build_json without re-doing the VLM calls in-process.
+    # objects_more runs a find-more object round seeded with already-found items.
     pre = preprocess(image_path)
     if verbose:
         logger.info("Split step 1 - preprocess: palette=%d colors", len(pre.palette))
@@ -134,7 +136,7 @@ def run(
         })
         debug.save_image("01_preprocess_image_padded.png", pre.image_padded)
 
-    vlm_used = scene_override is None or objects_override is None
+    vlm_used = scene_override is None or (objects_override is None and objects_more is None)
 
     if scene_override is not None:
         scene = scene_override
@@ -157,6 +159,23 @@ def run(
             logger.info("Split step 2b - object override: %d objects", len(objects))
         if debug and debug.enabled:
             debug.save_json("03_objects_parsed.json", {"objects": objects})
+    elif objects_more is not None:
+        more_prompt = (_PROMPT_DIR / "object_listing_more.txt").read_text().strip()
+        seed_lines = []
+        for it in objects_more:
+            name = it.get("name")
+            desc = it.get("desc", "")
+            seed_lines.append(f"- {name}: {desc}" if name else f"- {desc}")
+        seed_block = "\n".join(seed_lines) if seed_lines else "(none)"
+        user_msg = (
+            "Items already found and described:\n" + seed_block
+            + "\n\nFind ADDITIONAL distinct instances NOT in the list above. "
+            "Return only NEW items, or {\"objects\": []} if nothing new remains."
+        )
+        raw_objects = _vlm_call(pre.image_orig, more_prompt, user_msg, debug, "03_objects_more", model)
+        objects = raw_objects.get("objects", [])
+        if verbose:
+            logger.info("Split step 2b - find-more object call: %d new objects", len(objects))
     else:
         object_prompt = (_PROMPT_DIR / "object_listing.txt").read_text().strip()
         raw_objects = _vlm_call(pre.image_orig, object_prompt, "List the individual objects in this image and return the JSON.", debug, "03_objects", model)

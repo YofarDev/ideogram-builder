@@ -30,6 +30,7 @@ class _Cancelled(Exception):
 sys.path.insert(0, str(IMG_TO_JSON_DIR))
 from utils.caption_verifier import canonicalize, verify
 from utils.bbox import to_yxyx, format_prompt
+from utils.dedup import dedup_new
 
 
 def _vlog(*parts):
@@ -51,6 +52,34 @@ def _interruptible_sleep(seconds):
             return True
         time.sleep(0.2)
     return _vision_state["cancelled"]
+
+
+def _lenient_json(raw: str):
+    """Parse JSON leniently: strip markdown fences, then fall back to the
+    outermost {...} span if the model wrapped the object in prose. Returns the
+    parsed dict, or None if it cannot be recovered (e.g. truncated)."""
+    if not raw:
+        return None
+    stripped = raw.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(stripped[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -76,8 +105,9 @@ class Handler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError as e:
             return raw_dict, [f"Invalid JSON: {e}"]
 
-    def _cloud_vlm_chat(self, base_url, api_key, model_name, system_prompt, user_text, image_b64, phase=""):
-        """One cloud VLM chat completion. Returns raw content string.
+    def _cloud_vlm_chat(self, base_url, api_key, model_name, system_prompt, user_text, image_b64, phase="", max_tokens=4096, return_meta=False):
+        """One cloud VLM chat completion. Returns raw content string, or
+        (content, finish_reason) when return_meta=True.
         json_mode first, falls back to text mode on HTTP 400. Retries transient
         errors (429/500/502/503/504 + network/timeout) with capped exponential
         backoff up to 10 attempts. Abortable via _vision_state["cancelled"].
@@ -98,7 +128,7 @@ class Handler(SimpleHTTPRequestHandler):
         for attempt in range(max_attempts):
             if _vision_state["cancelled"]:
                 raise _Cancelled()
-            payload = {"model": model_name, "messages": messages, "max_tokens": 4096}
+            payload = {"model": model_name, "messages": messages, "max_tokens": max_tokens}
             if use_json:
                 payload["response_format"] = {"type": "json_object"}
             try:
@@ -109,9 +139,12 @@ class Handler(SimpleHTTPRequestHandler):
                     raw = resp.read().decode(errors="replace")
                 result = json.loads(raw)
                 content = result["choices"][0]["message"]["content"]
+                finish_reason = result["choices"][0].get("finish_reason", "") or ""
+                if finish_reason and finish_reason != "stop":
+                    _vlog(f"{label}finish_reason={finish_reason} (max_tokens={max_tokens})")
                 if not content:
                     raise RuntimeError("cloud VLM returned empty content")
-                return content
+                return (content, finish_reason) if return_meta else content
             except URLError as e:
                 code = getattr(e, "code", None)
                 preview = ""
@@ -338,36 +371,221 @@ class Handler(SimpleHTTPRequestHandler):
             response["debug_dir"] = debug_dir
         self._send_json(200, response)
 
-    def _handle_audit_api(self, model, image_b64, existing_json, bbox_format="xyxy"):
+    def _handle_vision_more(self, body):
+        """One find-more detection round seeded with already-found items.
+
+        Local: subprocess does the more-VLM call + SAM + build.
+        Cloud: server does the more-VLM chat, subprocess does SAM + build.
+        Both return a caption; we extract its elements, dedup vs existing by IoU."""
+        image_b64 = body.get("image", "")
+        model = body.get("model", "local")
+        local_model = body.get("local_model")
+        existing_json_str = body.get("json", "")
+        debug_flag = body.get("debug", False)
+        bbox_format = body.get("bbox_format", "xyxy")
+        instruction = (body.get("instruction") or "").strip()
+
+        if not image_b64 or not existing_json_str:
+            self._send_json(400, {"error": "missing image or json"})
+            return
+        try:
+            existing = json.loads(existing_json_str)
+        except json.JSONDecodeError as e:
+            self._send_json(400, {"error": f"existing json invalid: {e}"})
+            return
+
+        existing_elements = existing.get("compositional_deconstruction", {}).get("elements", [])
+        seed = [{"desc": e.get("desc", "")} for e in existing_elements if e.get("desc")]
+
+        try:
+            header, b64 = image_b64.split(",", 1)
+        except ValueError:
+            self._send_json(400, {"error": "invalid data URL"})
+            return
+        ext = "png" if "image/png" in header else "jpg"
+        img_data = base64.b64decode(b64)
+
+        # Scene override reconstructed from existing JSON; only elements are read from output.
+        scene_override = {
+            "high_level_description": existing.get("high_level_description", ""),
+            "background": existing.get("compositional_deconstruction", {}).get("background", ""),
+            "style": {"medium": "", "aesthetics": "", "lighting": "", "photo_or_art": ""},
+        }
+
+        import tempfile
+        new_elements: list = []
+
+        if model == "local":
+            tmp_img = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+            tmp_scene = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+            tmp_seed = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+            try:
+                tmp_img.write(img_data); tmp_img.close()
+                json.dump(scene_override, tmp_scene); tmp_scene.close()
+                json.dump(seed, tmp_seed); tmp_seed.close()
+
+                cmd = ["uv", "run", "--directory", str(IMG_TO_JSON_DIR), "python", "main.py", tmp_img.name,
+                       "--split", "--bbox-format", bbox_format,
+                       "--scene-file", tmp_scene.name, "--objects-more", tmp_seed.name]
+                if body.get("low_memory", False):
+                    cmd.append("--low-memory")
+                if debug_flag:
+                    cmd.append("--debug")
+                if local_model:
+                    cmd.extend(["--model", local_model])
+
+                _vstatus(f"Finding more items ({local_model or 'default'})\u2026")
+                try:
+                    json_output, _warnings, _debug_dir = self._run_pipeline_subprocess(cmd)
+                except _Cancelled:
+                    self._send_json(499, {"error": "Cancelled"})
+                    return
+                except FileNotFoundError:
+                    self._send_json(500, {"error": "img-to-json pipeline not found"})
+                    return
+                except RuntimeError as e:
+                    self._send_json(500, {"error": str(e)})
+                    return
+            finally:
+                for p in (tmp_img.name, tmp_scene.name, tmp_seed.name):
+                    try: os.unlink(p)
+                    except OSError: pass
+
+            new_elements = json_output.get("compositional_deconstruction", {}).get("elements", [])
+        else:
+            resolved = self._resolve_cloud_provider(model)
+            if resolved is None:
+                return
+            provider, model_name, base_url, api_key = resolved
+
+            try:
+                more_prompt = (IMG_TO_JSON_DIR / "prompts" / "object_listing_more.txt").read_text().strip()
+            except FileNotFoundError:
+                self._send_json(500, {"error": "object_listing_more.txt prompt not found"})
+                return
+
+            seed_block = "\n".join(f"- {it.get('desc', '')}" for it in seed) if seed else "(none)"
+            # ponytail: local path ignores custom instruction; add --more-instruction to
+            # img-to-json/main.py if a local user needs it.
+            _trailer = 'Return only NEW items, or {"objects": []} if nothing new remains.'
+            if instruction:
+                user_msg = (
+                    "Items already found and described:\n" + seed_block
+                    + f"\n\nUser instruction: {instruction}\n" + _trailer
+                )
+            else:
+                user_msg = (
+                    "Items already found and described:\n" + seed_block
+                    + "\n\nFind ADDITIONAL distinct instances NOT in the list above. "
+                    + _trailer
+                )
+            try:
+                content = self._cloud_vlm_chat(base_url, api_key, model_name, more_prompt, user_msg, image_b64, phase="FindMore")
+                objects_resp = json.loads(content)
+            except RuntimeError as e:
+                self._send_json(502, {"error": f"find-more call failed: {e}"})
+                return
+            except json.JSONDecodeError:
+                self._send_json(502, {"error": "find-more returned invalid JSON", "detail": content[:500]})
+                return
+
+            new_objects = objects_resp.get("objects", []) if isinstance(objects_resp, dict) else []
+            if not new_objects:
+                _vlog("find-more: cloud returned no new objects")
+                self._send_json(200, {"new_elements": [], "total": len(existing_elements)})
+                return
+
+            tmp_img = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+            tmp_scene = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+            tmp_objects = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+            try:
+                tmp_img.write(img_data); tmp_img.close()
+                json.dump(scene_override, tmp_scene); tmp_scene.close()
+                json.dump({"objects": new_objects}, tmp_objects); tmp_objects.close()
+
+                cmd = ["uv", "run", "--directory", str(IMG_TO_JSON_DIR), "python", "main.py", tmp_img.name,
+                       "--split", "--bbox-format", bbox_format,
+                       "--scene-file", tmp_scene.name, "--objects-file", tmp_objects.name]
+                if debug_flag:
+                    cmd.append("--debug")
+
+                _vstatus("Localizing new items (SAM)\u2026")
+                try:
+                    json_output, _warnings, _debug_dir = self._run_pipeline_subprocess(cmd)
+                except _Cancelled:
+                    self._send_json(499, {"error": "Cancelled"})
+                    return
+                except FileNotFoundError:
+                    self._send_json(500, {"error": "img-to-json pipeline not found"})
+                    return
+                except RuntimeError as e:
+                    self._send_json(500, {"error": str(e)})
+                    return
+            finally:
+                for p in (tmp_img.name, tmp_scene.name, tmp_objects.name):
+                    try: os.unlink(p)
+                    except OSError: pass
+
+            new_elements = json_output.get("compositional_deconstruction", {}).get("elements", [])
+
+        new_elements = dedup_new(new_elements, existing_elements, iou_threshold=0.5)
+        _vlog(f"find-more: {len(new_elements)} new after dedup, {len(existing_elements)} existing")
+        response = {"new_elements": new_elements, "total": len(existing_elements) + len(new_elements)}
+        self._send_json(200, response)
+
+    def _handle_audit_api(self, model, image_b64, existing_json, bbox_format="xyxy", mode="full"):
         """Cloud audit: one chat call with json_audit prompt + current JSON inline."""
         resolved = self._resolve_cloud_provider(model)
         if resolved is None:
             return
         provider, model_name, base_url, api_key = resolved
-        _vlog(f"audit-api: provider={provider} model={model_name}")
+        _vlog(f"audit-api: provider={provider} model={model_name} mode={mode}")
 
+        prompt_name = "json_audit_missing.txt" if mode == "missing" else "json_audit.txt"
         try:
-            system_prompt = (IMG_TO_JSON_DIR / "prompts" / "json_audit.txt").read_text().strip()
+            system_prompt = (IMG_TO_JSON_DIR / "prompts" / prompt_name).read_text().strip()
         except FileNotFoundError:
-            self._send_json(500, {"error": "json_audit.txt prompt not found"})
+            self._send_json(500, {"error": f"{prompt_name} prompt not found"})
             return
 
         user_text = "Audit this caption against the image. Current JSON:\n" + existing_json
+        finish_reason = ""
+        parsed = None
+        content = ""
         try:
-            content = self._cloud_vlm_chat(base_url, api_key, model_name, system_prompt, user_text, image_b64)
-            parsed = json.loads(content)
+            # Audit on large captions can produce many suggestions — give it room.
+            content, finish_reason = self._cloud_vlm_chat(
+                base_url, api_key, model_name, system_prompt, user_text, image_b64,
+                phase="Audit", max_tokens=8192, return_meta=True)
+            parsed = _lenient_json(content)
         except RuntimeError as e:
             self._send_json(502, {"error": str(e)})
             return
-        except json.JSONDecodeError:
+
+        if parsed is None:
+            # One non-fatal retry: stricter prompt + bigger budget. Covers both
+            # truncation (finish_reason=length) and prose/fence wrapping.
+            _vlog(f"audit-api: unparseable (finish_reason={finish_reason}), retrying at 16384")
+            try:
+                content, finish_reason = self._cloud_vlm_chat(
+                    base_url, api_key, model_name, system_prompt,
+                    user_text + "\n\nReturn ONLY a raw JSON object. No markdown fences, no prose.",
+                    image_b64, phase="Audit", max_tokens=16384, return_meta=True)
+                parsed = _lenient_json(content)
+            except RuntimeError as e:
+                _vlog(f"audit-api: retry failed: {e}")
+
+        if parsed is None:
+            # ponytail: log full content for diagnosis; UI only gets a preview.
+            print(f"[vision] audit invalid JSON (finish_reason={finish_reason}):\n{content}", file=sys.stderr, flush=True)
             self._send_json(502, {"error": "audit call returned invalid JSON", "detail": content[:500]})
             return
 
         suggestions = parsed.get("suggestions", []) if isinstance(parsed, dict) else []
-        _vlog(f"audit-api: ok, suggestions={len(suggestions)}")
+        _vlog(f"audit-api: ok, suggestions={len(suggestions)} (finish_reason={finish_reason})")
         self._send_json(200, {"suggestions": suggestions})
 
-    def _handle_audit_local(self, image_b64, ext, existing_json, local_model, bbox_format="xyxy"):
+    def _handle_audit_local(self, image_b64, ext, existing_json, local_model, bbox_format="xyxy", mode="full"):
         """Local audit: subprocess main.py --audit-mode. SAM never loads."""
         img_data = base64.b64decode(image_b64.split(",", 1)[1] if "," in image_b64 else image_b64)
         import tempfile
@@ -379,7 +597,7 @@ class Handler(SimpleHTTPRequestHandler):
 
             cmd = ["uv", "run", "--directory", str(IMG_TO_JSON_DIR), "python", "main.py",
                    tmp_img.name, "--audit-mode", "--json-file", tmp_json.name,
-                   "--bbox-format", bbox_format]
+                   "--audit-focus", mode, "--bbox-format", bbox_format]
             if local_model:
                 cmd.extend(["--model", local_model])
 
@@ -764,6 +982,18 @@ class Handler(SimpleHTTPRequestHandler):
                         self._handle_vision_api(model, image_b64, ext, bbox_format)
                 except _Cancelled:
                     self._send_json(499, {"error": "Cancelled"})
+        elif self.path == "/api/img-to-json/more":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length))
+            if _vision_state["proc"] is not None:
+                self._send_json(409, {"error": "Another vision job is in flight"})
+                return
+            _vision_state["cancelled"] = False
+            _vision_state["status"] = ""
+            try:
+                self._handle_vision_more(body)
+            except _Cancelled:
+                self._send_json(499, {"error": "Cancelled"})
         elif self.path == "/api/audit-json":
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))
@@ -771,6 +1001,9 @@ class Handler(SimpleHTTPRequestHandler):
             existing_json = body.get("json", "")
             model = body.get("model", "")
             bbox_format = body.get("bbox_format", "xyxy")
+            audit_mode = body.get("mode", "full")
+            if audit_mode not in ("full", "missing"):
+                audit_mode = "full"
 
             if not image_b64 or not existing_json or not model:
                 self._send_json(400, {"error": "Missing required fields: image, json, model"})
@@ -787,9 +1020,9 @@ class Handler(SimpleHTTPRequestHandler):
             ext = "png" if "image/png" in header else "jpg"
 
             if model == "local":
-                self._handle_audit_local(image_b64, ext, existing_json, body.get("local_model", ""), bbox_format)
+                self._handle_audit_local(image_b64, ext, existing_json, body.get("local_model", ""), bbox_format, audit_mode)
             else:
-                self._handle_audit_api(model, image_b64, existing_json, bbox_format)
+                self._handle_audit_api(model, image_b64, existing_json, bbox_format, audit_mode)
         else:
             self._send_json(404, {"error": "not found"})
 
