@@ -20,9 +20,9 @@ const DOM_HTML = `
   <div id="vision-model-unavailable" style="display:none">Unavailable</div>
   <select id="vision-pipeline"><option value="current">Current</option><option value="split">Split</option></select>
   <label id="vision-pipeline-label">Pipeline</label>
-  <input id="vision-no-sam" type="checkbox">
-  <input id="vision-low-memory" type="checkbox">
-  <input id="vision-debug" type="checkbox">
+  <label class="vision-option"><input id="vision-no-sam" type="checkbox"></label>
+  <label class="vision-option"><input id="vision-low-memory" type="checkbox"></label>
+  <label class="vision-option"><input id="vision-debug" type="checkbox"></label>
   <div id="vision-options" style="display:flex">
     <label id="vision-style-label">Style</label>
     <select id="vision-style-preset"></select>
@@ -88,6 +88,36 @@ describe('vision', () => {
     sel.value = 'split'
     sel.dispatchEvent(new Event('change'))
     expect(localStorage.getItem('vision_pipeline')).toBe('split')
+  })
+
+  it('pipeline dropdown stays visible for external models (cloud split support)', () => {
+    const modelSel = document.getElementById('vision-model')
+    const opt = document.createElement('option')
+    opt.value = 'openai::gpt-4o'
+    opt.textContent = 'GPT-4o'
+    modelSel.appendChild(opt)
+    modelSel.value = 'openai::gpt-4o'
+    modelSel.dispatchEvent(new Event('change'))
+    const pipelineSelect = document.getElementById('vision-pipeline')
+    expect(pipelineSelect.style.display).not.toBe('none')
+  })
+
+  it('options block visible for external model + split (debug knob)', () => {
+    const modelSel = document.getElementById('vision-model')
+    const opt = document.createElement('option')
+    opt.value = 'openai::gpt-4o'
+    opt.textContent = 'GPT-4o'
+    modelSel.appendChild(opt)
+    modelSel.value = 'openai::gpt-4o'
+    modelSel.dispatchEvent(new Event('change'))
+    const pipelineSel = document.getElementById('vision-pipeline')
+    pipelineSel.value = 'split'
+    pipelineSel.dispatchEvent(new Event('change'))
+    const options = document.getElementById('vision-options')
+    expect(options.style.display).toBe('flex')
+    // low_memory is local-only — must stay hidden for external
+    const lowMemRow = document.getElementById('vision-low-memory').closest('.vision-option')
+    expect(lowMemRow.style.display).toBe('none')
   })
 
   it('bbox format select persists to localStorage', () => {

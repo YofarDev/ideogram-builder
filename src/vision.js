@@ -76,14 +76,19 @@ export function initVision() {
   function updatePipelineVisibility() {
     const isLocal = visionModelSelect.value === 'local';
     const isSplit = pipelineSelect?.value === 'split';
-    if (pipelineLabel) pipelineLabel.style.display = isLocal ? '' : 'none';
-    if (pipelineSelect) pipelineSelect.style.display = isLocal ? '' : 'none';
-    if (visionOptions) visionOptions.style.display = isLocal ? 'flex' : 'none';
+    // Pipeline dropdown now visible for any model — split works for cloud VLMs too (SAM3 stays local).
+    if (pipelineLabel) pipelineLabel.style.display = '';
+    if (pipelineSelect) pipelineSelect.style.display = '';
+    // Options block: local always; external only when split (debug is the only useful knob).
+    const showOptions = isLocal || isSplit;
+    if (visionOptions) visionOptions.style.display = showOptions ? 'flex' : 'none';
     const styleVisible = isLocal && isSplit;
     if (visionStyleLabel) visionStyleLabel.style.display = styleVisible ? '' : 'none';
     if (visionStyleSelect) visionStyleSelect.style.display = styleVisible ? '' : 'none';
     const noSamRow = noSamCheckbox?.closest('.vision-option');
     if (noSamRow) noSamRow.style.display = (isLocal && !isSplit) ? '' : 'none';
+    const lowMemRow = document.getElementById('vision-low-memory')?.closest('.vision-option');
+    if (lowMemRow) lowMemRow.style.display = isLocal ? '' : 'none';
   }
   visionModelSelect.addEventListener('change', updatePipelineVisibility);
   pipelineSelect?.addEventListener('change', () => {
@@ -145,6 +150,7 @@ export function initVision() {
   processBtn.addEventListener('click', () => {
     if (isProcessing) {
       fetch('/api/img-to-json/cancel', { method: 'POST' });
+      statusEl.textContent = 'Cancelling\u2026';
       return;
     }
     if (processed) {
@@ -186,6 +192,27 @@ export function initVision() {
     reader.readAsDataURL(file);
   }
 
+  let statusPollTimer = null;
+
+  function startStatusPolling() {
+    stopStatusPolling();
+    statusPollTimer = setInterval(async () => {
+      try {
+        const r = await fetch('/api/img-to-json/status');
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.status && isProcessing) statusEl.textContent = data.status;
+      } catch {}
+    }, 500);
+  }
+
+  function stopStatusPolling() {
+    if (statusPollTimer) {
+      clearInterval(statusPollTimer);
+      statusPollTimer = null;
+    }
+  }
+
   async function processImage() {
     if (!currentFile || isProcessing) return;
 
@@ -195,6 +222,7 @@ export function initVision() {
     processBtn.disabled = false;
     visionModelSelect.disabled = true;
     statusEl.textContent = 'Processing\u2026';
+    startStatusPolling();
 
     const reader = new FileReader();
     reader.onload = async (e) => {
@@ -204,15 +232,14 @@ export function initVision() {
 
       const body = { image: downscaled, model: selectedModel };
       body.bbox_format = bboxFormatSelect?.value || 'xyxy';
+      body.pipeline = pipelineSelect?.value || 'current';
       if (selectedModel === 'local') {
         body.local_model = visionModelSelect.options[visionModelSelect.selectedIndex].textContent;
-        const pipeline = pipelineSelect?.value || 'current';
-        body.pipeline = pipeline;
         body.no_sam = document.getElementById('vision-no-sam')?.checked || false;
         body.low_memory = document.getElementById('vision-low-memory')?.checked || false;
         body.debug = document.getElementById('vision-debug')?.checked || false;
         const styleId = document.getElementById('vision-style-preset')?.value;
-        if (styleId && pipeline === 'split') {
+        if (styleId && body.pipeline === 'split') {
           try {
             const presets = JSON.parse(localStorage.getItem('ideogram_style_presets')) || [];
             const preset = presets.find(p => p.id === styleId);
@@ -225,6 +252,8 @@ export function initVision() {
             };
           } catch {}
         }
+      } else if (body.pipeline === 'split') {
+        body.debug = document.getElementById('vision-debug')?.checked || false;
       }
 
       try {
@@ -285,7 +314,8 @@ export function initVision() {
           internalImageLoad = true;
           emit('canvas:rebuild');
           document.getElementById('json-output').value = jsonStr;
-          emit('image:ready', { imageUrl: downscaled, dataUrl: downscaled, source: 'vision', model: selectedModel });
+          const importJson = JSON.stringify({ ...data.json, _source: 'vision' }, null, 2);
+          emit('image:ready', { imageUrl: downscaled, dataUrl: downscaled, source: 'vision', model: selectedModel, importJson });
           emit('state:loaded', { json: data.json });
 
           processed = true;
@@ -306,6 +336,7 @@ export function initVision() {
         processBtn.className = 'btn btn-primary';
         processBtn.disabled = false;
       } finally {
+        stopStatusPolling();
         isProcessing = false;
         visionModelSelect.disabled = false;
       }

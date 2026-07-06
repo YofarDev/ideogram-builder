@@ -32,6 +32,8 @@ function buildSnapshot() {
             strengths: l.strengths,
         })),
         seed: state.seed,
+        photoArtMode: state.photoArtMode,
+        backend: localStorage.getItem('ideogram_backend') || 'runpod',
     };
 }
 
@@ -91,7 +93,18 @@ async function drain() {
             });
             job.status = 'done';
             job.thumbUrl = imageUrl;
-            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, loras: job.snapshot.loras, source: 'generation' });
+            const meta = {
+                seed: job.snapshot.seed,
+                preset: job.snapshot.preset,
+                workflow: job.snapshot.workflow,
+                turboStrength: job.snapshot.turboStrength,
+                width: job.snapshot.width,
+                height: job.snapshot.height,
+                photoArtMode: job.snapshot.photoArtMode,
+                backend: job.snapshot.backend,
+                loras: job.snapshot.loras.map(l => ({ filename: l.filename, source_url: l.source_url, strengths: l.strengths })),
+            };
+            emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, loras: job.snapshot.loras, source: 'generation', meta });
         } catch (err) {
             if (err.name === 'AbortError') {
                 queue = queue.filter(j => j !== job);

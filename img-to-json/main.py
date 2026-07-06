@@ -34,6 +34,16 @@ def main():
         help="Path to JSON file with style override for the split pipeline",
     )
     parser.add_argument(
+        "--scene-file",
+        type=str,
+        help="Path to JSON file with pre-computed scene (cloud-VLM split path; skips local scene call)",
+    )
+    parser.add_argument(
+        "--objects-file",
+        type=str,
+        help="Path to JSON file with pre-computed objects list (cloud-VLM split path; skips local object call)",
+    )
+    parser.add_argument(
         "--model",
         type=str,
         default="Qwen3-VL-4B-Instruct-8bit",
@@ -85,6 +95,10 @@ def main():
         from pipeline_split import run
         if args.style_override:
             kwargs["style_override"] = json.loads(Path(args.style_override).read_text())
+        if args.scene_file:
+            kwargs["scene_override"] = json.loads(Path(args.scene_file).read_text())
+        if args.objects_file:
+            kwargs["objects_override"] = json.loads(Path(args.objects_file).read_text()).get("objects", [])
     else:
         from pipeline import run
         kwargs["no_sam"] = args.no_sam

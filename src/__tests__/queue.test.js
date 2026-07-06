@@ -158,6 +158,17 @@ describe('queue', () => {
       importJson: '{"high_level_description":"test"}',
       loras: [],
       source: 'generation',
+      meta: {
+        seed: -1,
+        preset: 'Default',
+        workflow: 'turbo',
+        turboStrength: 0.8,
+        width: 768,
+        height: 1152,
+        photoArtMode: 1,
+        backend: 'runpod',
+        loras: [],
+      },
     })
   })
 

@@ -242,3 +242,20 @@ export function initLora() {
     renderCards();
   });
 }
+
+export function restoreLorasFromMeta(loras) {
+  activeIds.clear();
+  loras.forEach(l => {
+    const entry = LORAS.find(e => e.filename === l.filename);
+    if (entry) {
+      entry.strengths.positive = l.strengths.positive;
+      entry.strengths.unconditional = l.strengths.unconditional;
+      activeIds.add(entry.id);
+    }
+  });
+  syncState();
+  collapsed = true;
+  localStorage.setItem('ideogram_lora_collapsed', 'true');
+  updateToggleIcon();
+  renderCards();
+}

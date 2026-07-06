@@ -7,6 +7,7 @@ import re
 import signal
 import subprocess
 import sys
+import time
 from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -19,7 +20,11 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 IMG_TO_JSON_DIR = Path(__file__).parent / "img-to-json"
 PORT = int(os.environ.get("PORT", "8080"))
 
-_vision_state = {"proc": None, "cancelled": False}
+_vision_state = {"proc": None, "cancelled": False, "status": ""}
+
+
+class _Cancelled(Exception):
+    """Raised when the user cancels an in-flight vision subprocess or cloud call."""
 
 # Import canonicalize + verify from img-to-json utils
 sys.path.insert(0, str(IMG_TO_JSON_DIR))
@@ -30,6 +35,22 @@ from utils.bbox import to_yxyx, format_prompt
 def _vlog(*parts):
     """Vision-prefixed stderr line for debugging the img-to-json flow."""
     print("[vision]", *parts, file=sys.stderr, flush=True)
+
+
+def _vstatus(msg):
+    """Set the live UI status (polled via /api/img-to-json/status) AND log to stderr."""
+    _vision_state["status"] = msg
+    _vlog(msg)
+
+
+def _interruptible_sleep(seconds):
+    """Sleep that aborts on vision cancel. Returns True if cancelled."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if _vision_state["cancelled"]:
+            return True
+        time.sleep(0.2)
+    return _vision_state["cancelled"]
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -55,27 +76,136 @@ class Handler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError as e:
             return raw_dict, [f"Invalid JSON: {e}"]
 
-    def _handle_vision_api(self, model, image_b64, ext, bbox_format="xyxy"):
+    def _cloud_vlm_chat(self, base_url, api_key, model_name, system_prompt, user_text, image_b64, phase=""):
+        """One cloud VLM chat completion. Returns raw content string.
+        json_mode first, falls back to text mode on HTTP 400. Retries transient
+        errors (429/500/502/503/504 + network/timeout) with capped exponential
+        backoff up to 10 attempts. Abortable via _vision_state["cancelled"].
+        Raises _Cancelled on user cancel, RuntimeError on hard failure."""
+        url = f"{base_url.rstrip('/')}/chat/completions"
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": [
+                {"type": "text", "text": user_text},
+                {"type": "image_url", "image_url": {"url": image_b64}},
+            ]},
+        ]
+        transient_codes = {429, 500, 502, 503, 504}
+        max_attempts = 10
+        label = f"{phase} " if phase else ""
+        use_json = True
+        for attempt in range(max_attempts):
+            if _vision_state["cancelled"]:
+                raise _Cancelled()
+            payload = {"model": model_name, "messages": messages, "max_tokens": 4096}
+            if use_json:
+                payload["response_format"] = {"type": "json_object"}
+            try:
+                data = json.dumps(payload).encode()
+                req = Request(url, data=data, headers=headers, method="POST")
+                _vstatus(f"{label}Calling {model_name} (attempt {attempt + 1}/{max_attempts})\u2026")
+                with urlopen(req, timeout=120) as resp:
+                    raw = resp.read().decode(errors="replace")
+                result = json.loads(raw)
+                content = result["choices"][0]["message"]["content"]
+                if not content:
+                    raise RuntimeError("cloud VLM returned empty content")
+                return content
+            except URLError as e:
+                code = getattr(e, "code", None)
+                preview = ""
+                try:
+                    preview = e.read().decode(errors="replace")[:500]
+                except Exception:
+                    pass
+                if code == 400 and use_json:
+                    use_json = False
+                    _vstatus(f"{label}Model rejected JSON mode, retrying as text\u2026")
+                    continue
+                if code in transient_codes and attempt < max_attempts - 1:
+                    delay = min(2 ** attempt, 30)
+                    _vstatus(f"{label}Server busy (HTTP {code}), retry {attempt + 1}/{max_attempts} in {delay}s")
+                    if _interruptible_sleep(delay):
+                        raise _Cancelled()
+                    continue
+                raise RuntimeError(f"cloud VLM request failed (code={code}): {preview or e.reason}")
+            except (TimeoutError, ConnectionError) as e:
+                if attempt < max_attempts - 1:
+                    delay = min(2 ** attempt, 30)
+                    _vstatus(f"{label}Network error ({type(e).__name__}), retry {attempt + 1}/{max_attempts} in {delay}s")
+                    if _interruptible_sleep(delay):
+                        raise _Cancelled()
+                    continue
+                raise RuntimeError(f"cloud VLM network error: {type(e).__name__}: {e}")
+            except http.client.HTTPException as e:
+                raise RuntimeError(f"cloud VLM connection failed: {type(e).__name__}: {e}")
+            except (KeyError, IndexError, TypeError) as e:
+                raise RuntimeError(f"cloud VLM unexpected response shape: {e}")
+        raise RuntimeError(f"cloud VLM failed after {max_attempts} attempts")
+
+    def _run_pipeline_subprocess(self, cmd):
+        """Spawn img-to-json subprocess, capture output. Returns (json, verifier_warnings, debug_dir, stderr_lines).
+        Raises _Cancelled on user cancel, RuntimeError on non-zero exit / bad JSON."""
+        _vlog(f"subprocess: {' '.join(cmd)}")
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, cwd=str(IMG_TO_JSON_DIR), start_new_session=True,
+        )
+        _vision_state["proc"] = proc
+        _vision_state["cancelled"] = False
+        stdout, stderr = proc.communicate()
+        _vision_state["proc"] = None
+
+        for line in stderr.splitlines():
+            print(f"[vision:subprocess] {line}", file=sys.stderr, flush=True)
+
+        if _vision_state["cancelled"]:
+            raise _Cancelled()
+        if proc.returncode != 0:
+            raise RuntimeError(stderr.strip() or f"exit code {proc.returncode}")
+
+        try:
+            json_output = json.loads(stdout)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Pipeline returned invalid JSON: {e}; stdout preview: {stdout[:500]!r}")
+
+        verifier_warnings = [line for line in stderr.splitlines() if line.startswith("[verifier]")]
+        debug_dir = None
+        for line in stderr.splitlines():
+            if line.startswith("[debug_dir]"):
+                debug_dir = line[len("[debug_dir]"):]
+                break
+        return json_output, verifier_warnings, debug_dir
+
+    def _resolve_cloud_provider(self, model):
+        """Returns (provider, model_name, base_url, api_key) or sends a JSON error + returns None."""
         try:
             provider, model_name = model.split("::", 1)
         except ValueError:
             self._send_json(400, {"error": "invalid model format, expected provider::model_name"})
-            return
-        _vlog(f"external: provider={provider} model={model_name} bbox_format={bbox_format} image_b64_len={len(image_b64)}")
-
+            return None
         try:
             creds = json.loads(CREDENTIALS_PATH.read_text())
-            vision = creds.get("vision", {})
-            provider_cfg = vision.get(provider) or creds.get(provider, {})
-            base_url = provider_cfg.get("base_url", "")
-            api_key = provider_cfg.get("api_key", "")
-            if not base_url or not api_key:
-                _vlog(f"external: provider '{provider}' not configured (base_url set={bool(base_url)} api_key set={bool(api_key)})")
-                self._send_json(400, {"error": f"vision provider '{provider}' not configured in credentials"})
-                return
         except FileNotFoundError:
             self._send_json(500, {"error": "credentials file not found"})
+            return None
+        vision = creds.get("vision", {})
+        provider_cfg = vision.get(provider) or creds.get(provider, {})
+        base_url = provider_cfg.get("base_url", "")
+        api_key = provider_cfg.get("api_key", "")
+        if not base_url or not api_key:
+            self._send_json(400, {"error": f"vision provider '{provider}' not configured in credentials"})
+            return None
+        return provider, model_name, base_url, api_key
+
+    def _handle_vision_api(self, model, image_b64, ext, bbox_format="xyxy"):
+        # ponytail: single-shot cloud VLM call. Split path is _handle_vision_split.
+        resolved = self._resolve_cloud_provider(model)
+        if resolved is None:
             return
+        provider, model_name, base_url, api_key = resolved
+        _vlog(f"external: provider={provider} model={model_name} bbox_format={bbox_format} image_b64_len={len(image_b64)}")
 
         prompt_path = IMG_TO_JSON_DIR / "prompts" / "vision_analysis.txt"
         try:
@@ -84,106 +214,129 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json(500, {"error": "vision_analysis.txt prompt not found"})
             return
 
-        url = f"{base_url.rstrip('/')}/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        }
-
-        def _make_payload(use_json_mode: bool):
-            payload = {
-                "model": model_name,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Analyze this image and return the JSON prompt data."},
-                            {"type": "image_url", "image_url": {"url": image_b64}},
-                        ],
-                    },
-                ],
-                "max_tokens": 4096,
-            }
-            if use_json_mode:
-                payload["response_format"] = {"type": "json_object"}
-            return payload
-
-        def _do_request(payload):
-            data = json.dumps(payload).encode()
-            req = Request(url, data=data, headers=headers, method="POST")
-            with urlopen(req, timeout=120) as resp:
-                status = resp.status
-                raw = resp.read().decode(errors="replace")
-            return status, raw
-
-        result = None
-        use_json_mode = True
-        for attempt in range(2):
-            try:
-                payload = _make_payload(use_json_mode)
-                _vlog(f"external: POST {url} (attempt {attempt + 1}, json_mode={use_json_mode})")
-                status, raw = _do_request(payload)
-                _vlog(f"external: HTTP {status}, body_len={len(raw)}")
-                try:
-                    result = json.loads(raw)
-                except json.JSONDecodeError:
-                    _vlog(f"external: response not JSON (first 500): {raw[:500]!r}")
-                    self._send_json(502, {"error": "Vision API returned invalid JSON response", "detail": raw[:500]})
-                    return
-                break
-            except URLError as e:
-                code = getattr(e, "code", None)
-                body_preview = ""
-                try:
-                    body_preview = e.read().decode(errors="replace")[:500]
-                except Exception:
-                    pass
-                _vlog(f"external: request error code={code} reason={e.reason} body={body_preview!r}")
-                if code == 400 and use_json_mode:
-                    use_json_mode = False
-                    continue
-                self._send_json(502, {"error": f"Vision API request failed: {str(e)}", "detail": body_preview})
-                return
-            except http.client.HTTPException as e:
-                # RemoteDisconnected / BadStatusLine: getresponse() errors are
-                # NOT wrapped in URLError by urllib, so they must be caught here.
-                _vlog(f"external: connection died: {type(e).__name__}: {e}")
-                self._send_json(502, {"error": f"Vision API connection failed: {type(e).__name__}: {str(e)}"})
-                return
-            except (TimeoutError, ConnectionError) as e:
-                # Raw socket timeout / connection reset from getresponse() —
-                # also not wrapped in URLError by urllib.
-                _vlog(f"external: network error: {type(e).__name__}: {e}")
-                self._send_json(504, {"error": f"Vision API network error: {type(e).__name__}: {str(e)}"})
-                return
-
         try:
-            content = result["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError):
-            _vlog(f"external: unexpected response structure (first 500): {json.dumps(result)[:500]}")
-            self._send_json(502, {"error": "Failed to parse vision API response content", "detail": json.dumps(result)[:500]})
+            content = self._cloud_vlm_chat(base_url, api_key, model_name, system_prompt,
+                                           "Analyze this image and return the JSON prompt data.", image_b64)
+        except RuntimeError as e:
+            _vlog(f"external: cloud call failed: {e}")
+            self._send_json(502, {"error": str(e)})
             return
 
-        _vlog(f"external: content_len={len(content) if content else 0} preview={(content or '')[:200]!r}")
-        if not content:
-            self._send_json(502, {"error": "Vision API returned empty response"})
-            return
+        _vlog(f"external: content_len={len(content)} preview={content[:200]!r}")
+        _vstatus("Parsing response\u2026")
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError:
-            _vlog(f"external: content not JSON (first 500): {content[:500]!r}")
             self._send_json(502, {"error": "Vision API content not valid JSON", "detail": content[:500]})
             return
         elements = (parsed.get("compositional_deconstruction") or {}).get("elements") or []
         for el in elements:
             if "bbox" in el:
                 el["bbox"] = to_yxyx(el.get("bbox"), bbox_format)
+        _vstatus("Verifying output\u2026")
         canon, warnings = self._canonicalize_and_verify(parsed)
         if warnings:
             _vlog(f"external: verifier warnings: {warnings}")
         _vlog(f"external: ok, elements={len(canon.get('compositional_deconstruction', {}).get('elements', []))}")
         self._send_json(200, {"json": canon, "warnings": warnings})
+
+    def _handle_vision_split(self, model, image_b64, ext, bbox_format="xyxy", debug_flag=False, style_override=None):
+        """Cloud-VLM split: 2 chat calls (scene + objects) → local subprocess for SAM + build_json.
+        SAM3 has no cloud equivalent, so it stays local; the VLM work is what moves to the cloud."""
+        resolved = self._resolve_cloud_provider(model)
+        if resolved is None:
+            return
+        provider, model_name, base_url, api_key = resolved
+        _vlog(f"external-split: provider={provider} model={model_name} bbox_format={bbox_format}")
+
+        scene_prompt_name = "scene_analysis_no_style.txt" if style_override else "scene_analysis.txt"
+        try:
+            scene_prompt = (IMG_TO_JSON_DIR / "prompts" / scene_prompt_name).read_text().strip()
+            object_prompt = (IMG_TO_JSON_DIR / "prompts" / "object_listing.txt").read_text().strip()
+        except FileNotFoundError as e:
+            self._send_json(500, {"error": f"split prompt not found: {e}"})
+            return
+
+        # Call 1: scene
+        try:
+            scene_content = self._cloud_vlm_chat(base_url, api_key, model_name, scene_prompt,
+                                                 "Analyze this image and return the JSON.", image_b64, phase="Scene")
+            scene = json.loads(scene_content)
+        except RuntimeError as e:
+            self._send_json(502, {"error": f"scene call failed: {e}"})
+            return
+        except json.JSONDecodeError:
+            self._send_json(502, {"error": "scene call returned invalid JSON", "detail": scene_content[:500]})
+            return
+
+        # Call 2: objects
+        try:
+            objects_content = self._cloud_vlm_chat(base_url, api_key, model_name, object_prompt,
+                                                   "List the individual objects in this image and return the JSON.", image_b64, phase="Objects")
+            objects_resp = json.loads(objects_content)
+        except RuntimeError as e:
+            self._send_json(502, {"error": f"object call failed: {e}"})
+            return
+        except json.JSONDecodeError:
+            self._send_json(502, {"error": "object call returned invalid JSON", "detail": objects_content[:500]})
+            return
+
+        _vlog(f"external-split: VLM done, scene keys={list(scene.keys())} objects={len(objects_resp.get('objects', []))}")
+
+        # Spawn local subprocess for SAM + build_json (pipeline_split.run with overrides)
+        try:
+            header, b64 = image_b64.split(",", 1)
+        except ValueError:
+            b64 = image_b64
+        img_data = base64.b64decode(b64)
+
+        import tempfile
+        tmp_img = tempfile.NamedTemporaryFile(suffix=f".{ext}", delete=False)
+        tmp_scene = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+        tmp_objects = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+        tmp_style = None
+        try:
+            tmp_img.write(img_data); tmp_img.close()
+            json.dump(scene, tmp_scene); tmp_scene.close()
+            json.dump(objects_resp, tmp_objects); tmp_objects.close()
+
+            cmd = ["uv", "run", "--directory", str(IMG_TO_JSON_DIR), "python", "main.py", tmp_img.name,
+                   "--split", "--bbox-format", bbox_format,
+                   "--scene-file", tmp_scene.name, "--objects-file", tmp_objects.name]
+            if debug_flag:
+                cmd.append("--debug")
+            if style_override:
+                tmp_style = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
+                json.dump(style_override, tmp_style); tmp_style.close()
+                cmd.extend(["--style-override", tmp_style.name])
+
+            _vstatus("Running local SAM + build pipeline\u2026")
+            try:
+                json_output, verifier_warnings, debug_dir = self._run_pipeline_subprocess(cmd)
+            except _Cancelled:
+                self._send_json(499, {"error": "Cancelled"})
+                return
+            except FileNotFoundError:
+                self._send_json(500, {"error": "img-to-json pipeline not found"})
+                return
+            except RuntimeError as e:
+                self._send_json(500, {"error": str(e)})
+                return
+        finally:
+            for p in (tmp_img.name, tmp_scene.name, tmp_objects.name):
+                try: os.unlink(p)
+                except OSError: pass
+            if tmp_style:
+                try: os.unlink(tmp_style.name)
+                except OSError: pass
+
+        canon, canon_warnings = self._canonicalize_and_verify(json_output)
+        all_warnings = verifier_warnings + canon_warnings
+        _vlog(f"external-split: ok, elements={len(canon.get('compositional_deconstruction', {}).get('elements', []))} warnings={len(all_warnings)}")
+        response = {"json": canon, "warnings": all_warnings}
+        if debug_dir:
+            response["debug_dir"] = debug_dir
+        self._send_json(200, response)
 
     def do_GET(self):
         if self.path == "/api/config":
@@ -221,11 +374,19 @@ class Handler(SimpleHTTPRequestHandler):
                         prompt_json = json_path.read_text()
                     except Exception:
                         pass
+                meta_path = OUTPUT_DIR / f"{img_path.name}.meta.json"
+                meta = {}
+                if meta_path.exists():
+                    try:
+                        meta = json.loads(meta_path.read_text())
+                    except Exception:
+                        pass
                 items.append({
                     "id": img_path.name,
                     "img": img_path.name,
                     "prompt_json": prompt_json,
                     "mtime": img_path.stat().st_mtime,
+                    "meta": meta,
                 })
             items.sort(key=lambda x: x["mtime"], reverse=True)
             self._send_json(200, items)
@@ -257,14 +418,16 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 subprocess.Popen(["xdg-open", str(CREDENTIALS_PATH)])
             self._send_json(200, {"ok": True})
+        elif self.path == "/api/img-to-json/status":
+            self._send_json(200, {"status": _vision_state.get("status", "")})
         else:
             super().do_GET()
 
     def do_POST(self):
         if self.path == "/api/img-to-json/cancel":
+            _vision_state["cancelled"] = True
             proc = _vision_state["proc"]
             if proc and proc.poll() is None:
-                _vision_state["cancelled"] = True
                 try:
                     os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
                 except (ProcessLookupError, OSError):
@@ -295,6 +458,10 @@ class Handler(SimpleHTTPRequestHandler):
             if prompt_json:
                 (OUTPUT_DIR / f"{filename}.json").write_text(prompt_json)
 
+            meta = body.get("meta")
+            if meta:
+                (OUTPUT_DIR / f"{filename}.meta.json").write_text(json.dumps(meta))
+
             self._send_json(200, {"ok": True, "filename": filename})
         elif self.path == "/api/delete-output":
             length = int(self.headers.get("Content-Length", 0))
@@ -306,11 +473,14 @@ class Handler(SimpleHTTPRequestHandler):
             deleted = False
             img_p = OUTPUT_DIR / name
             json_p = OUTPUT_DIR / f"{name}.json"
+            meta_p = OUTPUT_DIR / f"{name}.meta.json"
             if img_p.exists():
                 img_p.unlink()
                 deleted = True
             if json_p.exists():
                 json_p.unlink()
+            if meta_p.exists():
+                meta_p.unlink()
                 deleted = True
             self._send_json(200, {"ok": deleted})
         elif self.path == "/api/recaption-element":
@@ -443,6 +613,9 @@ class Handler(SimpleHTTPRequestHandler):
             style_override = body.get("style_override")
             bbox_format = body.get("bbox_format", "xyxy")
 
+            _vision_state["cancelled"] = False
+            _vision_state["status"] = ""
+
             if not image_b64:
                 self._send_json(400, {"error": "no image field"})
                 return
@@ -483,43 +656,20 @@ class Handler(SimpleHTTPRequestHandler):
                         cmd.extend(["--model", local_model])
 
                     _vlog(f"local: model={local_model} pipeline={pipeline} bbox_format={bbox_format} no_sam={no_sam} low_memory={low_memory} debug={debug_flag}")
-                    _vlog(f"local: cmd: {' '.join(cmd)}")
+                    _vstatus(f"Running local pipeline ({local_model or 'default'})\u2026")
 
-                    proc = subprocess.Popen(
-                        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                        text=True, cwd=str(IMG_TO_JSON_DIR),
-                        start_new_session=True,
-                    )
-                    _vision_state["proc"] = proc
-                    _vision_state["cancelled"] = False
-                    stdout, stderr = proc.communicate()
-                    _vision_state["proc"] = None
-
-                    for _line in stderr.splitlines():
-                        print(f"[vision:local] {_line}", file=sys.stderr, flush=True)
-                    _vlog(f"local: subprocess exit={proc.returncode}")
-
-                    if _vision_state["cancelled"]:
+                    try:
+                        json_output, verifier_warnings, debug_dir = self._run_pipeline_subprocess(cmd)
+                    except _Cancelled:
                         self._send_json(499, {"error": "Cancelled"})
                         return
-
-                    if proc.returncode != 0:
-                        error_msg = stderr.strip() or f"exit code {proc.returncode}"
-                        self._send_json(500, {"error": error_msg})
+                    except FileNotFoundError as e:
+                        _vlog(f"local: subprocess not found: {e}")
+                        self._send_json(500, {"error": "img-to-json pipeline not found"})
                         return
-
-                    json_output = json.loads(stdout)
-
-                    verifier_warnings = [
-                        line for line in stderr.splitlines()
-                        if line.startswith("[verifier]")
-                    ]
-
-                    debug_dir = None
-                    for line in stderr.splitlines():
-                        if line.startswith("[debug_dir]"):
-                            debug_dir = line[len("[debug_dir]"):]
-                            break
+                    except RuntimeError as e:
+                        self._send_json(500, {"error": str(e)})
+                        return
 
                     canon, canon_warnings = self._canonicalize_and_verify(json_output)
                     all_warnings = verifier_warnings + canon_warnings
@@ -529,9 +679,6 @@ class Handler(SimpleHTTPRequestHandler):
                     if debug_dir:
                         response["debug_dir"] = debug_dir
                     self._send_json(200, response)
-                except json.JSONDecodeError as e:
-                    _vlog(f"local: stdout not valid JSON: {e}; stdout preview: {stdout[:500]!r}")
-                    self._send_json(500, {"error": "Pipeline returned invalid JSON", "detail": stdout[:500]})
                 except FileNotFoundError as e:
                     _vlog(f"local: subprocess not found: {e}")
                     self._send_json(500, {"error": "img-to-json pipeline not found"})
@@ -540,7 +687,15 @@ class Handler(SimpleHTTPRequestHandler):
                     if tmp_style:
                         os.unlink(tmp_style.name)
             else:
-                self._handle_vision_api(model, image_b64, ext, bbox_format)
+                try:
+                    _vstatus(f"Preparing image for {model}\u2026")
+                    if pipeline == "split":
+                        self._handle_vision_split(model, image_b64, ext, bbox_format,
+                                                  debug_flag=debug_flag, style_override=style_override)
+                    else:
+                        self._handle_vision_api(model, image_b64, ext, bbox_format)
+                except _Cancelled:
+                    self._send_json(499, {"error": "Cancelled"})
         else:
             self._send_json(404, {"error": "not found"})
 

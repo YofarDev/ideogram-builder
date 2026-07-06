@@ -1,6 +1,7 @@
 import { on, emit } from './events.js';
 import { escapeHtml } from './escape-html.js';
 import { state } from './state.js';
+import { restoreLorasFromMeta } from './lora.js';
 
 export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -30,13 +31,13 @@ export function initGallery() {
     let lastSaveDataUrl = '';
 
     // ponytail: disk is the source of truth — just save the image+prompt there, gallery lists the folder
-    on('image:ready', ({ dataUrl, importJson, loras, skipSave }) => {
+    on('image:ready', ({ dataUrl, importJson, loras, skipSave, meta }) => {
         if (skipSave || !dataUrl) return;
         const now = Date.now();
         if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
         lastSaveTime = now;
         lastSaveDataUrl = dataUrl;
-        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value, loras);
+        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value, loras, meta);
     });
 }
 
@@ -75,19 +76,21 @@ async function renderGallery() {
 
     const frag = document.createDocumentFragment();
     items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'gallery-card';
-
         const date = new Date(item.mtime * 1000);
         const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
         let desc = '';
+        let isVision = false;
         try {
             const j = JSON.parse(item.prompt_json);
+            isVision = j._source === 'vision';
             desc = j.high_level_description || item.prompt_json.slice(0, 80);
         } catch {
             desc = item.prompt_json?.slice(0, 80) || 'No prompt';
         }
+
+        const card = document.createElement('div');
+        card.className = 'gallery-card' + (isVision ? ' vision-sourced' : '');
 
         card.innerHTML = `
             <img src="/output/${item.img}" alt="" loading="lazy" decoding="async">
@@ -146,8 +149,61 @@ function loadItem(item) {
         } catch {}
     }
 
+    if (item.meta && Object.keys(item.meta).length > 0) {
+        restoreMeta(item.meta);
+    }
+
     switchTab('editor');
     emit('canvas:relayout');
+}
+
+function restoreMeta(meta) {
+    if (meta.seed !== undefined && meta.seed >= 0) {
+        state.seed = meta.seed;
+        const seedInput = document.getElementById('seed-input');
+        if (seedInput) seedInput.value = meta.seed;
+    }
+    if (meta.preset) {
+        state.preset = meta.preset;
+        document.querySelectorAll('input[name="steps"]').forEach(r => {
+            if (r.dataset.preset === meta.preset) r.checked = true;
+        });
+    }
+    if (meta.workflow) {
+        state.workflow = meta.workflow;
+        const wf = document.querySelector(`input[name="workflow"][value="${meta.workflow}"]`);
+        if (wf) wf.checked = true;
+        localStorage.setItem('ideogram_workflow', meta.workflow);
+    }
+    if (meta.turboStrength !== undefined) {
+        state.turboStrength = meta.turboStrength;
+        const ts = document.getElementById('turbo-strength');
+        if (ts) ts.value = meta.turboStrength;
+    }
+    if (meta.width && meta.height) {
+        state.canvas.width = meta.width;
+        state.canvas.height = meta.height;
+        const dd = document.getElementById('dim-display');
+        if (dd) dd.textContent = `${meta.width} \u00d7 ${meta.height}`;
+        const ar = document.getElementById('aspect-ratio');
+        if (ar) {
+            const opt = Array.from(ar.options).find(o => o.value === `${meta.width}x${meta.height}`);
+            if (opt) ar.value = opt.value;
+        }
+    }
+    if (meta.photoArtMode !== undefined) {
+        state.photoArtMode = meta.photoArtMode;
+        const modeRadio = document.getElementById(meta.photoArtMode === 1 ? 'mode_artstyle' : 'mode_photo');
+        if (modeRadio) modeRadio.checked = true;
+    }
+    if (meta.backend) {
+        localStorage.setItem('ideogram_backend', meta.backend);
+        const be = document.querySelector(`input[name="backend"][value="${meta.backend}"]`);
+        if (be) be.checked = true;
+    }
+    if (meta.loras && meta.loras.length > 0) {
+        restoreLorasFromMeta(meta.loras);
+    }
 }
 
 function downloadImage(item) {
@@ -159,14 +215,14 @@ function downloadImage(item) {
     document.body.removeChild(a);
 }
 
-async function saveToDisk(dataUrl, promptJson, loras) {
+async function saveToDisk(dataUrl, promptJson, loras, meta) {
     const loraList = loras ?? state.loras;
     const loraSuffix = loraList.map(l => l.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
     try {
         await fetch('/api/save-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataUrl, promptJson: promptJson || '', loraSuffix }),
+            body: JSON.stringify({ dataUrl, promptJson: promptJson || '', loraSuffix, meta: meta || undefined }),
         });
     } catch {}
 }
