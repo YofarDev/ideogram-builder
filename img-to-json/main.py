@@ -60,6 +60,16 @@ def main():
         help="Path to JSON file with objects list (for --bbox-only mode)",
     )
     parser.add_argument(
+        "--audit-mode",
+        action="store_true",
+        help="Audit mode: given --json-file with current caption, emit critique suggestions JSON",
+    )
+    parser.add_argument(
+        "--json-file",
+        type=str,
+        help="Path to existing caption JSON (for --audit-mode)",
+    )
+    parser.add_argument(
         "--bbox-format",
         type=str,
         default="xyxy",
@@ -71,6 +81,10 @@ def main():
 
     if args.bbox_only:
         _run_bbox_only(args)
+        return
+
+    if args.audit_mode:
+        _run_audit_mode(args)
         return
 
     if args.verbose:
@@ -153,3 +167,56 @@ def _run_bbox_only(args):
         print(json.dumps(parsed))
     else:
         print(json.dumps({"objects": []}))
+
+
+def _run_audit_mode(args):
+    """Subprocess mode: load local VLM, run ONE call with json_audit.txt prompt,
+    print suggestions JSON to stdout. No SAM, no build_json."""
+    import json as _json
+    from PIL import Image
+    from mlx_vlm import generate
+    from mlx_vlm.prompt_utils import apply_chat_template
+    from models.local_vlm_loader import get_local_vlm
+    from steps.local_vlm_analysis import _parse_json
+
+    if not args.json_file:
+        print(_json.dumps({"error": "audit-mode requires --json-file"}))
+        sys.exit(2)
+
+    image = Image.open(args.image_path).convert("RGB")
+    existing_caption = _json.loads(Path(args.json_file).read_text())
+
+    prompt_dir = Path(__file__).resolve().parent / "prompts"
+    system_prompt = (prompt_dir / "json_audit.txt").read_text().strip()
+    user_text = "Audit this caption against the image. Current JSON:\n" + _json.dumps(existing_caption)
+
+    w, h = image.size
+    scale = 512 / max(w, h)
+    if scale < 1.0:
+        image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+
+    model, processor = get_local_vlm(args.model)
+    config = model.config
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_text},
+    ]
+    prompt = apply_chat_template(processor, config, messages, num_images=1)
+
+    retry_text = "Return ONLY a raw JSON object. No markdown fences, no prose."
+    result = None
+    for attempt in range(2):
+        result = generate(model, processor, prompt, image=image, max_tokens=4096)
+        parsed = _parse_json(result.text)
+        if parsed is not None:
+            print(_json.dumps(parsed))
+            return
+        # retry once with stricter instruction
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_text + "\n\n" + retry_text},
+        ]
+        prompt = apply_chat_template(processor, config, messages, num_images=1)
+
+    print(_json.dumps({"error": "VLM did not return JSON after 2 attempts", "raw": result.text[:500]}))
+    sys.exit(1)
