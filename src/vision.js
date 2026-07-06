@@ -184,6 +184,7 @@ export function initVision() {
       previewImg.src = e.target.result;
       preview.classList.add('visible');
       dropzone.classList.add('has-image');
+      document.querySelector('.vision-body').classList.add('has-image');
       processBtn.textContent = 'Process Image';
       processBtn.className = 'btn btn-primary';
       processBtn.disabled = false;
@@ -314,6 +315,8 @@ export function initVision() {
           internalImageLoad = true;
           emit('canvas:rebuild');
           document.getElementById('json-output').value = jsonStr;
+          const vj = document.getElementById('vision-json')
+          if (vj) vj.value = jsonStr
           const importJson = JSON.stringify({ ...data.json, _source: 'vision' }, null, 2);
           emit('image:ready', { imageUrl: downscaled, dataUrl: downscaled, source: 'vision', model: selectedModel, importJson });
           emit('state:loaded', { json: data.json });

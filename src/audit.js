@@ -1,5 +1,4 @@
-// audit.js — image+JSON critique: fetch suggestions, render panel, apply accepts.
-// Pure helpers (this task) + UI orchestration (Task 6).
+// audit.js — image+JSON critique in the Vision tab
 
 const ALLOWED_FIELDS = new Set([
   'background',
@@ -68,44 +67,53 @@ export function applyUpdateField(json, suggestion) {
   cursor[leaf] = suggestion.value
 }
 
-// UI orchestration (Task 6)
 import { state } from './state.js'
 import { emit } from './events.js'
 import { showToast } from './toast.js'
 
-let _panel, _list, _modelSelect, _btn, _closeBtn, _acceptAllBtn
-let _pending = []  // [{suggestion, cardEl, accept, reject}]
+let _suggestionsEl, _modelSelect, _runBtn
+let _pending = []
 
 export function initAudit() {
-  _btn = document.getElementById('btn-audit')
-  _panel = document.getElementById('audit-panel')
-  _list = document.getElementById('audit-suggestions')
+  _runBtn = document.getElementById('btn-audit-run')
+  _suggestionsEl = document.getElementById('audit-suggestions')
   _modelSelect = document.getElementById('audit-model')
-  _closeBtn = document.getElementById('btn-audit-close')
-  _acceptAllBtn = document.getElementById('btn-audit-accept-all')
-  if (!_btn || !_panel) return
+  if (!_runBtn || !_suggestionsEl) return
 
-  // Always enabled — if no image is loaded, the file picker fires on click.
-  _btn.disabled = false
-  _btn.addEventListener('click', runAudit)
-  _closeBtn?.addEventListener('click', () => { _panel.hidden = true })
-  _acceptAllBtn?.addEventListener('click', acceptAll)
+  _runBtn.addEventListener('click', runAudit)
+  document.getElementById('btn-audit-accept-all')?.addEventListener('click', acceptAll)
 
-  // Populate model select (mirrors recaption pattern)
   fetch('/api/config', { signal: AbortSignal.timeout(5000) })
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(config => {
+      // All vision models from config.vision (no api_key filter — server handles auth)
       const vision = config.vision
-      if (!vision) return
-      Object.entries(vision).forEach(([provider, p]) => {
-        if (!p?.models?.length || p.models.every(m => !m)) return
-        if (provider !== 'local' && !p?.api_key) return
+      if (vision) {
+        Object.entries(vision).forEach(([provider, p]) => {
+          if (!p?.models?.length || p.models.every(m => !m)) return
+          const group = document.createElement('optgroup')
+          group.label = provider === 'local' ? 'Local' : provider.charAt(0).toUpperCase() + provider.slice(1)
+          p.models.forEach(m => {
+            if (!m) return
+            const opt = document.createElement('option')
+            opt.value = provider === 'local' ? 'local' : `${provider}::${m}`
+            opt.textContent = m
+            group.appendChild(opt)
+          })
+          _modelSelect.appendChild(group)
+        })
+      }
+      // Also add LLM providers with vision capability (same as main vision dropdown)
+      ;['deepseek', 'google', 'openrouter', 'mimo'].forEach(provider => {
+        const p = config[provider]
+        if (!p?.has_vision || !p?.api_key || !p?.models?.length) return
+        if (p.models.every(m => !m)) return
         const group = document.createElement('optgroup')
-        group.label = provider === 'local' ? 'Local' : provider.charAt(0).toUpperCase() + provider.slice(1)
+        group.label = provider.charAt(0).toUpperCase() + provider.slice(1)
         p.models.forEach(m => {
           if (!m) return
           const opt = document.createElement('option')
-          opt.value = provider === 'local' ? 'local' : `${provider}::${m}`
+          opt.value = `${provider}::${m}`
           opt.textContent = m
           group.appendChild(opt)
         })
@@ -115,62 +123,27 @@ export function initAudit() {
     .catch(() => {})
 }
 
-function pickImageFile() {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    const done = () => {
-      cleanup()
-      resolve(input.files?.[0] ?? null)
-    }
-    const cleanup = () => {
-      input.removeEventListener('change', done)
-      window.removeEventListener('focus', focusHandler)
-      input.remove()
-    }
-    const focusHandler = () => setTimeout(done, 100)
-    input.addEventListener('change', done)
-    window.addEventListener('focus', focusHandler)
-    input.style.display = 'none'
-    document.body.appendChild(input)
-    input.click()
-  })
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error('Failed to read image file'))
-    reader.readAsDataURL(file)
-  })
-}
-
 async function runAudit() {
   const model = _modelSelect.value
   if (!model) { showToast('Select a vision model for audit', 'error'); return }
-  if (!document.getElementById('json-output').value.trim()) {
-    showToast('No JSON in the editor to audit', 'error')
+  const previewImg = document.getElementById('vision-preview-img')
+  const imageSrc = previewImg?.src?.startsWith('data:') ? previewImg.src : state.imageDataUrl
+  if (!imageSrc?.startsWith('data:')) {
+    showToast('Load an image in the Vision tab first', 'error')
+    return
+  }
+  const jsonVal = (document.getElementById('vision-json')?.value || document.getElementById('json-output').value).trim()
+  if (!jsonVal) {
+    showToast('No JSON content to audit', 'error')
     return
   }
 
-  let imageDataUrl = state.imageDataUrl
-  if (!imageDataUrl) {
-    const file = await pickImageFile()
-    if (!file) return  // cancelled
-    imageDataUrl = await readFileAsDataUrl(file)
-    state.imageDataUrl = imageDataUrl
-    emit('image:ready', { imageUrl: imageDataUrl, dataUrl: imageDataUrl })
-  }
-
-  _btn.disabled = true
-  _btn.textContent = 'Auditing\u2026'
-  _list.innerHTML = '<div class="audit-empty">Auditing\u2026</div>'
-  _panel.hidden = false
+  _runBtn.disabled = true
+  _runBtn.textContent = 'Auditing\u2026'
+  _suggestionsEl.innerHTML = '<div class="audit-empty">Auditing\u2026</div>'
   _pending = []
 
-  const body = { image: imageDataUrl, json: document.getElementById('json-output').value, model }
+  const body = { image: imageSrc, json: jsonVal, model }
   if (model === 'local') {
     body.local_model = _modelSelect.options[_modelSelect.selectedIndex].textContent
   }
@@ -189,10 +162,10 @@ async function runAudit() {
     renderSuggestions(data.suggestions || [])
   } catch (err) {
     showToast(err.message, 'error')
-    _list.innerHTML = `<div class="audit-empty">Audit failed: ${err.message}</div>`
+    _suggestionsEl.innerHTML = `<div class="audit-empty">Audit failed: ${err.message}</div>`
   } finally {
-    _btn.disabled = false
-    _btn.textContent = 'Audit JSON'
+    _runBtn.disabled = false
+    _runBtn.textContent = 'Run Audit'
   }
 }
 
@@ -206,40 +179,94 @@ function renderSuggestions(rawList) {
   }
   if (dropped > 0) showToast(`${dropped} suggestion${dropped === 1 ? '' : 's'} skipped as malformed`, 'warning')
 
-  _list.innerHTML = ''
+  _suggestionsEl.innerHTML = ''
   _pending = []
   if (valid.length === 0) {
-    _list.innerHTML = '<div class="audit-empty">No improvements found.</div>'
+    _suggestionsEl.innerHTML = '<div class="audit-empty">No improvements found.</div>'
     return
   }
+
+  let currentJson = null
+  try {
+    currentJson = JSON.parse(document.getElementById('vision-json')?.value || document.getElementById('json-output').value)
+  } catch {}
+
+  const groups = { add_element: [], update_element: [], update_field: [] }
   for (const s of valid) {
-    const card = renderCard(s)
-    _list.appendChild(card.cardEl)
-    _pending.push(card)
+    const key = s.type
+    if (groups[key]) groups[key].push(s)
+  }
+
+  const summary = document.createElement('div')
+  summary.className = 'audit-summary'
+  summary.textContent = `${valid.length} suggestion${valid.length !== 1 ? 's' : ''}`
+  _suggestionsEl.appendChild(summary)
+
+  const groupLabels = {
+    add_element: 'Add element', update_element: 'Update element', update_field: 'Update field',
+  }
+  let delay = 0
+  for (const [key, items] of Object.entries(groups)) {
+    if (!items.length) continue
+    const header = document.createElement('div')
+    header.className = 'audit-group-header'
+    header.textContent = groupLabels[key]
+    _suggestionsEl.appendChild(header)
+    for (const s of items) {
+      const card = renderCard(s, currentJson)
+      card.cardEl.style.animationDelay = `${delay}ms`
+      _suggestionsEl.appendChild(card.cardEl)
+      _pending.push(card)
+      delay += 40
+    }
   }
 }
 
-function renderCard(s) {
+function getOldValue(currentJson, field) {
+  const path = field.split('.')
+  let cursor = currentJson
+  for (const part of path) {
+    if (cursor == null || typeof cursor !== 'object') return null
+    cursor = cursor[part]
+  }
+  return cursor
+}
+
+function renderCard(s, currentJson) {
   const el = document.createElement('div')
   el.className = 'audit-card'
 
-  const typeLabel = s.type === 'add_element' ? 'Add element'
-    : s.type === 'update_element' ? `Update element #${s.index}`
-    : `Update ${s.field}`
-
   let diffHtml = ''
+  let codeHtml = ''
+
   if (s.type === 'add_element') {
-    diffHtml = `<div class="audit-card-diff"><strong>${s.element.name}</strong> — ${s.element.desc}</div>`
+    diffHtml = `<div class="audit-card-diff">+ ${s.element.name}</div>`
+    codeHtml = `<div class="audit-card-code">${JSON.stringify(s.element, null, 2)}</div>`
   } else if (s.type === 'update_element') {
-    diffHtml = `<div class="audit-card-diff">→ ${s.patch.desc || JSON.stringify(s.patch)}</div>`
-  } else {
-    diffHtml = `<div class="audit-card-diff">→ ${s.value}</div>`
+    const els = currentJson?.compositional_deconstruction?.elements
+    const oldEl = els && s.index < els.length ? els[s.index] : null
+    const changes = Object.entries(s.patch).map(([k, v]) => {
+      const oldVal = oldEl ? JSON.stringify(oldEl[k], null, 0) : '?'
+      const newVal = JSON.stringify(v, null, 0)
+      return `<span class="diff-old">${oldVal}</span> → <span class="diff-new">${newVal}</span>`
+    }).join('\n')
+    diffHtml = `<div class="audit-card-diff">#${s.index} ${oldEl?.name || ''}</div>`
+    codeHtml = changes ? `<div class="audit-card-code">${changes}</div>` : ''
+  } else if (s.type === 'update_field') {
+    const oldVal = getOldValue(currentJson, s.field)
+    const oldStr = oldVal != null ? JSON.stringify(oldVal, null, 0) : '?'
+    diffHtml = `<div class="audit-card-diff">${s.field}</div>`
+    codeHtml = `<div class="audit-card-code"><span class="diff-old">${oldStr}</span> → <span class="diff-new">${JSON.stringify(s.value)}</span></div>`
   }
 
   el.innerHTML = `
-    <div class="audit-card-type">${typeLabel}</div>
-    <div class="audit-card-reason">${s.reason}</div>
-    ${diffHtml}
+    <div class="audit-card-body">
+      <div>
+        ${diffHtml}
+        ${codeHtml}
+      </div>
+      <div class="audit-card-reason">${s.reason}</div>
+    </div>
     <div class="audit-card-actions">
       <button class="btn audit-card-accept" type="button">Accept</button>
       <button class="btn audit-card-reject" type="button">Reject</button>
@@ -260,7 +287,7 @@ function renderCard(s) {
 function applySuggestion(suggestion, cardEl) {
   let json
   try {
-    json = JSON.parse(document.getElementById('json-output').value)
+    json = JSON.parse(document.getElementById('vision-json')?.value || document.getElementById('json-output').value)
   } catch (e) {
     showToast('Current JSON is invalid; cannot apply', 'error')
     return
@@ -276,16 +303,20 @@ function applySuggestion(suggestion, cardEl) {
     cardEl.appendChild(errEl)
     return
   }
-  document.getElementById('json-output').value = JSON.stringify(json, null, 2)
+  const jsonStr = JSON.stringify(json, null, 2)
+  document.getElementById('json-output').value = jsonStr
+  const visionJson = document.getElementById('vision-json')
+  if (visionJson) visionJson.value = jsonStr
   emit('state:loaded', { json })
   cardEl.classList.add('applied')
   const actions = cardEl.querySelector('.audit-card-actions')
-  if (actions) actions.remove()
+  if (actions) {
+    actions.innerHTML = '<span class="audit-card-badge">&#10003; Applied</span>'
+  }
   _pending = _pending.filter(p => p.cardEl !== cardEl)
 }
 
 function acceptAll() {
-  // ponytail: iterate over a snapshot — accept mutates _pending
   const snapshot = [..._pending]
   for (const item of snapshot) {
     item.accept()

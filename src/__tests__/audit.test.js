@@ -14,15 +14,12 @@ const baseJson = () => ({
 })
 
 const DOM_HTML = `
-  <button id="btn-audit" disabled></button>
-  <div id="audit-panel" hidden>
-    <select id="audit-model"><option value="local">local</option></select>
-    <button id="btn-audit-close"></button>
-    <div id="audit-suggestions"></div>
-    <button id="btn-audit-accept-all"></button>
-  </div>
+  <select id="audit-model"><option value="local">local</option></select>
+  <button id="btn-audit-run">Run Audit</button>
+  <button id="btn-audit-accept-all">Accept all</button>
+  <div id="audit-suggestions"></div>
+  <textarea id="vision-json"></textarea>
   <textarea id="json-output"></textarea>
-  <div id="vision-model-row"></div>
 `
 
 describe('audit helpers', () => {
@@ -116,6 +113,7 @@ describe('audit UI', () => {
   }
 
   beforeEach(async () => {
+    vi.clearAllMocks()
     document.body.innerHTML = DOM_HTML
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ suggestions: [] }) })
     global.URL.createObjectURL = vi.fn()
@@ -126,18 +124,16 @@ describe('audit UI', () => {
     auditModule.initAudit()
   })
 
-  it('opens panel and renders suggestions', async () => {
+  it('renders suggestions inline after clicking run audit', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ suggestions: [sampleSuggestions()] }),
     })
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => {
       const cards = document.querySelectorAll('.audit-card')
       expect(cards.length).toBe(1)
     })
-    expect(document.getElementById('audit-panel').hasAttribute('hidden')).toBe(false)
   })
 
   it('drops malformed suggestions with a toast', async () => {
@@ -150,8 +146,7 @@ describe('audit UI', () => {
       ] }),
     })
     const { showToast } = await import('../toast.js')
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => {
       expect(document.querySelectorAll('.audit-card').length).toBe(1)
     })
@@ -168,8 +163,7 @@ describe('audit UI', () => {
     const seen = vi.fn()
     on('state:loaded', seen)
 
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
     document.querySelector('.audit-card-accept').click()
 
@@ -187,8 +181,7 @@ describe('audit UI', () => {
         { type: 'update_element', index: 99, reason: 'x', patch: { desc: 'better' } },
       ] }),
     })
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
     document.querySelector('.audit-card-accept').click()
     expect(document.querySelector('.audit-card-error').textContent).toMatch(/stale/i)
@@ -199,8 +192,7 @@ describe('audit UI', () => {
       ok: true,
       json: () => Promise.resolve({ suggestions: [sampleSuggestions()] }),
     })
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
     document.querySelector('.audit-card-reject').click()
     expect(document.querySelectorAll('.audit-card').length).toBe(0)
@@ -215,12 +207,20 @@ describe('audit UI', () => {
         { type: 'update_field', field: 'style.lighting', reason: 'x', value: 'hard' },
       ] }),
     })
-    document.getElementById('btn-audit').disabled = false
-    document.getElementById('btn-audit').click()
+    document.getElementById('btn-audit-run').click()
     await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(2))
     document.getElementById('btn-audit-accept-all').click()
     const updated = readJsonOutput()
     expect(updated.compositional_deconstruction.elements.length).toBe(1)
     expect(updated.style.lighting).toBe('hard')
+  })
+
+  it('shows error toast when no image data in state', async () => {
+    const { state } = await import('../state.js')
+    state.imageDataUrl = ''
+    const { showToast } = await import('../toast.js')
+    document.getElementById('btn-audit-run').click()
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Load an image'), 'error')
+    expect(document.querySelectorAll('.audit-card').length).toBe(0)
   })
 })
