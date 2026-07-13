@@ -31,12 +31,9 @@ function updateDimensions() {
 
   document.getElementById('dim-display').textContent = `${state.canvas.width} × ${state.canvas.height}`;
 
-  const hasBoxes = state.boxes.length > 0;
   const dimsChanged = oldWidth !== state.canvas.width || oldHeight !== state.canvas.height;
-  if (hasBoxes && dimsChanged) {
+  if (dimsChanged) {
     emit('canvas:rebuild', { oldWidth, oldHeight });
-  } else {
-    emit('canvas:rebuild');
   }
 }
 
