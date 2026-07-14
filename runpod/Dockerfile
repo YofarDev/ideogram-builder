@@ -8,10 +8,6 @@ RUN rm -rf /comfyui && \
     cd /comfyui && \
     pip install -r requirements.txt
 
-# ponytail: woct0rdho fork confirmed supports Ideogram-4 head_dim 256.
-# Fall back to `pip install sageattention` if this fork stalls upstream.
-RUN pip install git+https://github.com/woct0rdho/SageAttention
-
 # Install custom nodes needed for the Ideogram-4 workflow
 # Clone directly into custom_nodes since comfy-node-install may not work without comfy-cli workspace
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git /comfyui/custom_nodes/ComfyUI-KJNodes && \
