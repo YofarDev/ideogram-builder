@@ -76,30 +76,30 @@
   },
   "183": {
     "inputs": {
-      "model_name": "ideogram4_int8_convrot.safetensors",
+      "unet_name": "ideogram4_int8_convrot.safetensors",
       "weight_dtype": "default",
-      "compute_dtype": "default",
-      "patch_cublaslinear": false,
-      "sage_attention": "disabled",
-      "enable_fp16_accumulation": false
+      "model_type": "ideogram4",
+      "on_the_fly_quantization": false,
+      "enable_convrot": true,
+      "lora_mode": "None"
     },
-    "class_type": "DiffusionModelLoaderKJ",
+    "class_type": "OTUNetLoaderW8A8",
     "_meta": {
-      "title": "Diffusion Model Loader KJ"
+      "title": "Load Diffusion Model INT8 (W8A8)"
     }
   },
   "187": {
     "inputs": {
-      "model_name": "ideogram4_unconditional_int8_convrot.safetensors",
+      "unet_name": "ideogram4_unconditional_int8_convrot.safetensors",
       "weight_dtype": "default",
-      "compute_dtype": "default",
-      "patch_cublaslinear": false,
-      "sage_attention": "disabled",
-      "enable_fp16_accumulation": false
+      "model_type": "ideogram4",
+      "on_the_fly_quantization": false,
+      "enable_convrot": true,
+      "lora_mode": "None"
     },
-    "class_type": "DiffusionModelLoaderKJ",
+    "class_type": "OTUNetLoaderW8A8",
     "_meta": {
-      "title": "Diffusion Model Loader KJ"
+      "title": "Load Diffusion Model INT8 (W8A8)"
     }
   },
   "188": {
@@ -404,7 +404,7 @@
   },
   "98:157": {
     "inputs": {
-      "cfg": 3.5,
+      "cfg": 1.0,
       "start_percent": 0.7,
       "end_percent": 1,
       "model": [

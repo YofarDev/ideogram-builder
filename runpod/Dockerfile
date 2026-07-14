@@ -8,6 +8,10 @@ RUN rm -rf /comfyui && \
     cd /comfyui && \
     pip install -r requirements.txt
 
+# ponytail: woct0rdho fork confirmed supports Ideogram-4 head_dim 256.
+# Fall back to `pip install sageattention` if this fork stalls upstream.
+RUN pip install git+https://github.com/woct0rdho/SageAttention
+
 # Install custom nodes needed for the Ideogram-4 workflow
 # Clone directly into custom_nodes since comfy-node-install may not work without comfy-cli workspace
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git /comfyui/custom_nodes/ComfyUI-KJNodes && \
@@ -16,6 +20,9 @@ RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git /comfyui/custom_nodes
 RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes/rgthree-comfy && \
     cd /comfyui/custom_nodes/rgthree-comfy && \
     pip install -r requirements.txt
+# ponytail: BobJohnson24 INT8 node. Required for the *_int8_convrot model format.
+# T4 (SM75) needs triton pinned to 3.2.0 if you see kernel build errors.
+RUN git clone https://github.com/BobJohnson24/ComfyUI-INT8-Fast.git /comfyui/custom_nodes/ComfyUI-INT8-Fast
 
 # Download the 4 Ideogram-4 model files
 RUN mkdir -p /comfyui/models/diffusion_models /comfyui/models/text_encoders /comfyui/models/vae

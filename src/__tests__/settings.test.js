@@ -97,13 +97,13 @@ describe('settings', () => {
     expect(state.canvas.height).toBe(2048)
   })
 
-  it('mode_photo sets photoArtMode and disables medium', async () => {
+  it('mode_photo sets photoArtMode and keeps medium editable', async () => {
     document.getElementById('medium').disabled = false
     await initSettings()
     document.getElementById('mode_photo').checked = true
     document.getElementById('mode_photo').dispatchEvent(new Event('change'))
     expect(state.photoArtMode).toBe(MODE_PHOTO)
-    expect(document.getElementById('medium').disabled).toBe(true)
+    expect(document.getElementById('medium').disabled).toBe(false)
     expect(document.getElementById('mode_label').innerText).toBe('Photo Style')
   })
 

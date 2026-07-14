@@ -35,11 +35,15 @@
   "165": {
     "inputs": {
       "unet_name": "ideogram4_int8_convrot.safetensors",
-      "weight_dtype": "default"
+      "weight_dtype": "default",
+      "model_type": "ideogram4",
+      "on_the_fly_quantization": false,
+      "enable_convrot": true,
+      "lora_mode": "None"
     },
-    "class_type": "UNETLoader",
+    "class_type": "OTUNetLoaderW8A8",
     "_meta": {
-      "title": "Load Diffusion Model"
+      "title": "Load Diffusion Model INT8 (W8A8)"
     }
   },
   "183": {

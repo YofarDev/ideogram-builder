@@ -230,7 +230,6 @@ function setPhotoArtMode(mode) {
   state.photoArtMode = mode;
   if (mode === MODE_PHOTO) {
     document.getElementById('medium').value = 'photograph';
-    document.getElementById('medium').disabled = true;
     document.getElementById('mode_label').innerText = 'Photo Style';
   } else {
     document.getElementById('medium').disabled = false;
