@@ -1,8 +1,8 @@
 FROM runpod/worker-comfyui:5.8.5-base
 
-# ponytail: triton JIT needs cc at runtime; base image ships none.
+# ponytail: triton JIT needs cc + Python.h at runtime; base image ships neither.
 # Targets RTX 3090 (SM82) + A5000 (SM86) -> latest triton works, no SM75 caveat.
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3-dev && rm -rf /var/lib/apt/lists/*
 
 # Ideogram-4 needs DualModelGuider which was added in a recent ComfyUI commit
 # The base image has comfy-cli v1.6.0 which is too old for --commit flag
