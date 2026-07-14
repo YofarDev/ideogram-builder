@@ -1,5 +1,9 @@
 FROM runpod/worker-comfyui:5.8.5-base
 
+# ponytail: triton JIT needs cc at runtime; base image ships none.
+# Targets RTX 3090 (SM82) + A5000 (SM86) -> latest triton works, no SM75 caveat.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+
 # Ideogram-4 needs DualModelGuider which was added in a recent ComfyUI commit
 # The base image has comfy-cli v1.6.0 which is too old for --commit flag
 # Manually update ComfyUI to the latest master branch
@@ -17,7 +21,6 @@ RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes
     cd /comfyui/custom_nodes/rgthree-comfy && \
     pip install -r requirements.txt
 # ponytail: BobJohnson24 INT8 node. Required for the *_int8_convrot model format.
-# T4 (SM75) needs triton pinned to 3.2.0 if you see kernel build errors.
 RUN git clone https://github.com/BobJohnson24/ComfyUI-INT8-Fast.git /comfyui/custom_nodes/ComfyUI-INT8-Fast
 
 # Download the 4 Ideogram-4 model files
