@@ -20,6 +20,11 @@ function updateDimensions() {
     const scale = 2048 / longSide;
     state.canvas.width = round16(baseW * scale);
     state.canvas.height = round16(baseH * scale);
+  } else if (size === '4') {
+    const longSide = Math.max(baseW, baseH);
+    const scale = 4096 / longSide;
+    state.canvas.width = round16(baseW * scale);
+    state.canvas.height = round16(baseH * scale);
   } else if (size === '1.5') {
     const scale = Math.sqrt(1.5);
     state.canvas.width = round16(baseW * scale);
