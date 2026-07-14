@@ -76,7 +76,7 @@
   },
   "183": {
     "inputs": {
-      "model_name": "ideogram4_fp8_scaled.safetensors",
+      "model_name": "ideogram4_int8_convrot.safetensors",
       "weight_dtype": "default",
       "compute_dtype": "default",
       "patch_cublaslinear": false,
@@ -90,7 +90,7 @@
   },
   "187": {
     "inputs": {
-      "model_name": "ideogram4_unconditional_fp8_scaled.safetensors",
+      "model_name": "ideogram4_unconditional_int8_convrot.safetensors",
       "weight_dtype": "default",
       "compute_dtype": "default",
       "patch_cublaslinear": false,

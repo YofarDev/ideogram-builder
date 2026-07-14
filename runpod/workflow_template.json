@@ -51,7 +51,7 @@
   "166": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "ideogram4_fp8_scaled.safetensors",
+      "unet_name": "ideogram4_int8_convrot.safetensors",
       "weight_dtype": "default"
     }
   },
@@ -73,7 +73,7 @@
   "181": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "ideogram4_unconditional_fp8_scaled.safetensors",
+      "unet_name": "ideogram4_unconditional_int8_convrot.safetensors",
       "weight_dtype": "default"
     }
   },

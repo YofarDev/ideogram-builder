@@ -19,8 +19,8 @@ RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes
 
 # Download the 4 Ideogram-4 model files
 RUN mkdir -p /comfyui/models/diffusion_models /comfyui/models/text_encoders /comfyui/models/vae
-RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_fp8_scaled.safetensors
-RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors
+RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_int8_convrot.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_int8_convrot.safetensors
+RUN wget -q -O /comfyui/models/diffusion_models/ideogram4_unconditional_int8_convrot.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/diffusion_models/ideogram4_unconditional_int8_convrot.safetensors
 RUN wget -q -O /comfyui/models/text_encoders/qwen3vl_8b_fp8_scaled.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/text_encoders/qwen3vl_8b_fp8_scaled.safetensors
 RUN wget -q -O /comfyui/models/vae/flux2-vae.safetensors https://huggingface.co/Comfy-Org/Ideogram-4/resolve/main/vae/flux2-vae.safetensors
 
