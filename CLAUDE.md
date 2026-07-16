@@ -55,12 +55,13 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
-| `state:loaded` | `{ json }` | png-import, ai-enhancer | canvas (boxes), settings (form), palette (colors), layers (rebuild) |
+| `state:loaded` | `{ json }` | png-import, ai-enhancer, vision (process), audit (apply) | canvas (boxes), settings (form), palette (colors), layers (rebuild) |
 | `layers:reordered` | none | layers | canvas (reapply z-index) |
 | `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
 | `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
 | `box:desc` | `{ id }` | settings (recaption) | canvas (update label) |
 | `collection:add` | `{ importJson }` | gallery (card button), editor (JSON header button) | collections (addItem) |
+| `vision:find-more-results` | `{ elements }` | vision (Find missing) | audit (render as add_element cards) |
 
 
 > **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly.

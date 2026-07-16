@@ -603,11 +603,12 @@
             border: 1.5px solid var(--bg);
             border-radius: 2px;
             z-index: 4;
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         /* Larger invisible hit area for resize handles so they meet touch minimums */
-        .resize-handle::before {
+        .resize-handle::before,
+        .corner-handle::before {
             content: '';
             position: absolute;
             inset: -10px;
@@ -617,6 +618,9 @@
         .corner-handle.tr { top: -4px; right: -4px; }
         .corner-handle.bl { bottom: -4px; left: -4px; }
         .corner-handle.br { bottom: -4px; right: -4px; }
+
+        .corner-handle.tl, .corner-handle.br { cursor: nwse-resize; }
+        .corner-handle.tr, .corner-handle.bl { cursor: nesw-resize; }
 
         .box-label {
             position: absolute;
@@ -2927,28 +2931,6 @@
         }
         .audit-accept-all:hover { background: var(--accent-hover); box-shadow: 0 0 16px var(--accent-glow); }
 
-        .audit-mode-toggle {
-            display: inline-flex;
-            border: 1px solid var(--hairline-strong);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            flex-shrink: 0;
-        }
-        .audit-mode-btn {
-            font-family: var(--font-body);
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: var(--text-muted);
-            background: transparent;
-            border: none;
-            padding: 6px 12px;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-        }
-        .audit-mode-btn:hover { color: var(--text); }
-        .audit-mode-btn.active { background: var(--accent-dim); color: var(--accent); }
         /* Audit suggestion cards — flat review list */
         .audit-card {
             display: flex; align-items: stretch; gap: 10px;
@@ -3401,16 +3383,12 @@
                             <div class="vision-actions" id="vision-actions">
                                 <button id="btn-vision-process" class="btn btn-primary" disabled>Process Image</button>
                                 <input id="vision-instruction" type="text" class="vision-instruction-input" placeholder="e.g. find missing people · look for background text" style="display:none;">
-                                <button id="btn-vision-find-more" class="btn" type="button" style="display:none;">Find more items</button>
+                                <button id="btn-vision-find-more" class="btn" type="button" style="display:none;">Find missing</button>
                                 <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
                             </div>
                             <div class="vision-audit" id="vision-audit">
                                 <div class="vision-audit-controls">
                                     <select id="audit-model" class="ai-model-select" aria-label="Audit model"></select>
-                                    <div class="audit-mode-toggle" role="group" aria-label="Audit mode">
-                                        <button type="button" class="audit-mode-btn active" data-mode="full">Full</button>
-                                        <button type="button" class="audit-mode-btn" data-mode="missing">Missing</button>
-                                    </div>
                                     <button id="btn-audit-run" class="btn btn-primary" type="button">Run Audit</button>
                                 </div>
                                 <div id="audit-suggestions" class="audit-suggestions"></div>

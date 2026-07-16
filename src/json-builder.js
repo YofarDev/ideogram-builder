@@ -119,7 +119,9 @@ export function generateJSON() {
   // Values already in 0-1000, just clamp
   const clamp = (v) => Math.min(1000, Math.max(0, Math.round(v)));
 
-  const elements = state.boxes.map((box) => {
+  // Elements are emitted top-layer-first to match the layers panel order.
+  // state.boxes is stored bottom→top (index drives z-index), so reverse here.
+  const elements = [...state.boxes].reverse().map((box) => {
     const x1 = clamp(box.x);
     const y1 = clamp(box.y);
     const x2 = clamp(box.x + box.w);

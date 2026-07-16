@@ -13,6 +13,32 @@ function isValidBbox(b) {
   return Array.isArray(b) && b.length === 4 && b.every(n => typeof n === 'number' && Number.isFinite(n))
 }
 
+// Convert SAM-grounded find-more elements into reviewable add_element
+// suggestions. Elements SAM failed to locate (no valid bbox) are dropped.
+export function elementsToAddSuggestions(elements) {
+  const suggestions = []
+  let skipped = 0
+  for (const el of (elements || [])) {
+    if (!isValidBbox(el?.bbox)) { skipped++; continue }
+    const text = typeof el.text === 'string' ? el.text : ''
+    suggestions.push({
+      type: 'add_element',
+      reason: 'Detected by segmentation',
+      element: {
+        name: typeof el.name === 'string' ? el.name : (typeof el.desc === 'string' ? el.desc : 'element'),
+        desc: typeof el.desc === 'string' ? el.desc : '',
+        bbox: el.bbox,
+        text,
+        has_text: !!text,
+        visible_text: text || null,
+        type: el.type,
+        color_palette: Array.isArray(el.color_palette) ? el.color_palette : [],
+      },
+    })
+  }
+  return { suggestions, skipped }
+}
+
 export function validateSuggestion(raw) {
   if (!raw || typeof raw !== 'object') return null
   const { type, reason } = raw
@@ -96,21 +122,11 @@ export function applyUpdateField(json, suggestion) {
 }
 
 import { state } from './state.js'
-import { emit } from './events.js'
+import { emit, on } from './events.js'
 import { showToast } from './toast.js'
 
 let _suggestionsEl, _modelSelect, _runBtn
 let _pending = []
-let _auditMode = 'full'
-
-function _setAuditMode(mode) {
-  if (mode !== 'full' && mode !== 'missing') return
-  _auditMode = mode
-  localStorage.setItem('audit_mode', mode)
-  document.querySelectorAll('.audit-mode-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.mode === mode)
-  })
-}
 
 function _esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({
@@ -133,6 +149,17 @@ function _cardSubject(s) {
   return ''
 }
 
+// Vision "Find missing" emits SAM-grounded detections here; render them as
+// reviewable add_element cards, same UX as audit suggestions. Registered once
+// at module load (initAudit wires DOM, not the bus).
+on('vision:find-more-results', ({ elements }) => {
+  const { suggestions, skipped } = elementsToAddSuggestions(elements)
+  if (skipped > 0) {
+    showToast(`${skipped} item${skipped === 1 ? '' : 's'} couldn't be located and ${skipped === 1 ? 'was' : 'were'} skipped`, 'warning')
+  }
+  renderSuggestions(suggestions)
+})
+
 export function initAudit() {
   _runBtn = document.getElementById('btn-audit-run')
   _suggestionsEl = document.getElementById('audit-suggestions')
@@ -140,11 +167,6 @@ export function initAudit() {
   if (!_runBtn || !_suggestionsEl) return
 
   _runBtn.addEventListener('click', runAudit)
-
-  document.querySelectorAll('.audit-mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => _setAuditMode(btn.dataset.mode))
-  })
-  _setAuditMode(localStorage.getItem('audit_mode') || 'full')
 
   fetch('/api/config', { signal: AbortSignal.timeout(5000) })
     .then(r => r.ok ? r.json() : Promise.reject())
@@ -206,7 +228,7 @@ async function runAudit() {
   _suggestionsEl.innerHTML = '<div class="audit-empty">Auditing\u2026</div>'
   _pending = []
 
-  const body = { image: imageSrc, json: jsonVal, model, mode: _auditMode }
+  const body = { image: imageSrc, json: jsonVal, model, mode: 'full' }
   if (model === 'local') {
     body.local_model = _modelSelect.options[_modelSelect.selectedIndex].textContent
   }

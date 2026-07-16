@@ -15,7 +15,7 @@ const DOM_HTML = `
   <div class="vision-body"></div>
   <button id="btn-vision-process">Process Image</button>
   <input id="vision-instruction" type="text" style="display:none;">
-  <button id="btn-vision-find-more" style="display:none;">Find more items</button>
+  <button id="btn-vision-find-more" style="display:none;">Find missing</button>
   <div id="vision-status"></div>
   <button id="btn-vision-config">Config</button>
   <select id="vision-model"></select>

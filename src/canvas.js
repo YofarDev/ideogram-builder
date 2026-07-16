@@ -21,6 +21,7 @@ let dragStartX = 0, dragStartY = 0;
 let initialBoxX = 0, initialBoxY = 0, initialBoxW = 0, initialBoxH = 0;
 let hasDragged = false;
 let activeRect = null;
+let resizeCorner = 'br';
 
 function writeBoxFromDOM(box, dom) {
   const cw = state.canvas.width, ch = state.canvas.height;
@@ -40,8 +41,29 @@ function windowPointerMove(e) {
     currentBoxDOM.style.left = (initialBoxX + currentX - dragStartX) + 'px';
     currentBoxDOM.style.top = (initialBoxY + currentY - dragStartY) + 'px';
   } else if (isResizing && currentBoxDOM) {
-    currentBoxDOM.style.width = Math.max(10, initialBoxW + currentX - dragStartX) + 'px';
-    currentBoxDOM.style.height = Math.max(10, initialBoxH + currentY - dragStartY) + 'px';
+    const dx = currentX - dragStartX;
+    const dy = currentY - dragStartY;
+    if (resizeCorner === 'br') {
+      currentBoxDOM.style.width  = Math.max(10, initialBoxW + dx) + 'px';
+      currentBoxDOM.style.height = Math.max(10, initialBoxH + dy) + 'px';
+    } else if (resizeCorner === 'tl') {
+      const w = Math.max(10, initialBoxW - dx);
+      const h = Math.max(10, initialBoxH - dy);
+      currentBoxDOM.style.width  = w + 'px';
+      currentBoxDOM.style.height = h + 'px';
+      currentBoxDOM.style.left   = (initialBoxX + (initialBoxW - w)) + 'px';
+      currentBoxDOM.style.top    = (initialBoxY + (initialBoxH - h)) + 'px';
+    } else if (resizeCorner === 'tr') {
+      const h = Math.max(10, initialBoxH - dy);
+      currentBoxDOM.style.width  = Math.max(10, initialBoxW + dx) + 'px';
+      currentBoxDOM.style.height = h + 'px';
+      currentBoxDOM.style.top    = (initialBoxY + (initialBoxH - h)) + 'px';
+    } else if (resizeCorner === 'bl') {
+      const w = Math.max(10, initialBoxW - dx);
+      currentBoxDOM.style.width  = w + 'px';
+      currentBoxDOM.style.height = Math.max(10, initialBoxH + dy) + 'px';
+      currentBoxDOM.style.left   = (initialBoxX + (initialBoxW - w)) + 'px';
+    }
   }
 }
 
@@ -111,8 +133,15 @@ export function initCanvasEvents() {
       const resizeBox = state.boxes.find(b => b.id === currentBoxDOM.id);
       if (resizeBox?.locked) { isResizing = false; return; }
       selectBox(currentBoxDOM.id);
+      if (e.target.classList.contains('corner-handle')) {
+        resizeCorner = ['tl', 'tr', 'bl', 'br'].find(c => e.target.classList.contains(c)) || 'br';
+      } else {
+        resizeCorner = 'br';
+      }
       dragStartX = (e.clientX - activeRect.left) / scale;
       dragStartY = (e.clientY - activeRect.top) / scale;
+      initialBoxX = parseFloat(currentBoxDOM.style.left);
+      initialBoxY = parseFloat(currentBoxDOM.style.top);
       initialBoxW = parseFloat(currentBoxDOM.style.width);
       initialBoxH = parseFloat(currentBoxDOM.style.height);
       e.stopPropagation();
@@ -275,9 +304,11 @@ export function initCanvasEvents() {
 
   on('state:loaded', ({ json }) => {
     clearBoxes();
-    const elements = json.compositional_deconstruction?.elements || [];
+    // JSON elements are top-layer-first (panel order); state.boxes is bottom→top.
+    const elements = [...(json.compositional_deconstruction?.elements || [])].reverse();
     elements.forEach((element) => {
       const bbox = element.bbox;
+      if (!Array.isArray(bbox) || bbox.length !== 4 || !bbox.every(n => typeof n === 'number' && Number.isFinite(n))) return;
 
       const box = {
         id: nextBoxId(),

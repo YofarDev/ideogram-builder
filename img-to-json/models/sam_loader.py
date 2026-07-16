@@ -1,17 +1,23 @@
+import platform
 from functools import cache
 
-from mlx_vlm.utils import load_model, get_model_path
-from mlx_vlm.models.sam3.generate import Sam3Predictor
-from mlx_vlm.models.sam3_1.processing_sam3_1 import Sam31Processor
+
+def _get_mlx_predictor():
+    from mlx_vlm.utils import load_model, get_model_path
+    from mlx_vlm.models.sam3.generate import Sam3Predictor
+    from mlx_vlm.models.sam3_1.processing_sam3_1 import Sam31Processor
+    model_path = get_model_path("mlx-community/sam3.1-bf16")
+    model = load_model(model_path)
+    processor = Sam31Processor.from_pretrained(str(model_path))
+    return Sam3Predictor(model, processor, score_threshold=0.3)
 
 
 @cache
 def get_sam_predictor():
-    model_path = get_model_path("mlx-community/sam3.1-bf16")
-    model = load_model(model_path)
-    processor = Sam31Processor.from_pretrained(str(model_path))
-    predictor = Sam3Predictor(model, processor, score_threshold=0.3)
-    return predictor
+    if platform.system() == "Darwin":
+        return _get_mlx_predictor()
+    from models.sam_loader_hf import build_hf_predictor
+    return build_hf_predictor()
 
 
 def unload_sam():

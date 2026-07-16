@@ -226,4 +226,37 @@ describe('audit UI', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Load an image'), 'error')
     expect(document.querySelectorAll('.audit-card').length).toBe(0)
   })
+
+  it('vision:find-more-results renders add_element cards, skips un-locatable', async () => {
+    const { emit } = await import('../events.js')
+    const { showToast } = await import('../toast.js')
+    setJsonOutput({ compositional_deconstruction: { elements: [] } })
+    emit('vision:find-more-results', {
+      elements: [
+        { name: 'vase', desc: 'a ceramic vase', bbox: [0.1, 0.1, 0.2, 0.2], text: '', type: 'obj' },
+        { name: 'ghost', desc: 'no location', bbox: null },
+      ],
+    })
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
+    expect(document.querySelector('.audit-subject').textContent).toBe('vase')
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining("couldn't be located"), 'warning')
+  })
+
+  it('accepting a find-more card pushes element with text field', async () => {
+    const { emit, on } = await import('../events.js')
+    setJsonOutput({ compositional_deconstruction: { elements: [] } })
+    emit('vision:find-more-results', {
+      elements: [
+        { name: 'sign', desc: 'a stop sign', bbox: [0.2, 0.2, 0.4, 0.4], text: 'STOP', type: 'text' },
+      ],
+    })
+    await vi.waitFor(() => expect(document.querySelectorAll('.audit-card').length).toBe(1))
+    const seen = vi.fn()
+    on('state:loaded', seen)
+    document.querySelector('.audit-accept').click()
+    const updated = readJsonOutput()
+    expect(updated.compositional_deconstruction.elements.length).toBe(1)
+    expect(updated.compositional_deconstruction.elements[0].text).toBe('STOP')
+    expect(seen).toHaveBeenCalled()
+  })
 })

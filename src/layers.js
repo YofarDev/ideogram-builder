@@ -8,7 +8,7 @@ let dragSrcId = null;
 export function initLayers() {
   const list = document.getElementById('layers-list');
 
-  on('box:selected', () => renderLayers());
+  on('box:selected', ({ id }) => updateActive(id));
   on('state:changed', () => renderLayers());
   on('state:loaded', () => renderLayers());
   on('canvas:reset', () => renderLayers());
@@ -20,6 +20,21 @@ export function initLayers() {
   if (addBtn) addBtn.addEventListener('click', () => emit('box:create'));
 
   renderLayers();
+}
+
+// Update the active highlight in place. Deliberately does NOT call renderLayers:
+// a full rebuild (innerHTML = '') would destroy the draggable row mid-interaction
+// and cancel the native drag. Falls back to a full render only when the row count
+// is stale (boxes added/removed out-of-band), so the list stays correct.
+function updateActive(id) {
+  const list = document.getElementById('layers-list');
+  if (!list) return;
+  const rows = list.querySelectorAll('.layer-row');
+  if (rows.length !== state.boxes.length) {
+    renderLayers();
+    return;
+  }
+  rows.forEach((r) => r.classList.toggle('active', r.dataset.id === id));
 }
 
 function renderLayers() {
@@ -111,8 +126,11 @@ function buildRow(box) {
 
   row.appendChild(actions);
 
-  // Click to select (pointerdown, not click — draggable suppresses click)
-  row.addEventListener('pointerdown', (e) => {
+  // Click to select. NOTE: must be `click`, not `pointerdown` — selecting
+  // triggers a full re-render via `box:selected`, which would destroy this row
+  // synchronously during pointerdown and cancel the native drag before it starts.
+  // `click` only fires when the user does NOT drag, so reordering stays intact.
+  row.addEventListener('click', (e) => {
     if (e.target.closest('.layer-btn')) return;
     emit('box:select', { id: box.id });
   });
@@ -154,6 +172,7 @@ function buildRow(box) {
     state.boxes.splice(dstIdx, 0, moved);
 
     emit('layers:reordered');
+    emit('state:changed');
     renderLayers();
   });
 

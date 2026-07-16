@@ -3,8 +3,6 @@ import logging
 from pathlib import Path
 
 from PIL import Image
-from mlx_vlm import generate
-from mlx_vlm.prompt_utils import apply_chat_template
 
 """
 Step 2 — Local VLM analysis (currently Qwen3-VL-4B).
@@ -56,6 +54,8 @@ def _build_messages(user_text: str, system_prompt: str) -> list:
 
 def analyze(image: Image.Image, verbose: bool = False, debug=None, model_name="Qwen3-VL-4B-Instruct-8bit", bbox_format: str = "xyxy") -> dict:
     model, processor = get_local_vlm(model_name)
+    from mlx_vlm import generate
+    from mlx_vlm.prompt_utils import apply_chat_template
     config = model.config
 
     system_prompt = format_prompt(_SYSTEM_PROMPT_RAW, bbox_format)

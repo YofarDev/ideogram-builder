@@ -105,6 +105,23 @@ describe('canvas', () => {
     expect(document.querySelectorAll('.bounding-box').length).toBe(1)
   })
 
+  it('state:loaded skips elements with missing or invalid bbox', () => {
+    emit('state:loaded', {
+      json: {
+        compositional_deconstruction: {
+          elements: [
+            { type: 'obj', bbox: [0, 0, 500, 500], desc: 'valid' },
+            { type: 'obj', desc: 'no bbox key' },
+            { type: 'obj', bbox: null, desc: 'null bbox' },
+            { type: 'obj', bbox: [0, 0, NaN, 100], desc: 'nan bbox' },
+            { type: 'obj', bbox: [0, 0, 100], desc: 'short bbox' },
+          ],
+        },
+      },
+    })
+    expect(document.querySelectorAll('.bounding-box').length).toBe(1)
+  })
+
   it('box:create adds a new box at center', () => {
     emit('box:create')
     expect(state.boxes.length).toBe(1)

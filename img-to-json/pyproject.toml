@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "Image → Ideogram4 JSON caption pipeline using Qwen3-VL + SAM on Apple Silicon"
 requires-python = ">=3.11"
 dependencies = [
-    "mlx",
-    "mlx-vlm>=0.4.3",
+    "mlx; sys_platform == 'darwin'",
+    "mlx-vlm>=0.4.3; sys_platform == 'darwin'",
     "Pillow",
     "numpy",
     "colorthief",
+    "torch; sys_platform != 'darwin'",
+    "transformers; sys_platform != 'darwin'",
 ]
 
 [tool.pytest.ini_options]
@@ -17,4 +19,15 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+]
+
+# CPU-only PyTorch for Linux (no GPU). Mac uses mlx SAM3 and skips torch entirely.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
 ]

@@ -356,7 +356,7 @@ export function initVision() {
           if (findMoreBtn) {
             findMoreBtn.disabled = false;
             findMoreBtn.classList.remove('done');
-            findMoreBtn.textContent = 'Find more items';
+            findMoreBtn.textContent = 'Find missing';
           }
           updateFindMoreVisibility();
         };
@@ -418,34 +418,20 @@ export function initVision() {
 
       if (newEls.length === 0) {
         statusEl.textContent = 'No new items found \u00b7 likely complete';
-        if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = true; }
+        if (findMoreBtn) { findMoreBtn.textContent = 'Find missing'; findMoreBtn.disabled = true; }
         showToast('No additional items found.', 'info');
         return;
       }
 
-      let current;
-      try {
-        current = JSON.parse(document.getElementById('vision-json')?.value || document.getElementById('json-output').value);
-      } catch {
-        current = JSON.parse(jsonVal);
-      }
-      current.compositional_deconstruction ||= { elements: [] };
-      current.compositional_deconstruction.elements ||= [];
-      current.compositional_deconstruction.elements.push(...newEls);
-      const jsonStr = JSON.stringify(current, null, 2);
-      document.getElementById('json-output').value = jsonStr;
-      const vj = document.getElementById('vision-json');
-      if (vj) vj.value = jsonStr;
-      emit('state:loaded', { json: current });
-
-      const total = current.compositional_deconstruction.elements.length;
-      statusEl.textContent = `+${newEls.length} new \u00b7 ${total} total`;
-      if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = false; }
-      showToast(`Found ${newEls.length} more item${newEls.length === 1 ? '' : 's'}.`, 'success');
+      // Hand SAM-grounded detections to the audit panel as reviewable cards.
+      emit('vision:find-more-results', { elements: newEls });
+      statusEl.textContent = `+${newEls.length} candidate${newEls.length === 1 ? '' : 's'} \u00b7 review below`;
+      if (findMoreBtn) { findMoreBtn.textContent = 'Find missing'; findMoreBtn.disabled = false; }
+      showToast(`Found ${newEls.length} candidate${newEls.length === 1 ? '' : 's'} to review.`, 'success');
     } catch (err) {
-      statusEl.textContent = 'Find-more failed';
+      statusEl.textContent = 'Find missing failed';
       showToast(err.message, 'error');
-      if (findMoreBtn) { findMoreBtn.textContent = 'Find more items'; findMoreBtn.disabled = false; }
+      if (findMoreBtn) { findMoreBtn.textContent = 'Find missing'; findMoreBtn.disabled = false; }
     } finally {
       isFindingMore = false;
       visionModelSelect.disabled = false;

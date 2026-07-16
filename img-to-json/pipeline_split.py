@@ -6,9 +6,6 @@ from pathlib import Path
 
 from PIL import Image
 
-from mlx_vlm import generate
-from mlx_vlm.prompt_utils import apply_chat_template
-
 from steps.preprocess import preprocess
 from steps.local_vlm_analysis import _parse_json
 from steps.sam_detection import sam_detect
@@ -78,6 +75,8 @@ def _vlm_call(image, system_prompt, user_text, debug, debug_subdir, model_name="
     if scale < 1.0:
         image = image.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
     model, processor = get_local_vlm(model_name)
+    from mlx_vlm import generate
+    from mlx_vlm.prompt_utils import apply_chat_template
     config = model.config
     messages = [
         {"role": "system", "content": system_prompt},
