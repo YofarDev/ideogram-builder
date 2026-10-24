@@ -24,7 +24,7 @@ export function buildMossLayout({ caption, meta, canvas, palette, boxes, width, 
 
     const label = box.mode === 'text' ? 'text' : box.mode === 'character' ? 'character' : 'object';
     const item = { label, caption: box.desc };
-    if (label === 'text') item.text = box.text;
+    if (label === 'text') item.text = box.text ?? '';
     item.bbox = [y1, x1, y2, x2];
     if (box.tags?.length > 0) item.tags = box.tags;
     if (box.colors?.length > 0) item.palette = box.colors;

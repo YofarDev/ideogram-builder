@@ -42,7 +42,7 @@ describe('model', () => {
     expect(document.body.dataset.model).toBe('moss')
     expect(document.getElementById('model-moss').checked).toBe(true)
     expect(localStorage.getItem('ideogram_model')).toBe('moss')
-    expect(events).toEqual([{ model: 'moss', previous: 'ideogram' }])
+    expect(events).toEqual([{ model: 'moss', previous: 'ideogram', seed: true }])
   })
 
   it('persists across init from localStorage', async () => {
@@ -80,6 +80,17 @@ describe('model', () => {
     expect(events).toEqual([])
     mod.setModel(MODEL_IDEOGRAM)
     mod.setModel(MODEL_IDEOGRAM) // same model → no duplicate event
-    expect(events).toEqual([{ model: MODEL_IDEOGRAM, previous: MODEL_MOSS }])
+    expect(events).toEqual([{ model: MODEL_IDEOGRAM, previous: MODEL_MOSS, seed: true }])
+  })
+
+  it('passes seed through model:set → model:changed (paste-driven switches)', async () => {
+    const mod = await loadModel()
+    const { emit } = await import('../events.js')
+    const events = []
+    on('model:changed', (p) => events.push(p))
+    emit('model:set', { model: 'moss', seed: false })
+    expect(events).toEqual([{ model: 'moss', previous: 'ideogram', seed: false }])
+    mod.setModel('ideogram')
+    expect(events[1]).toEqual({ model: 'ideogram', previous: 'moss', seed: true })
   })
 })

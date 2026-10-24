@@ -32,8 +32,10 @@ function setPromptMode(mode) {
 }
 
 // D4: on switch, auto-convert globals when the target's fields are empty and
-// the source's aren't. Never overwrite non-empty fields.
-function seedGlobals({ model }) {
+// the source's aren't. Never overwrite non-empty fields. `seed === false`
+// (paste-driven switch) skips conversion — the pasted content wins.
+function seedGlobals({ model, seed }) {
+  if (seed === false) return;
   if (model === MODEL_MOSS) {
     const captionInput = document.getElementById('moss-caption');
     if (!captionInput || captionInput.value.trim()) return;
@@ -43,6 +45,7 @@ function seedGlobals({ model }) {
     captionInput.value = caption;
     document.getElementById('moss-meta').value = meta.join(', ');
     showToast('Converted Ideogram fields to MOSS (background merged into caption).', 'info');
+    emit('state:changed');
   } else {
     const hld = document.getElementById('high_level_description');
     const caption = document.getElementById('moss-caption')?.value || '';
@@ -57,6 +60,7 @@ function seedGlobals({ model }) {
     const aestheticsInput = document.getElementById('aesthetics');
     if (!aestheticsInput.value.trim()) aestheticsInput.value = aesthetics;
     showToast('Converted MOSS caption to Ideogram fields.', 'info');
+    emit('state:changed');
   }
 }
 

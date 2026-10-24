@@ -1804,6 +1804,7 @@
             cursor: pointer;
             transition: all 0.15s;
             letter-spacing: 0.01em;
+            white-space: nowrap;
         }
 
         .pill-group input[type="radio"]:checked + .pill-label {
@@ -1856,7 +1857,8 @@
 
         body:not([data-moss-prompt="caption"]) #caption-mode-banner { display: none; }
 
-        /* Format chip next to the Prompt JSON title */
+        /* Format chip next to the Prompt JSON title — shrinks with ellipsis so
+           it never overlaps the title or the action buttons */
         .json-format-chip {
             font-size: 10.5px;
             font-weight: 600;
@@ -1867,8 +1869,11 @@
             border: 1px solid var(--hairline-strong);
             border-radius: 999px;
             padding: 2px 10px;
-            margin-left: 10px;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex-shrink: 1;
         }
 
         /* Panel section groups */

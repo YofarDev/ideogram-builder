@@ -7,9 +7,12 @@ import { on, emit } from './events.js';
 
 /**
  * Switch the active model. Updates state, the body attribute, the radio,
- * localStorage, and emits `model:changed { model, previous }` (unless silent).
+ * localStorage, and emits `model:changed { model, previous, seed }` (unless
+ * silent). `seed: false` (from a paste-driven switch) tells listeners like the
+ * D4 global-field seeding to leave the fields alone — the pasted content
+ * overwrites them anyway.
  */
-export function setModel(model, { silent } = {}) {
+export function setModel(model, { silent, seed = true } = {}) {
   if (model !== MODEL_IDEOGRAM && model !== MODEL_MOSS) return;
   const previous = state.model;
   state.model = model;
@@ -18,12 +21,12 @@ export function setModel(model, { silent } = {}) {
   if (radio) radio.checked = true;
   localStorage.setItem('ideogram_model', model);
   if (!silent && model !== previous) {
-    emit('model:changed', { model, previous });
+    emit('model:changed', { model, previous, seed });
   }
 }
 
 export function initModel() {
-  on('model:set', ({ model }) => setModel(model));
+  on('model:set', ({ model, seed }) => setModel(model, { seed }));
 
   document.querySelectorAll('input[name="model"]').forEach((radio) => {
     radio.addEventListener('change', () => setModel(radio.value));

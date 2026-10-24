@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { state, MODEL_IDEOGRAM, MODEL_MOSS, MODE_ARTSTYLE, MODE_PHOTO } from '../state.js'
-import { resetAllListeners, emit } from '../events.js'
+import { resetAllListeners, emit, on } from '../events.js'
 import { showToast } from '../toast.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
@@ -65,6 +65,23 @@ describe('settings-moss', () => {
     expect(document.getElementById('moss-caption').value).toBe('A sunset misty pines')
     expect(document.getElementById('moss-meta').value).toBe('illustration, calm, soft light, watercolor')
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Converted Ideogram fields to MOSS'), expect.anything())
+  })
+
+  it('emits state:changed after seeding so the JSON pane regenerates', async () => {
+    await init()
+    let changed = 0
+    on('state:changed', () => changed++)
+    emit('model:changed', { model: MODEL_MOSS, previous: MODEL_IDEOGRAM })
+    expect(changed).toBe(1)
+    emit('model:changed', { model: MODEL_MOSS, previous: MODEL_IDEOGRAM }) // non-empty now: no-op
+    expect(changed).toBe(1)
+  })
+
+  it('skips seeding when seed === false (paste-driven switch)', async () => {
+    await init()
+    emit('model:changed', { model: MODEL_MOSS, previous: MODEL_IDEOGRAM, seed: false })
+    expect(document.getElementById('moss-caption').value).toBe('')
+    expect(showToast).not.toHaveBeenCalled()
   })
 
   it('never overwrites a non-empty MOSS caption', async () => {

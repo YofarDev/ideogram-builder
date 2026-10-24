@@ -106,6 +106,15 @@ describe('buildMossLayout', () => {
     expect(layout.items).toEqual([])
   })
 
+  it('text box with undefined text still emits the required text key', () => {
+    const { layout } = buildMossLayout({
+      caption: 'c', meta: [], canvas: '', palette: [],
+      boxes: [{ mode: 'text', x: 0, y: 0, w: 500, h: 500, desc: 'a title' }],
+      width: 1024, height: 1024,
+    })
+    expect(layout.items[0].text).toBe('')
+  })
+
   it('clamps past-canvas boxes to the canvas half-extent', () => {
     const { layout, dropped } = buildMossLayout({
       caption: 'c', meta: [], canvas: '', palette: [],

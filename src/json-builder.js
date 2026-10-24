@@ -26,6 +26,11 @@ export function initJsonBuilder() {
     // would run before canvas rebuilds boxes → stale output.
   });
 
+  // Switching models must regenerate immediately — otherwise Generate would
+  // send the previous model's JSON. Runs after the D4 seeding (registered in
+  // initSettingsMoss, which app.js calls before initJsonBuilder).
+  on('model:changed', () => generateJSON());
+
   // Capture textarea value on pointerdown, before canvas pointerup
   // can overwrite it via state:changed → generateJSON().
   let capturedRaw = '';
@@ -82,7 +87,7 @@ function applyJsonText(raw, btnId) {
 
   if (format === 'ideogram') {
     if (state.model === 'moss') {
-      emit('model:set', { model: 'ideogram' });
+      emit('model:set', { model: 'ideogram', seed: false });
       showToast('Switched to Ideogram 4 — pasted Ideogram JSON.', 'info');
     }
     const json = JSON.parse(raw);
@@ -95,7 +100,7 @@ function applyJsonText(raw, btnId) {
 
   if (format === 'moss' || format === 'moss-draft') {
     if (state.model !== 'moss') {
-      emit('model:set', { model: 'moss' });
+      emit('model:set', { model: 'moss', seed: false });
       showToast('Switched to MOSS-Image — pasted MOSS layout JSON.', 'info');
     }
     isLoadingFromJSON = true;
