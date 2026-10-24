@@ -86,24 +86,27 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 
 ## RunPod Backend (`runpod/`)
 
-Serverless endpoint that runs Ideogram-4 via ComfyUI in a Docker container.
+Serverless endpoints that run Ideogram-4 or MOSS-Image via ComfyUI in Docker containers. Jobs carry `model`: absent/`"ideogram"` → Ideogram-4 workflow, `"moss"` → MOSS workflow (presets Turbo/Fast/Quality resolved server-side; `negative_prompt` and multiples-of-16 dimensions).
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Custom image: ComfyUI (latest) + KJNodes + rgthree + Ideogram-4 models |
-| `handler.py` | RunPod handler — accepts `import_json`, `width`, `height`, `preset`, `loras` → returns base64 images |
+| `Dockerfile` | Ideogram-4 image: ComfyUI (latest) + KJNodes + rgthree + Ideogram-4 models |
+| `Dockerfile.moss` | MOSS-Image image: ComfyUI (pinned ≥ MOSS merge) + rgthree + MOSS models + DMD LoRA. Second RunPod endpoint, same repo |
+| `handler.py` | Shared RunPod handler — accepts `model`, `import_json`, `width`, `height`, `preset`, `negative_prompt`, `loras` → returns base64 images + used `seed` |
 | `workflow_template_lora.json` | API-format ComfyUI workflow (lora-capable: rgthree Power Lora Loader, step presets). Live base, copied to `/workflow_template.json` in the image |
 | `workflow_template.json` | Original 17-node workflow — dormant fallback, not copied into the image |
-| `client.py` | CLI for sending requests to the RunPod endpoint |
-| `modal_app.py` | Modal backend — reuses the Dockerfile image, hosts ComfyUI warm. Web proxy (`min_containers=1`) exposes two endpoints: `POST /generate` (spawns Comfy job, returns `call_id`) and `GET /status/{call_id}` (polls result). Token-authed via shared secret. |
-| `example_prompt.json` | Sample prompt JSON for testing |
+| `workflow_template_moss.json` | MOSS-Image workflow (UNET/CLIP/VAE loaders, DMD LoRA, SLG, KSampler), copied into the MOSS image only |
+| `client.py` | CLI for sending requests to a RunPod endpoint (`--model`, `--preset`, `--negative`, `--prompt`) |
+| `modal_app.py` | Modal backend — hosts both images (Comfy, ComfyMoss) behind one web proxy. `POST /generate` (spawns job, returns `call_id`, routes on `payload.model`) and `GET /status/{call_id}` (polls result). Token-authed via shared secret. |
+| `example_prompt.json` | Sample Ideogram prompt JSON for testing |
+| `example_moss_layout.json` | Sample MOSS layout JSON for testing |
 
-**Build:** Push a git tag (e.g. `v1.0.8`) → RunPod Container Builder rebuilds. Dockerfile path: `runpod/Dockerfile`, build context: repo root.
+**Build:** Push a git tag (e.g. `v1.0.8`) → RunPod Container Builder rebuilds. Dockerfile path: `runpod/Dockerfile`, build context: repo root. The MOSS endpoint (`runpod/Dockerfile.moss`, same context) is created manually as a second serverless endpoint.
 
-**API:** `POST /run` with `{ "input": { "import_json": "...", "width": 768, "height": 1152 } }` → returns `{ "output": { "images": [{ "filename", "type": "base64", "data" }] } }`
+**API:** `POST /run` with `{ "input": { "import_json": "...", "width": 768, "height": 1152 } }` → returns `{ "output": { "images": [{ "filename", "type": "base64", "data" }], "seed": <int> } }`
 
 ### Modal backend
 
-Same ComfyUI image, hosted on Modal. Deploy: `modal deploy runpod/modal_app.py` (from repo root). Create the auth secret once: `modal secret create ideogram-builder AUTH_TOKEN=<value>`. GPU defaults to `T4` (16GB); set `IDEOGRAM_GPU=A10G` at deploy for the Classic dual-model workflow. UI toggle (RunPod/Modal) persists to `localStorage.ideogram_backend`; `src/backend.js` dispatches `runJob` accordingly.
+Both ComfyUI images hosted on Modal, one proxy app. Deploy: `modal deploy runpod/modal_app.py` (from repo root). Create the auth secret once: `modal secret create ideogram-builder AUTH_TOKEN=<value>` (+ `HF_TOKEN=<value>` for private-repo LoRA downloads). GPU defaults to `RTX-PRO-6000`; set `IDEOGRAM_GPU=...` at deploy to change. The proxy routes `{"model": "moss"}` requests to the `ComfyMoss` class, everything else to `Comfy`. User LoRAs live in the `ideogram-loras` Modal Volume mounted at `/comfyui/models/loras/user` on both classes (reloaded per job). UI toggle (RunPod/Modal) persists to `localStorage.ideogram_backend`; `src/backend.js` dispatches `runJob` accordingly.
 
 **Architecture:** The web proxy (`min_containers=1`, always warm) splits generation into submit + poll to avoid gateway timeouts on long-running jobs: `POST /generate` spawns the Comfy job via `.spawn()` and returns `{"call_id": "..."}` immediately; `GET /status/{call_id}` uses `FunctionCall.from_id()` + `get(timeout=0)` to poll. `src/modal.js` mirrors runpod.js's submit+poll loop (3s cadence, 15min timeout).

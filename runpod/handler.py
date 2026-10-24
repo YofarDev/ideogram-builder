@@ -6,6 +6,7 @@ import urllib.parse
 import re
 import time
 import os
+import random
 import requests
 import base64
 from io import BytesIO
@@ -35,16 +36,37 @@ REFRESH_WORKER = os.environ.get("REFRESH_WORKER", "false").lower() == "true"
 WORKFLOW_TEMPLATES = {
     "turbo": "/workflow_template_turbo.json",
     "v1": "/workflow_template_lora.json",
+    "moss": "/workflow_template_moss.json",
 }
+
+_TEMPLATES = {}
 
 LORAS_DIR = "/comfyui/models/loras"
 
 PRESET_INDEX = {"Quality": 1, "Default": 2, "Turbo": 3}
 
-with open(WORKFLOW_TEMPLATES["turbo"]) as f:
-    _TURBO_TEMPLATE = json.load(f)
-with open(WORKFLOW_TEMPLATES["v1"]) as f:
-    _V1_TEMPLATE = json.load(f)
+# MOSS-Image sampler presets, resolved server-side. Turbo β ships with the
+# DMD distillation LoRA (node 4 of the template); the others bypass it.
+# VERIFY: Turbo sampler/scheduler — the DMD card doesn't name a ComfyUI sampler,
+# tweak by eye with 3 seeds. VERIFY: Quality SLG end_percent (1.0 vs 0.5).
+MOSS_PRESETS = {
+    "Turbo":   {"steps": 8,  "cfg": 1.0, "sampler": "euler",  "scheduler": "simple", "slg": None,        "dmd": True},
+    "Fast":    {"steps": 25, "cfg": 2.5, "sampler": "er_sde", "scheduler": "simple", "slg": (0.0, 0.5), "dmd": False},
+    "Quality": {"steps": 50, "cfg": 3.0, "sampler": "euler",  "scheduler": "simple", "slg": (0.0, 1.0), "dmd": False},
+}
+
+
+def _load_template(key):
+    """Deep-copied workflow template, loaded lazily — each image ships only its own."""
+    if key not in _TEMPLATES:
+        if key not in WORKFLOW_TEMPLATES:
+            raise ValueError(f"Unknown workflow '{key}'")
+        path = WORKFLOW_TEMPLATES[key]
+        if not os.path.exists(path):
+            raise ValueError(f"Workflow '{key}' not available on this worker")
+        with open(path) as f:
+            _TEMPLATES[key] = json.load(f)
+    return json.loads(json.dumps(_TEMPLATES[key]))
 
 
 def _get_comfyui_pid():
@@ -160,18 +182,24 @@ def _resolve_unique_path(filename):
 
 
 def _download_lora(source_url, filename):
-    """Download a lora from source_url into LORAS_DIR atomically. Raises on failure."""
+    """Download a lora from source_url into LORAS_DIR (sub-paths allowed) atomically.
+    Raises on failure."""
     # Accept the HF "blob" viewer URL and convert to the direct file URL
     source_url = source_url.replace("/blob/", "/resolve/")
-    os.makedirs(LORAS_DIR, exist_ok=True)
     dest = os.path.join(LORAS_DIR, filename)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    headers = {}
+    hf_token = os.environ.get("HF_TOKEN")
+    hostname = urllib.parse.urlparse(source_url).hostname or ""
+    if hf_token and hostname.endswith("huggingface.co"):
+        headers["Authorization"] = f"Bearer {hf_token}"
     tmp = dest + ".tmp"
     try:
-        with requests.get(source_url, stream=True, timeout=120, allow_redirects=True) as r:
+        with requests.get(source_url, stream=True, timeout=120, allow_redirects=True, headers=headers) as r:
             if r.status_code == 404:
                 raise ValueError(f"Lora not found (404): {source_url}")
             if r.status_code == 403:
-                raise ValueError(f"Lora access denied (403, public repos only): {source_url}")
+                raise ValueError(f"Lora access denied (403, private HF repos need HF_TOKEN on the worker): {source_url}")
             r.raise_for_status()
             with open(tmp, "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024 * 1024):
@@ -243,11 +271,13 @@ def _populate_lora_loader(wf, node_id, loras, strength_key):
 def build_workflow(workflow_key, import_json, width, height, preset, seed, loras, turbo_strength):
     if workflow_key == "v1":
         return _build_workflow_v1(import_json, width, height, preset, seed, loras)
-    return _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo_strength)
+    if workflow_key == "turbo":
+        return _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo_strength)
+    raise ValueError(f"Workflow '{workflow_key}' not available on this worker")
 
 
 def _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo_strength):
-    wf = json.loads(json.dumps(_TURBO_TEMPLATE))
+    wf = _load_template("turbo")
     wf["98:27"]["inputs"]["value"] = width
     wf["98:28"]["inputs"]["value"] = height
     if seed is not None and seed >= 0:
@@ -263,7 +293,7 @@ def _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo
 
 def _build_workflow_v1(import_json, width, height, preset, seed, loras):
     """Original dual-model lora workflow (fallback)."""
-    wf = json.loads(json.dumps(_V1_TEMPLATE))
+    wf = _load_template("v1")
     wf["98:27"]["inputs"]["value"] = width
     wf["98:28"]["inputs"]["value"] = height
     wf["188"]["inputs"]["value"] = import_json
@@ -277,6 +307,36 @@ def _build_workflow_v1(import_json, width, height, preset, seed, loras):
     return wf
 
 
+def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
+    """MOSS-Image workflow (workflow_template_moss.json). Prompt is the compiled
+    layout JSON or a plain caption; negative may be an empty string."""
+    settings = MOSS_PRESETS[preset]
+    if seed is None or seed < 0:
+        seed = random.randint(0, 2**53 - 1)
+    wf = _load_template("moss")
+    wf["7"]["inputs"]["text"] = prompt
+    wf["8"]["inputs"]["text"] = negative
+    wf["9"]["inputs"]["width"] = width
+    wf["9"]["inputs"]["height"] = height
+    sampler = wf["10"]["inputs"]
+    sampler["seed"] = seed
+    sampler["steps"] = settings["steps"]
+    sampler["cfg"] = settings["cfg"]
+    sampler["sampler_name"] = settings["sampler"]
+    sampler["scheduler"] = settings["scheduler"]
+    if not settings["dmd"]:
+        del wf["4"]
+        wf["5"]["inputs"]["model"] = ["1", 0]
+    if settings["slg"] is None:
+        del wf["6"]
+        wf["10"]["inputs"]["model"] = ["5", 0]
+    else:
+        wf["6"]["inputs"]["start_percent"] = settings["slg"][0]
+        wf["6"]["inputs"]["end_percent"] = settings["slg"][1]
+    _populate_lora_loader(wf, "5", loras, "positive")
+    return wf
+
+
 def handler(job):
     job_input = job["input"]
     job_id = job["id"]
@@ -287,20 +347,33 @@ def handler(job):
     if isinstance(import_json, (dict, list)):
         import_json = json.dumps(import_json)
 
+    model = job_input.get("model", "ideogram")
+    if model not in ("ideogram", "moss"):
+        return {"error": f"Unknown model '{model}'"}
+
     width = job_input.get("width", 1024)
     height = job_input.get("height", 1024)
-    preset = job_input.get("preset", "Default")
     seed = job_input.get("seed")
     loras = job_input.get("loras") or []
-    workflow_key = job_input.get("workflow", "turbo")
-    if workflow_key not in WORKFLOW_TEMPLATES:
-        return {"error": f"Unknown workflow '{workflow_key}'"}
+    if model == "moss":
+        # `workflow` is ignored for MOSS; the preset resolves server-side.
+        preset = job_input.get("preset", "Fast")
+        if preset not in MOSS_PRESETS:
+            return {"error": f"Unknown MOSS preset '{preset}'"}
+        negative_prompt = job_input.get("negative_prompt", "")
+    else:
+        preset = job_input.get("preset", "Default")
+        workflow_key = job_input.get("workflow", "turbo")
+        if workflow_key not in WORKFLOW_TEMPLATES:
+            return {"error": f"Unknown workflow '{workflow_key}'"}
     turbo_strength = job_input.get("turbo_strength", 0.8)
 
     if not isinstance(width, int) or not isinstance(height, int):
         return {"error": "'width' and 'height' must be integers"}
     if width <= 0 or height <= 0:
         return {"error": "'width' and 'height' must be positive integers"}
+    if model == "moss" and (width % 16 != 0 or height % 16 != 0):
+        return {"error": "'width' and 'height' must be multiples of 16 for MOSS-Image"}
 
     if not check_server(f"http://{COMFY_HOST}/", COMFY_API_AVAILABLE_MAX_RETRIES, COMFY_API_AVAILABLE_INTERVAL_MS):
         return {"error": f"ComfyUI server ({COMFY_HOST}) not reachable after multiple retries."}
@@ -319,9 +392,6 @@ def handler(job):
     else:
         print(f"worker-ideogram4 - No LoRAs active (pass-through)")
 
-    workflow = build_workflow(workflow_key, import_json, width, height, preset, seed, resolved_loras, turbo_strength)
-    print(f"worker-ideogram4 - Workflow: {workflow_key}, turbo_strength: {turbo_strength}")
-
     ws = None
     client_id = str(uuid.uuid4())
     prompt_id = None
@@ -329,6 +399,15 @@ def handler(job):
     errors = []
 
     try:
+        if model == "moss":
+            workflow = _build_workflow_moss(import_json, negative_prompt, width, height, preset, seed, resolved_loras)
+            used_seed = workflow["10"]["inputs"]["seed"]
+            print(f"worker-ideogram4 - Workflow: moss, preset: {preset}")
+        else:
+            workflow = build_workflow(workflow_key, import_json, width, height, preset, seed, resolved_loras, turbo_strength)
+            used_seed = workflow["160"]["inputs"]["seed"]
+            print(f"worker-ideogram4 - Workflow: {workflow_key}, turbo_strength: {turbo_strength}")
+
         ws_url = f"ws://{COMFY_HOST}/ws?clientId={client_id}"
         ws = websocket.WebSocket()
         ws.connect(ws_url, timeout=10)
@@ -424,7 +503,7 @@ def handler(job):
     if not output_data:
         return {"error": "No images generated", "details": errors}
 
-    result = {"images": output_data}
+    result = {"images": output_data, "seed": used_seed}
     if errors:
         result["errors"] = errors
 
