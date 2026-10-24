@@ -136,3 +136,19 @@ python client.py runpod/example_moss_layout.json \
 | `WEBSOCKET_RECONNECT_ATTEMPTS` | `5` | WebSocket reconnect attempts |
 | `WEBSOCKET_RECONNECT_DELAY_S` | `3` | Delay between reconnects |
 | `HF_TOKEN` | — | HuggingFace bearer token; lets the worker download user LoRAs from private HF repos |
+
+## Credentials keys (in `~/.config/llm-credentials.json`)
+
+```json
+{
+  "runpod": { "api_key": "…", "endpoint_id": "ideogram-endpoint", "endpoints": { "moss": "moss-endpoint" } },
+  "modal": { "endpoint_url": "…", "auth_token": "…", "lora_volume": "ideogram-loras" },
+  "huggingface": { "token": "hf_…", "lora_repo": "you/private-loras" }
+}
+```
+
+`modal.lora_volume` + `huggingface` enable the **local LoRA upload** flow: the
+editor's LoRA panel "+ Add → File" streams the `.safetensors` to `server.py`,
+which pushes it to the Modal volume (`modal volume put`) and/or the private HF
+repo (`hf upload`). Workers pick it up from the volume (reloaded per job) or
+download it on demand with `HF_TOKEN`. The token is never returned by the API.

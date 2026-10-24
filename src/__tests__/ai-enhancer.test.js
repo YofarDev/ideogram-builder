@@ -194,3 +194,81 @@ describe('enhancePrompt errors', () => {
     })
   })
 })
+
+describe('MOSS enhance flow (D4)', () => {
+  const MOSS_DOM_EXTRA = `
+    <input type="radio" id="ai_moss_layout" name="ai_moss_format" value="layout" checked>
+    <input type="radio" id="ai_moss_caption" name="ai_moss_format" value="caption">
+  `
+  const DRAFT = JSON.stringify({
+    width: 1024, height: 1024, bbox_coord_space: 'abs', bbox_format: 'xyxy',
+    summary: { caption: 'A fox' },
+    items: [{ label: 'object', caption: 'd', bbox: [0, 0, 512, 512] }],
+  })
+
+  async function initMossModule(apiMock) {
+    vi.resetModules()
+    document.body.insertAdjacentHTML('beforeend', MOSS_DOM_EXTRA)
+    global.fetch = apiMock
+    const mod = await import('../ai-enhancer.js')
+    const fresh = await import('../state.js')
+    fresh.state.model = 'moss'
+    mod.initAIEnhancer()
+    await vi.waitFor(() => expect(document.getElementById('btn-ai-enhance').disabled).toBe(false))
+    return { mod, freshState: fresh.state }
+  }
+
+  it('layout mode sends the MOSS draft system prompt + pixel canvas and applies via prompt:apply', async () => {
+    let capturedBody = null
+    const apiMock = vi.fn().mockImplementation(async (url, opts) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      capturedBody = JSON.parse(opts.body)
+      return { ok: true, json: () => Promise.resolve({ choices: [{ message: { content: DRAFT } }] }) }
+    })
+    await initMossModule(apiMock)
+
+    const { on } = await import('../events.js')
+    const applied = []
+    const loaded = []
+    on('prompt:apply', ({ raw }) => applied.push(raw))
+    on('state:loaded', (d) => loaded.push(d))
+
+    document.getElementById('ai-prompt').value = 'a fox'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => expect(applied.length).toBe(1))
+
+    expect(applied[0]).toBe(DRAFT)
+    expect(loaded).toEqual([]) // MOSS path never emits the Ideogram state:loaded
+    expect(capturedBody.messages[0].content).toContain('bbox_coord_space')
+    expect(capturedBody.messages[1].content).toContain('1024\u00d71024 pixels')
+  })
+
+  it('caption mode applies the plain text', async () => {
+    const apiMock = vi.fn().mockImplementation(async (url) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: true, json: () => Promise.resolve({ choices: [{ message: { content: 'A red fox in snow.' } }] }) }
+    })
+    await initMossModule(apiMock)
+    document.getElementById('ai_moss_caption').checked = true
+
+    const { on } = await import('../events.js')
+    const applied = []
+    on('prompt:apply', ({ raw }) => applied.push(raw))
+    document.getElementById('ai-prompt').value = 'a fox'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => expect(applied).toEqual(['A red fox in snow.']))
+  })
+
+  it('non-JSON layout response surfaces the error status', async () => {
+    const apiMock = vi.fn().mockImplementation(async (url) => {
+      if (url.includes('/api/config')) return { ok: true, json: () => Promise.resolve(CONFIG) }
+      return { ok: true, json: () => Promise.resolve({ choices: [{ message: { content: 'nope' } }] }) }
+    })
+    await initMossModule(apiMock)
+    document.getElementById('ai-prompt').value = 'a fox'
+    document.getElementById('btn-ai-enhance').click()
+    await vi.waitFor(() => {
+      expect(document.getElementById('ai-status').textContent).toContain('Invalid JSON')
+    })
+  })
+})

@@ -3404,6 +3404,12 @@
                                 <option value="">Loading...</option>
                             </select>
                             <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+                            <div class="pill-group moss-only" id="ai-moss-format" role="radiogroup" aria-label="MOSS output format" style="margin-left:8px;">
+                                <input type="radio" id="ai_moss_layout" name="ai_moss_format" value="layout" checked>
+                                <label for="ai_moss_layout" class="pill-label">Layout</label>
+                                <input type="radio" id="ai_moss_caption" name="ai_moss_format" value="caption">
+                                <label for="ai_moss_caption" class="pill-label">Caption</label>
+                            </div>
                         </div>
                     </div>
                     <div class="prompt-ar-row">
@@ -3584,8 +3590,8 @@
                                 <button id="btn-vision-find-more" class="btn" type="button" style="display:none;">Find missing</button>
                                 <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
                             </div>
-                            <div class="vision-audit ideogram-only" id="vision-audit">
-                                <div class="vision-audit-controls">
+                            <p class="moss-only" style="font-size:12px;color:var(--text-muted);padding:8px 2px;">Audit supports Ideogram JSON only.</p>
+                            <div class="vision-audit ideogram-only" id="vision-audit">                                <div class="vision-audit-controls">
                                     <select id="audit-model" class="ai-model-select" aria-label="Audit model"></select>
                                     <button id="btn-audit-run" class="btn btn-primary" type="button">Run Audit</button>
                                 </div>

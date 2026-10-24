@@ -20,29 +20,43 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 3. No module touches another module's DOM elements (except app.js for button wiring)
 4. Max ~150 LOC per file — split if approaching 200
 5. State mutations centralized in `state.js`
+6. Pure helpers (`prompt-*.js`, `escape-html.js`) have no DOM/state access and may be imported by any module. Same-feature split files (`json-builder-moss.js`, `settings-box.js`, `gallery-meta.js`, …) may import each other
 
 ## Module Map
 
 | Module | Owns | Imports from |
 |--------|------|-------------|
-| `state.js` | All mutable state (boxes, palette, canvas dims, mode) | nothing |
+| `state.js` | All mutable state (boxes + tags, palette, canvas dims, mode, `model`, `moss` promptMode/preset) + `syncBoxesFromDOM()` | nothing |
 | `events.js` | Pub/sub event bus | nothing |
 | `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events, image overlay | state, events |
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
-| `json-builder.js` | JSON output textarea | state, events |
-| `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll | nothing |
+| `json-builder.js` | JSON pane dispatcher: format-detecting apply (Ideogram/MOSS/draft/caption + auto model switch), Ideogram output, format chip | state, events, toast, prompt-convert, json-builder-moss |
+| `json-builder-moss.js` | MOSS layout/caption output + MOSS apply path (split of json-builder) | state, events, toast, prompt-moss |
+| `model.js` | Workspace switch (`#model-toggle`, Ideogram/MOSS), `model:set`/`model:changed` events, persistence | state, events |
+| `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll; moss → `runpod.endpoints.moss` | nothing |
+| `settings-box.js` | Box Properties form: type toggle (obj/text/character), text/desc/tags, X/Y/W/H (split of settings) | state, events |
+| `settings-moss.js` | MOSS fieldset: prompt format, caption/meta/canvas/negative, D4 seeding on model switch | state, events, toast, prompt-convert |
+| `prompt-moss.js` | Pure MOSS layout helpers: buildMossLayout/compileMoss/parseMoss/predicates (ComfyUI-matching maths) | nothing |
+| `prompt-convert.js` | Pure format detection + Ideogram↔MOSS global converters | prompt-moss |
+| `lora-library.js` | LoRA library data: per-model built-ins + user entries in localStorage | nothing |
+| `lora-add.js` | "+ Add" LoRA form: URL or file upload (XHR progress) → `lora:added` | state, events, toast |
+| `gallery-meta.js` | Gallery card meta restore (model-first, MOSS preset/negative/prompt-mode) | state, events, lora |
+| `session-moss.js` | MOSS session capture/restore (model, moss inputs, prompt mode, preset) | state, events |
+| `collections-io.js` | Collection file export/import (model-aware) | events, toast, collections-data |
+| `ai-enhancer-moss.js` | MOSS prompts for the AI enhancer (layout draft / caption) + result validation | events, prompt-moss |
+| `vision-moss.js` | Vision result → `moss` payload conversion (ideogramGlobalsToMoss) | prompt-convert |
 | `modal.js` | Modal serverless API calls: `runJob(snapshot)` submit + poll (mirrors runpod.js) | nothing |
 | `backend.js` | Dispatcher — routes `runJob(snapshot)` to RunPod or Modal per `localStorage.ideogram_backend` | runpod, modal |
 | `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, backend, toast |
-| `png-import.js` | PNG metadata parsing, drag-drop, JSON load | state, events |
-| `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo) | events |
-| `gallery.js` | Tab switching, history grid, thumbnail creation, localStorage | events |
+| `png-import.js` | PNG metadata parsing, drag-drop; per-node prompt detection (Ideogram/MOSS) → `prompt:apply` | state, events, toast, prompt-convert |
+| `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo); MOSS mode delegates to ai-enhancer-moss | state, events, ai-enhancer-moss |
+| `gallery.js` | Tab switching, history grid, model chips, MOSS load routing | events, state, prompt-convert, gallery-meta |
 | `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
 | `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
-| `lora.js` | LoRA library (localStorage), selection, override application | state, events |
-| `collections.js` | Collections tab UI, localStorage CRUD, batch generation | events, queue (enqueueImportJson), toast |
+| `lora.js` | LoRA panel: per-model rendering, multi-selection, user-entry delete, restore | state, events, toast, lora-library |
+| `collections.js` | Collections actions: per-model items, batch generate with each item's model, load-to-editor | events, state, toast, collections-data, collections-ui, collections-io |
 | `app.js` | Button wiring, init orchestration | all modules |
-| `session.js` | Session persistence — save/restore content + config + UI to `localStorage.ideogram_session` | state, events |
+| `session.js` | Session persistence — save/restore content + config + UI (+ MOSS via session-moss) to `localStorage.ideogram_session` | events, prompt-convert, session-moss |
 
 ## Event Catalog
 
@@ -55,16 +69,20 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
-| `state:loaded` | `{ json }` | png-import, ai-enhancer, vision (process), audit (apply) | canvas (boxes), settings (form), palette (colors), layers (rebuild) |
+| `state:loaded` | `{ json, moss? }` — `moss` payload `{caption, meta, canvas, palette, negative?}` fills the MOSS inputs | png-import, json-builder (apply), gallery, session, vision (+ `moss` in MOSS mode), collections | canvas (boxes + tags), settings (Ideogram form), settings-moss (MOSS inputs), palette (colors), layers (rebuild) |
 | `layers:reordered` | none | layers | canvas (reapply z-index) |
 | `box:visibility` | `{ id, visible }` | layers | canvas (hide/show DOM) |
 | `box:lock` | `{ id, locked }` | layers | canvas (prevent interaction) |
 | `box:desc` | `{ id }` | settings (recaption) | canvas (update label) |
-| `collection:add` | `{ importJson }` | gallery (card button), editor (JSON header button) | collections (addItem) |
+| `collection:add` | `{ importJson, imageUrl?, model? }` | gallery (card button), editor (JSON header button) | collections (addItem with model) |
+| `model:set` | `{ model, seed? }` — request a switch; `seed: false` suppresses D4 field seeding (paste-driven switches) | json-builder, gallery-meta, session-moss, png-import (via prompt:apply), collections | model |
+| `model:changed` | `{ model, previous, seed }` | model | settings (4M→2M), settings-box (type toggle re-render), settings-moss (D4 seeding), json-builder (regenerate), lora (per-model filter) |
+| `prompt:apply` | `{ raw }` — shared apply path (format detection + model switch + boxes) | json-builder (own button), gallery (loadItem), session (applyContent), png-import, collections (loadItemToEditor), ai-enhancer-moss | json-builder |
+| `lora:added` | `{ entry }` | lora-add | lora (library insert) |
 | `vision:find-more-results` | `{ elements }` | vision (Find missing) | audit (render as add_element cards) |
 
 
-> **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly.
+> **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly. `queue:enqueue` payloads carry `{ importJson, model }` (collections pass each item's model); generation meta carries `model`, `negativePrompt`, `promptFormat`, `mossPreset`.
 
 ## Editing Guide
 
