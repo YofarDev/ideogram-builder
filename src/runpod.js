@@ -16,12 +16,19 @@ async function getConfig() {
  * @returns {Promise<{ dataUrl: string, imageUrl: string }>}
  */
 export async function runJob(snapshot, { onStatus, signal } = {}) {
-    const { api_key, endpoint_id } = await getConfig();
-    if (!api_key || !endpoint_id) {
-        throw new Error('RunPod not configured. Add runpod.api_key and runpod.endpoint_id to ~/.config/llm-credentials.json');
+    const { api_key, endpoint_id, endpoints } = await getConfig();
+    // MOSS runs on its own endpoint (runpod.endpoints.moss); Ideogram and
+    // untyped snapshots fall back to the shared endpoint_id.
+    const target = snapshot.model === 'moss'
+        ? endpoints?.moss
+        : endpoint_id;
+    if (!api_key || !target) {
+        throw new Error(snapshot.model === 'moss'
+            ? 'RunPod MOSS endpoint not configured. Add runpod.endpoints.moss to ~/.config/llm-credentials.json'
+            : 'RunPod not configured. Add runpod.api_key and runpod.endpoint_id to ~/.config/llm-credentials.json');
     }
 
-    const baseUrl = `https://api.runpod.ai/v2/${endpoint_id}`;
+    const baseUrl = `https://api.runpod.ai/v2/${target}`;
     const headers = {
         'Authorization': `Bearer ${api_key}`,
         'Content-Type': 'application/json',
@@ -40,6 +47,10 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
                 turbo_strength: snapshot.turboStrength,
                 loras: snapshot.loras,
                 seed: snapshot.seed,
+                ...(snapshot.model === 'moss' ? {
+                    model: 'moss',
+                    negative_prompt: snapshot.negativePrompt ?? '',
+                } : {}),
             }
         }),
         signal,

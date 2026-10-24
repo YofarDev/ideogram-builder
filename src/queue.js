@@ -19,11 +19,16 @@ function buildSnapshot() {
     } catch {
         importJson = jsonText;
     }
+    const isMoss = state.model === 'moss';
     return {
         importJson,
+        model: state.model,
+        // MOSS-only; empty for Ideogram so its payload stays unchanged
+        negativePrompt: isMoss ? (document.getElementById('moss-negative')?.value ?? '') : '',
+        promptFormat: isMoss ? state.moss.promptMode : 'layout',
         width: state.canvas.width,
         height: state.canvas.height,
-        preset: state.preset,
+        preset: isMoss ? state.moss.preset : state.preset,
         workflow: state.workflow,
         turboStrength: state.turboStrength,
         loras: state.loras.map(l => ({
@@ -37,10 +42,13 @@ function buildSnapshot() {
     };
 }
 
-function makeJob(importJson) {
+function makeJob(importJson, model) {
+    const snapshot = { ...buildSnapshot(), importJson };
+    // Collections pass their item's model; other snapshot fields stay from the UI (v1)
+    if (model) snapshot.model = model;
     return {
         id: counter++,
-        snapshot: { ...buildSnapshot(), importJson },
+        snapshot,
         status: 'queued',
         abort: new AbortController(),
     };
@@ -57,9 +65,9 @@ export function enqueue() {
     drain();
 }
 
-export function enqueueImportJson(importJson) {
+export function enqueueImportJson(importJson, { model } = {}) {
     if (!importJson || !importJson.trim()) return;
-    queue.push(makeJob(importJson));
+    queue.push(makeJob(importJson, model));
     render();
     drain();
 }

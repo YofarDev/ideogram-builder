@@ -1,8 +1,11 @@
-// json-builder.js — Generate Ideogram4 JSON prompt from state
+// json-builder.js — Generate the prompt JSON from state (Ideogram 4 or MOSS)
+// and apply pasted/loaded JSON back into the editor (format auto-detected).
 
-import { state, MODE_PHOTO } from './state.js';
+import { state, MODE_PHOTO, syncBoxesFromDOM } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
+import { detectPromptFormat } from './prompt-convert.js';
+import { generateMoss, applyMossText, applyCaptionText } from './json-builder-moss.js';
 
 let isLoadingFromJSON = false;
 
@@ -51,9 +54,9 @@ export function initJsonBuilder() {
     }
     document.getElementById('json-output').value = text;
     if (applyJsonText(text, 'btn-paste-json')) {
-      showToast('JSON pasted and applied.', 'success', 1500);
+      showToast('Prompt pasted and applied.', 'success', 1500);
     } else {
-      showToast('Clipboard has no valid prompt JSON.', 'error');
+      showToast('No valid prompt found — expected Ideogram JSON, MOSS layout, or a caption.', 'error');
     }
   });
 
@@ -70,21 +73,47 @@ export function initJsonBuilder() {
 }
 
 function applyJsonText(raw, btnId) {
-  try {
-    const json = JSON.parse(raw);
-    if (!json.high_level_description && !json.style_description && !json.compositional_deconstruction) {
-      flashError(document.getElementById(btnId));
-      return false;
+  const btn = document.getElementById(btnId);
+  const format = detectPromptFormat(raw);
+  if (format === 'empty') {
+    flashError(btn);
+    return false;
+  }
+
+  if (format === 'ideogram') {
+    if (state.model === 'moss') {
+      emit('model:set', { model: 'ideogram' });
+      showToast('Switched to Ideogram 4 — pasted Ideogram JSON.', 'info');
     }
+    const json = JSON.parse(raw);
     isLoadingFromJSON = true;
     emit('state:loaded', { json });
     isLoadingFromJSON = false;
     generateJSON();
     return true;
-  } catch {
-    flashError(document.getElementById(btnId));
-    return false;
   }
+
+  if (format === 'moss' || format === 'moss-draft') {
+    if (state.model !== 'moss') {
+      emit('model:set', { model: 'moss' });
+      showToast('Switched to MOSS-Image — pasted MOSS layout JSON.', 'info');
+    }
+    isLoadingFromJSON = true;
+    applyMossText(raw);
+    isLoadingFromJSON = false;
+    generateJSON();
+    return true;
+  }
+
+  // Plain natural-language caption
+  if (state.model === 'moss') {
+    applyCaptionText(raw);
+    generateJSON();
+    return true;
+  }
+
+  flashError(btn);
+  return false;
 }
 
 async function readClipboard() {
@@ -102,19 +131,16 @@ function flashError(btn) {
 }
 
 export function generateJSON() {
-  const canvasW = state.canvas.width;
-  const canvasH = state.canvas.height;
+  if (state.model === 'moss') {
+    generateMoss();
+    return;
+  }
+  generateIdeogram();
+}
 
+function generateIdeogram() {
   // Sync box positions from DOM → state (normalize to 0-1000)
-  state.boxes.forEach((box) => {
-    const dom = document.getElementById(box.id);
-    if (dom) {
-      box.x = (parseFloat(dom.style.left) / canvasW) * 1000;
-      box.y = (parseFloat(dom.style.top) / canvasH) * 1000;
-      box.w = (parseFloat(dom.style.width) / canvasW) * 1000;
-      box.h = (parseFloat(dom.style.height) / canvasH) * 1000;
-    }
-  });
+  syncBoxesFromDOM();
 
   // Values already in 0-1000, just clamp
   const clamp = (v) => Math.min(1000, Math.max(0, Math.round(v)));
@@ -127,7 +153,9 @@ export function generateJSON() {
     const x2 = clamp(box.x + box.w);
     const y2 = clamp(box.y + box.h);
 
-    const el = { type: box.mode, bbox: [y1, x1, y2, x2] };
+    // character is a MOSS-only type — Ideogram has no slot for it
+    const type = box.mode === 'character' ? 'obj' : box.mode;
+    const el = { type, bbox: [y1, x1, y2, x2] };
     if (box.mode === 'text') el.text = box.text;
     el.desc = box.desc;
     if (box.colors?.length > 0) el.color_palette = box.colors;
@@ -157,4 +185,6 @@ export function generateJSON() {
 
   output.style_description.color_palette = state.globalPalette;
   document.getElementById('json-output').value = JSON.stringify(output, null, 2);
+  const chip = document.getElementById('json-format-chip');
+  if (chip) chip.textContent = 'Ideogram JSON';
 }

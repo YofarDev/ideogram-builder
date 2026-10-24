@@ -5,7 +5,9 @@ import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
 import { enqueue, initQueue } from './queue.js';
 import { initImport } from './png-import.js';
+import { initModel } from './model.js';
 import { initSettings } from './settings.js';
+import { initSettingsMoss } from './settings-moss.js';
 import { initAIEnhancer } from './ai-enhancer.js';
 import { initGallery } from './gallery.js';
 import { initLayers } from './layers.js';
@@ -19,7 +21,9 @@ import { showToast } from './toast.js';
 import { emit, on } from './events.js';
 
 // Initialize all modules
+initModel();
 initSettings();
+initSettingsMoss();
 initAIEnhancer();
 initPalette();
 initJsonBuilder();

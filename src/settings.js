@@ -2,6 +2,7 @@ import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { initRecaption } from './settings-recaption.js';
+import { initBoxForm } from './settings-box.js';
 
 function round16(v) {
   return Math.round(v / 16) * 16;
@@ -63,20 +64,6 @@ export function initSettings() {
   document.getElementById('mode_photo').addEventListener('change', () => { setPhotoArtMode(MODE_PHOTO); emit('state:changed'); });
   document.getElementById('mode_artstyle').addEventListener('change', () => { setPhotoArtMode(MODE_ARTSTYLE); emit('state:changed'); });
 
-  ['box-mode', 'box-text', 'box-desc'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', () => { updateBoxData(); emit('state:changed'); });
-  });
-
-  // Element Type segmented toggle (Object / Text) — writes the hidden #box-mode input
-  document.querySelectorAll('#box-mode-toggle .mode-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const hidden = document.getElementById('box-mode');
-      hidden.value = btn.dataset.mode;
-      syncModeToggle(btn.dataset.mode);
-      hidden.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-  });
-
   ['high_level_description', 'aesthetics', 'lighting', 'medium', 'art_style', 'background'].forEach((id) => {
     document.getElementById(id).addEventListener('input', () => emit('state:changed'));
   });
@@ -86,6 +73,31 @@ export function initSettings() {
     radio.addEventListener('change', () => {
       if (radio.dataset.preset) state.preset = radio.dataset.preset;
     });
+  });
+
+  // MOSS preset (Turbo β / Fast / Quality) — resolved server-side in handler.py
+  const savedMossPreset = localStorage.getItem('ideogram_moss_preset');
+  if (['Turbo', 'Fast', 'Quality'].includes(savedMossPreset)) {
+    state.moss.preset = savedMossPreset;
+    const radio = document.querySelector(`input[name="moss_preset"][value="${savedMossPreset}"]`);
+    if (radio) radio.checked = true;
+  }
+  document.querySelectorAll('input[name="moss_preset"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.moss.preset = radio.value;
+      localStorage.setItem('ideogram_moss_preset', radio.value);
+    });
+  });
+
+  // MOSS tops out ~4M total pixels — the 4M tier (up to 9.4M) is Ideogram-only.
+  // Switching to MOSS with 4M active falls back to 2M and re-runs the resize.
+  on('model:changed', ({ model }) => {
+    if (model !== 'moss') return;
+    const active = document.querySelector('.size-btn.active');
+    if (active?.dataset.size === '4') {
+      const twoM = document.querySelector('.size-btn[data-size="2"]');
+      if (twoM) twoM.click();
+    }
   });
 
   // Workflow engine — Turbo (turbotime) vs Classic (v1 dual-model). Toggle lives in the top toolbar.
@@ -163,51 +175,6 @@ export function initSettings() {
     seedInput.value = randomSeed;
   });
 
-  on('box:selected', ({ id }) => {
-    const boxPanel = document.getElementById('box-panel');
-    if (id) {
-      const box = state.boxes.find(b => b.id === id);
-      if (!box) return;
-      boxPanel.style.display = 'block';
-      document.getElementById('box-mode').value = box.mode;
-      syncModeToggle(box.mode);
-      document.getElementById('box-text').value = box.text;
-      document.getElementById('box-desc').value = box.desc;
-      document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
-      populateGeometry(box);
-      document.getElementById('recaption-group').style.display = state.imageDataUrl ? 'block' : 'none';
-    } else {
-      boxPanel.style.display = 'none';
-    }
-  });
-
-  // X/Y/W/H pixel editors → normalized box coords
-  ['box-x', 'box-y', 'box-w', 'box-h'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', () => {
-      if (!state.selectedBoxId) return;
-      const box = state.boxes.find(b => b.id === state.selectedBoxId);
-      if (!box) return;
-      const raw = parseFloat(document.getElementById(id).value);
-      if (isNaN(raw)) return;
-      const cw = state.canvas.width, ch = state.canvas.height;
-      const max = (id === 'box-x' || id === 'box-w') ? cw : ch;
-      const v = Math.min(max, Math.max(0, raw));
-      if (v !== raw) document.getElementById(id).value = v;
-      if (id === 'box-x') box.x = (v / cw) * 1000;
-      else if (id === 'box-y') box.y = (v / ch) * 1000;
-      else if (id === 'box-w') box.w = (v / cw) * 1000;
-      else if (id === 'box-h') box.h = (v / ch) * 1000;
-      emit('box:geometry', { id: box.id });
-    });
-  });
-
-  // Keep X/Y/W/H in sync after canvas drag/resize
-  on('state:changed', () => {
-    if (!state.selectedBoxId) return;
-    const box = state.boxes.find(b => b.id === state.selectedBoxId);
-    if (box) populateGeometry(box);
-  });
-
   on('state:loaded', ({ json }) => {
     document.getElementById('high_level_description').value = json.high_level_description || '';
     document.getElementById('aesthetics').value = json.style_description?.aesthetics || '';
@@ -227,6 +194,7 @@ export function initSettings() {
   });
 
   initRecaption();
+  initBoxForm();
 
   setPhotoArtMode(MODE_ARTSTYLE);
 }
@@ -240,33 +208,4 @@ function setPhotoArtMode(mode) {
     document.getElementById('medium').disabled = false;
     document.getElementById('mode_label').innerText = 'Art Style';
   }
-}
-
-function syncModeToggle(mode) {
-  document.querySelectorAll('#box-mode-toggle .mode-btn').forEach((b) => {
-    const on = b.dataset.mode === mode;
-    b.classList.toggle('active', on);
-    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
-}
-
-function updateBoxData() {
-  if (!state.selectedBoxId) return;
-  const box = state.boxes.find(b => b.id === state.selectedBoxId);
-  if (!box) return;
-  box.mode = document.getElementById('box-mode').value;
-  box.text = document.getElementById('box-text').value;
-  box.desc = document.getElementById('box-desc').value;
-  document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
-
-  const label = document.getElementById(state.selectedBoxId)?.querySelector('.box-label');
-  if (label) label.textContent = box.text || box.desc || '';
-}
-
-function populateGeometry(box) {
-  const cw = state.canvas.width, ch = state.canvas.height;
-  document.getElementById('box-x').value = Math.round((box.x / 1000) * cw);
-  document.getElementById('box-y').value = Math.round((box.y / 1000) * ch);
-  document.getElementById('box-w').value = Math.round((box.w / 1000) * cw);
-  document.getElementById('box-h').value = Math.round((box.h / 1000) * ch);
 }
