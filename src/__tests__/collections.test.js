@@ -118,10 +118,88 @@ describe('collections data layer', () => {
     mod.loadItemToEditor(c.items.at(-1).id)
     expect(emit).toHaveBeenCalledWith('state:loaded', { json: expect.objectContaining({ high_level_description: 'hi' }) })
     emit.mockClear()
-    const c2 = mod.addItem('not json')
+    const c2 = mod.addItem('not json', null, 'ideogram')
     emit.mockClear()
     mod.loadItemToEditor(c2.items.at(-1).id)
     expect(emit).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('loadable'), 'error')
+  })
+})
+
+describe('per-model items (D2)', () => {
+  const MOSS_LAYOUT = JSON.stringify({
+    summary: { caption: 'A poster' },
+    items: [{ label: 'object', caption: 'd', bbox: [0, 0, 100, 100] }],
+    bbox_coord_space: 'abs_centralized',
+    bbox_format: 'yxyx',
+  })
+  const IDEOGRAM_JSON = '{"high_level_description":"hi"}'
+
+  it('addItem infers model: ideogram JSON / moss layout / plain caption → moss', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('Mix')
+    const c = mod.getActive()
+    mod.addItem(IDEOGRAM_JSON)
+    mod.addItem(MOSS_LAYOUT)
+    mod.addItem('A red fox in snow')
+    expect(c.items[0].model).toBe('ideogram')
+    expect(c.items[1].model).toBe('moss')
+    expect(c.items[2].model).toBe('moss')
+  })
+
+  it('explicit model wins over inference', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('X')
+    const c = mod.addItem(MOSS_LAYOUT, null, 'ideogram')
+    expect(c.items[0].model).toBe('ideogram')
+  })
+
+  it('legacy items without model default to ideogram behaviour', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('Legacy')
+    // Simulate a pre-MOSS stored collection: item without a model key
+    const colls = JSON.parse(localStorage.getItem('ideogram_collections'))
+    colls[0].items.push({ id: 'old1', importJson: IDEOGRAM_JSON, imageUrl: null })
+    localStorage.setItem('ideogram_collections', JSON.stringify(colls))
+
+    const emit = vi.fn()
+    const mod2 = await loadCollections({ emit })
+    const restored = mod2.getActive()
+    expect(restored.items[0].model).toBeUndefined() // stored shape untouched
+    emit.mockClear()
+    mod2.generateItem(restored.items[0].id)
+    expect(emit).toHaveBeenCalledWith('queue:enqueue', expect.objectContaining({ model: 'ideogram' }))
+  })
+
+  it('generateItem and generateCollection pass each item own model', async () => {
+    const emit = vi.fn()
+    const mod = await loadCollections({ emit })
+    mod.createCollection('Batch')
+    mod.addItem(IDEOGRAM_JSON)
+    mod.addItem(MOSS_LAYOUT)
+    emit.mockClear()
+    mod.generateCollection()
+    const models = emit.mock.calls.filter(c => c[0] === 'queue:enqueue').map(c => c[1].model)
+    expect(models).toEqual(['ideogram', 'moss'])
+  })
+
+  it('loadItemToEditor routes moss items through prompt:apply', async () => {
+    const emit = vi.fn()
+    const showToast = vi.fn()
+    const mod = await loadCollections({ emit, showToast })
+    mod.createCollection('M')
+    const c = mod.addItem(MOSS_LAYOUT)
+    emit.mockClear()
+    mod.loadItemToEditor(c.items[0].id)
+    expect(emit).toHaveBeenCalledWith('prompt:apply', { raw: MOSS_LAYOUT })
+  })
+
+  it('duplicateItem keeps the item model', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('D')
+    const c = mod.addItem(MOSS_LAYOUT)
+    mod.duplicateItem(c.items[0].id)
+    const items = mod.getActive().items
+    expect(items[1].model).toBe('moss')
   })
 })

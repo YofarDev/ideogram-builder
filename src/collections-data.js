@@ -1,6 +1,7 @@
 // collections-data.js — Data layer: module state, localStorage CRUD, no DOM rendering.
 
 import { emit } from './events.js';
+import { detectPromptFormat } from './prompt-convert.js';
 
 const LS_COLLECTIONS = 'ideogram_collections';
 const LS_ACTIVE = 'ideogram_active_collection';
@@ -41,6 +42,19 @@ export function getActive() { return collections.find(c => c.id === activeId) ||
 export function parsePrompt(importJson) {
   try { return JSON.parse(importJson) || {}; }
   catch { return {}; }
+}
+
+/** Model for a prompt: explicit value wins; otherwise inferred from format
+ * (plain captions can only be MOSS — Ideogram prompts are always JSON). */
+export function inferModel(importJson, model) {
+  if (model) return model;
+  const format = detectPromptFormat(importJson);
+  return format === 'ideogram' ? 'ideogram' : 'moss';
+}
+
+/** Model for a stored item — legacy items (no model) infer from their JSON. */
+export function detectModel(item) {
+  return item.model || inferModel(item.importJson);
 }
 
 export function extractTokens(importJson) {
@@ -114,11 +128,11 @@ export function deleteActive() {
   return collections[i]?.name;
 }
 
-export function addItem(importJson, imageUrl) {
+export function addItem(importJson, imageUrl, model) {
   const c = getActive();
   if (!c) return null;
   if (!importJson || !importJson.trim()) return null;
-  c.items.push({ id: uid(), importJson, imageUrl: imageUrl || null });
+  c.items.push({ id: uid(), importJson, imageUrl: imageUrl || null, model: inferModel(importJson, model) });
   save();
   emit('collection:data-changed');
   return c;
@@ -138,7 +152,7 @@ export function duplicateItem(itemId) {
   if (!c) return;
   const i = c.items.findIndex(it => it.id === itemId);
   if (i === -1) return;
-  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson, imageUrl: c.items[i].imageUrl });
+  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson, imageUrl: c.items[i].imageUrl, model: c.items[i].model });
   save();
   emit('collection:data-changed');
 }

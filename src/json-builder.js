@@ -31,6 +31,10 @@ export function initJsonBuilder() {
   // initSettingsMoss, which app.js calls before initJsonBuilder).
   on('model:changed', () => generateJSON());
 
+  // Shared apply path for other surfaces (gallery load, session restore, PNG
+  // import): full format detection + model switch, same as the Apply button.
+  on('prompt:apply', ({ raw }) => applyJsonText(raw, null));
+
   // Capture textarea value on pointerdown, before canvas pointerup
   // can overwrite it via state:changed → generateJSON().
   let capturedRaw = '';

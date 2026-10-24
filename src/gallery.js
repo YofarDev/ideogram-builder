@@ -1,7 +1,8 @@
 import { on, emit } from './events.js';
 import { escapeHtml } from './escape-html.js';
 import { state } from './state.js';
-import { restoreLorasFromMeta } from './lora.js';
+import { detectPromptFormat } from './prompt-convert.js';
+import { restoreMeta } from './gallery-meta.js';
 
 export function initGallery() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -101,6 +102,7 @@ async function renderGallery() {
                     <button class="gallery-card-btn delete" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="gallery-card-date">${dateStr}</div>
+                <span class="gallery-card-model">${item.meta?.model === 'moss' ? 'MOSS' : 'Ideogram'}</span>
                 <div class="gallery-card-prompt">${escapeHtml(desc)}</div>
             </div>
         `;
@@ -112,7 +114,7 @@ async function renderGallery() {
 
         card.querySelector('.gallery-card-btn.add-collection').addEventListener('click', (e) => {
             e.stopPropagation();
-            emit('collection:add', { importJson: item.prompt_json || '', imageUrl: `/output/${item.img}` });
+            emit('collection:add', { importJson: item.prompt_json || '', imageUrl: `/output/${item.img}`, model: item.meta?.model || 'ideogram' });
         });
 
         card.querySelector('.gallery-card-btn.delete').addEventListener('click', async (e) => {
@@ -143,10 +145,16 @@ function loadItem(item) {
 
     if (item.prompt_json) {
         document.getElementById('json-output').value = item.prompt_json;
-        try {
-            const json = JSON.parse(item.prompt_json);
-            emit('state:loaded', { json });
-        } catch {}
+        const format = detectPromptFormat(item.prompt_json);
+        if (format === 'moss' || format === 'moss-draft') {
+            // MOSS layout — same path as pasting it (model switch + parsed boxes)
+            emit('prompt:apply', { raw: item.prompt_json });
+        } else {
+            try {
+                const json = JSON.parse(item.prompt_json);
+                emit('state:loaded', { json });
+            } catch {}
+        }
     }
 
     if (item.meta && Object.keys(item.meta).length > 0) {
@@ -155,55 +163,6 @@ function loadItem(item) {
 
     switchTab('editor');
     emit('canvas:relayout');
-}
-
-function restoreMeta(meta) {
-    if (meta.seed !== undefined && meta.seed >= 0) {
-        state.seed = meta.seed;
-        const seedInput = document.getElementById('seed-input');
-        if (seedInput) seedInput.value = meta.seed;
-    }
-    if (meta.preset) {
-        state.preset = meta.preset;
-        document.querySelectorAll('input[name="steps"]').forEach(r => {
-            if (r.dataset.preset === meta.preset) r.checked = true;
-        });
-    }
-    if (meta.workflow) {
-        state.workflow = meta.workflow;
-        const wf = document.querySelector(`input[name="workflow"][value="${meta.workflow}"]`);
-        if (wf) wf.checked = true;
-        localStorage.setItem('ideogram_workflow', meta.workflow);
-    }
-    if (meta.turboStrength !== undefined) {
-        state.turboStrength = meta.turboStrength;
-        const ts = document.getElementById('turbo-strength');
-        if (ts) ts.value = meta.turboStrength;
-    }
-    if (meta.width && meta.height) {
-        state.canvas.width = meta.width;
-        state.canvas.height = meta.height;
-        const dd = document.getElementById('dim-display');
-        if (dd) dd.textContent = `${meta.width} \u00d7 ${meta.height}`;
-        const ar = document.getElementById('aspect-ratio');
-        if (ar) {
-            const opt = Array.from(ar.options).find(o => o.value === `${meta.width}x${meta.height}`);
-            if (opt) ar.value = opt.value;
-        }
-    }
-    if (meta.photoArtMode !== undefined) {
-        state.photoArtMode = meta.photoArtMode;
-        const modeRadio = document.getElementById(meta.photoArtMode === 1 ? 'mode_artstyle' : 'mode_photo');
-        if (modeRadio) modeRadio.checked = true;
-    }
-    if (meta.backend) {
-        localStorage.setItem('ideogram_backend', meta.backend);
-        const be = document.querySelector(`input[name="backend"][value="${meta.backend}"]`);
-        if (be) be.checked = true;
-    }
-    if (meta.loras && meta.loras.length > 0) {
-        restoreLorasFromMeta(meta.loras);
-    }
 }
 
 function downloadImage(item) {

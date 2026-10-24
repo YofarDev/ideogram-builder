@@ -169,6 +169,9 @@ describe('queue', () => {
         photoArtMode: 1,
         backend: 'runpod',
         loras: [],
+        model: 'ideogram',
+        negativePrompt: '',
+        promptFormat: 'layout',
       },
     })
   })
@@ -248,5 +251,28 @@ describe('buildSnapshot model fields', () => {
     })
     expect(captured.model).toBe('moss')
     expect(captured.importJson).toContain('coll')
+  })
+})
+
+describe('image:ready meta model fields', () => {
+  it('moss jobs carry model, negativePrompt, promptFormat and mossPreset', async () => {
+    const emit = vi.fn()
+    const { mod, freshState } = await (async () => {
+      const m = await loadQueue({ emit, runJob: okRunJob() })
+      return { mod: m, freshState: (await import('../state.js')).state }
+    })()
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Quality' }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    const meta = emit.mock.calls.find(c => c[0] === 'image:ready')[1].meta
+    expect(meta.model).toBe('moss')
+    expect(meta.mossPreset).toBe('Quality')
+    expect(meta.negativePrompt).toBe('nsfw')
+    expect(meta.promptFormat).toBe('layout')
+    // ideogram-only key absent for moss, and preset stays the moss preset
+    expect(meta.preset).toBe('Quality')
   })
 })

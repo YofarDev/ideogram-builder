@@ -1,5 +1,7 @@
 // session.js — Persist & restore session state (content + config + UI) across reloads.
 import { on, emit } from './events.js';
+import { detectPromptFormat } from './prompt-convert.js';
+import { captureMossConfig, restoreMoss } from './session-moss.js';
 
 const STORAGE_KEY = 'ideogram_session';
 export const VERSION = 1;
@@ -49,6 +51,7 @@ export function captureSnapshot() {
       aiModel: el('ai-model')?.value || '',
       visionModel: el('vision-model')?.value || '',
       recaptionModel: el('recaption-model')?.value || '',
+      ...captureMossConfig(),
     },
     ui: {
       tab: activeTab?.dataset.tab || 'editor',
@@ -79,11 +82,16 @@ function applyDimensions(config) {
   }
 }
 
-/** Restore prompt content via the existing state:loaded path. */
+/** Restore content via state:loaded; MOSS layouts route through prompt:apply. */
 function applyContent(content) {
   if (!content) return;
   const out = document.getElementById('json-output');
   if (out) out.value = content;
+  const format = detectPromptFormat(content);
+  if (format === 'moss' || format === 'moss-draft') {
+    emit('prompt:apply', { raw: content });
+    return;
+  }
   try {
     emit('state:loaded', { json: JSON.parse(content) });
   } catch {
@@ -118,6 +126,9 @@ export function restore() {
   const ui = blob.ui || {};
   const el = (id) => document.getElementById(id);
 
+  // 0. Model first (MOSS only) so content renders in the right format
+  const wasMoss = restoreMoss(config);
+
   // 1. Dimensions (before content — boxes need correct canvas size)
   applyDimensions(config);
 
@@ -129,7 +140,7 @@ export function restore() {
   //    handler emits state:changed → json-builder regenerates #json-output,
   //    which is safe/idempotent here (fields were just restored above).
   const modeRadio = config.mode === 'photo' ? el('mode_photo') : el('mode_artstyle');
-  if (modeRadio) {
+  if (modeRadio && !wasMoss) {
     modeRadio.checked = true;
     modeRadio.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -187,8 +198,8 @@ export function initSession() {
     if (armed) wipeContent();
   });
 
-  // Restore saved state, then arm the reset guard. (armed lives in module scope;
-  // set here — not inside restore() — so it flips even when no blob exists.)
+  // Restore saved state, then arm the reset guard (module-scope `armed` so it
+  // flips even when no blob exists).
   restore();
   armed = true;
 }

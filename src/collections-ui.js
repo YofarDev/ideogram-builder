@@ -1,10 +1,32 @@
 // collections-ui.js — DOM rendering for the Collections tab.
 // Imports data helpers from collections-data; no mutable state of its own.
 
-import { getAll, getActive, parsePrompt, labelFor, extractTokens, resolveTokens } from './collections-data.js';
+import { getAll, getActive, parsePrompt, labelFor, extractTokens, resolveTokens, detectModel } from './collections-data.js';
 import { drawPreview } from './collections-preview.js';
 import { collections, activeId, expandedId, editingId, setExpandedId } from './collections-data.js';
 import { escapeHtml } from './escape-html.js';
+import { isMossJson, parseMoss } from './prompt-moss.js';
+import { state } from './state.js';
+
+/** MOSS items preview from the parsed layout view (editor-format elements). */
+function itemElements(item) {
+  const parsed = parsePrompt(item.importJson);
+  if (detectModel(item) === 'moss' && isMossJson(parsed)) {
+    return parseMoss(parsed, { width: state.canvas.width, height: state.canvas.height })
+      .view.compositional_deconstruction.elements;
+  }
+  return parsed.compositional_deconstruction?.elements || [];
+}
+
+/** Card title: MOSS layouts use summary.caption, else the Ideogram hld. */
+function itemTitle(item) {
+  if (detectModel(item) === 'moss') {
+    const parsed = parsePrompt(item.importJson);
+    if (isMossJson(parsed)) return parsed.summary?.caption || labelFor(item.importJson);
+    return labelFor(item.importJson);
+  }
+  return parsePrompt(item.importJson).high_level_description || labelFor(item.importJson);
+}
 
 function relTime(ts) {
   if (!ts) return '';
@@ -66,11 +88,11 @@ function renderItems() {
     return;
   }
   grid.innerHTML = c.items.map(item => {
-    const p = parsePrompt(item.importJson);
-    const els = p.compositional_deconstruction?.elements || [];
-    const title = p.high_level_description || labelFor(item.importJson);
+    const els = itemElements(item);
+    const title = itemTitle(item);
     const mode = els[0]?.type || '\u2014';
     const open = item.id === expandedId;
+    const modelChip = detectModel(item) === 'moss' ? 'MOSS' : 'Ideogram';
     return `
       <article class="coll-card${open ? ' expanded' : ''}" data-card="${item.id}">
         <div class="coll-card-head">
@@ -81,18 +103,19 @@ function renderItems() {
         <div class="coll-card-body">
           <div class="coll-card-title">${escapeHtml(title)}</div>
           <div class="coll-card-meta">
+            <span class="coll-chip-meta">${modelChip}</span>
             <span class="coll-chip-meta">${els.length} box${els.length === 1 ? '' : 'es'}</span>
             <span class="coll-chip-meta">${escapeHtml(mode)}</span>
             ${paletteDots(els)}
           </div>
         </div>
-        ${open ? renderDetail(item, p, els) : ''}
+        ${open ? renderDetail(item, parsePrompt(item.importJson), els) : ''}
       </article>`;
   }).join('');
 
   c.items.forEach(item => {
     const canvas = grid.querySelector(`.coll-card[data-card="${item.id}"] .coll-preview`);
-    if (canvas) drawPreview(canvas, parsePrompt(item.importJson).compositional_deconstruction?.elements || [], 160);
+    if (canvas) drawPreview(canvas, itemElements(item), 160);
   });
 }
 
