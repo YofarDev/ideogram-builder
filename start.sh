@@ -23,4 +23,6 @@ else
   (sleep 1 && xdg-open "http://localhost:${PORT}") &
 fi
 
-exec python3 server.py
+# server.py imports img-to-json helpers that need numpy + Pillow; uv provides
+# them without depending on whatever the system python3 has installed.
+exec uv run --no-project --with numpy --with pillow python server.py
