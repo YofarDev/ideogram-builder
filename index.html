@@ -3164,6 +3164,38 @@
             box-shadow: 0 0 0 2px var(--accent-dim);
         }
         .vision-json-input::placeholder { color: var(--text-faint); font-style: italic; }
+
+        /* Layout polish: the top bar holds the workspace (tabs, model, backend);
+           engine/speed pills live next to Generate. Nothing may clip at 1280px+. */
+        .toolbar { gap: 16px; }
+        .tab-btn { white-space: nowrap; padding: 8px 10px; }
+        .toolbar-icon-btn { flex-shrink: 0; color: var(--text-muted); }
+        .pill-group { flex-shrink: 0; }
+
+        .editor-toolbar { flex-wrap: wrap; row-gap: 10px; }
+        .gen-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .gen-actions { display: flex; gap: 10px; flex-shrink: 0; }
+        .json-header .json-action-btn { padding: 6px 6px; }
+
+        .json-header .card-toggle { flex: 0 0 auto; white-space: nowrap; }
+        .json-format-chip {
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 500;
+            font-size: 11px;
+            padding: 2px 8px;
+        }
+
+        /* LoRA library scrolls inside its own box so the prompt fields stay in view */
+        .lora-card-list { max-height: 228px; overflow-y: auto; padding-right: 2px; }
+        .lora-card-name { font-family: var(--font-body); font-size: 12.5px; }
     </style>
 </head>
 <body>
@@ -3176,7 +3208,7 @@
         <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
         <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
-        <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;" title="Open the folder where generated images are saved">Open Output Folder</button>
+        <button id="btn-open-output" class="icon-btn toolbar-icon-btn" type="button" title="Open the folder where generated images are saved" aria-label="Open output folder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
         <div class="toolbar-spacer"></div>
         <div class="model-toggle pill-group" id="model-toggle" role="radiogroup" aria-label="Image model">
             <input type="radio" id="model-ideogram" name="model" value="ideogram" checked>
@@ -3189,28 +3221,6 @@
             <label for="backend-runpod" class="pill-label">RunPod</label>
             <input type="radio" id="backend-modal" name="backend" value="modal">
             <label for="backend-modal" class="pill-label">Modal</label>
-        </div>
-        <div class="workflow-toggle pill-group ideogram-only" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
-            <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
-            <label for="workflow-turbo" class="pill-label">Turbo</label>
-            <input type="radio" id="workflow-classic" name="workflow" value="v1">
-            <label for="workflow-classic" class="pill-label">Classic</label>
-        </div>
-        <div class="steps-toggle pill-group ideogram-only" id="steps-toggle" role="radiogroup" aria-label="Speed">
-            <input type="radio" id="steps_fast" name="steps" value="2" data-preset="Turbo">
-            <label for="steps_fast" class="pill-label">Fast</label>
-            <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
-            <label for="steps_default" class="pill-label">Default</label>
-            <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
-            <label for="steps_quality" class="pill-label">Quality</label>
-        </div>
-        <div class="moss-toggle pill-group moss-only" id="moss-preset-toggle" role="radiogroup" aria-label="MOSS preset">
-            <input type="radio" id="moss_preset_turbo" name="moss_preset" value="Turbo">
-            <label for="moss_preset_turbo" class="pill-label" title="Experimental 8-step distillation LoRA">Turbo β</label>
-            <input type="radio" id="moss_preset_fast" name="moss_preset" value="Fast" checked>
-            <label for="moss_preset_fast" class="pill-label">Fast</label>
-            <input type="radio" id="moss_preset_quality" name="moss_preset" value="Quality">
-            <label for="moss_preset_quality" class="pill-label">Quality</label>
         </div>
     </header>
 
@@ -3372,18 +3382,43 @@
                     <button id="btn-preview" type="button" class="icon-btn" aria-label="Toggle preview mode" title="Preview — hide overlays">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
-                    <div class="ar-group seed-group">
-                        <label for="seed-input">Seed</label>
-                        <div class="seed-row">
-                            <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
-                            <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
+                    <div class="gen-controls">
+                        <div class="ar-group seed-group">
+                            <label for="seed-input">Seed</label>
+                            <div class="seed-row">
+                                <input type="number" id="seed-input" value="-1" placeholder="-1 = random">
+                                <button id="btn-random-seed" class="btn btn-ghost seed-dice" title="Random seed" aria-label="Random seed"><span aria-hidden="true">🎲</span></button>
+                            </div>
+                        </div>
+                        <div class="workflow-toggle pill-group ideogram-only" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
+                            <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
+                            <label for="workflow-turbo" class="pill-label">Turbo</label>
+                            <input type="radio" id="workflow-classic" name="workflow" value="v1">
+                            <label for="workflow-classic" class="pill-label">Classic</label>
+                        </div>
+                        <div class="steps-toggle pill-group ideogram-only" id="steps-toggle" role="radiogroup" aria-label="Speed">
+                            <input type="radio" id="steps_fast" name="steps" value="2" data-preset="Turbo">
+                            <label for="steps_fast" class="pill-label">Fast</label>
+                            <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
+                            <label for="steps_default" class="pill-label">Default</label>
+                            <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
+                            <label for="steps_quality" class="pill-label">Quality</label>
+                        </div>
+                        <div class="moss-toggle pill-group moss-only" id="moss-preset-toggle" role="radiogroup" aria-label="MOSS preset">
+                            <input type="radio" id="moss_preset_turbo" name="moss_preset" value="Turbo">
+                            <label for="moss_preset_turbo" class="pill-label" title="Experimental 8-step distillation LoRA">Turbo β</label>
+                            <input type="radio" id="moss_preset_fast" name="moss_preset" value="Fast" checked>
+                            <label for="moss_preset_fast" class="pill-label">Fast</label>
+                            <input type="radio" id="moss_preset_quality" name="moss_preset" value="Quality">
+                            <label for="moss_preset_quality" class="pill-label">Quality</label>
+                        </div>
+                        <div class="gen-actions">
+                            <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
+                            <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
+                                Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
+                            </button>
                         </div>
                     </div>
-                    <div class="toolbar-spacer"></div>
-                    <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
-                    <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
-                        Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
-                    </button>
                     <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
                     <div id="queue-panel" class="queue-panel" aria-label="Generation queue" role="list" hidden></div>
                 </div>
@@ -3673,7 +3708,7 @@
                 <div class="json-header">
                     <button type="button" class="card-toggle" aria-expanded="false">
                         <span class="card-chevron" aria-hidden="true">&#9656;</span>
-                        Prompt JSON
+                        Prompt
                     </button>
                     <span id="json-format-chip" class="json-format-chip" aria-live="polite">Ideogram JSON</span>
                     <div class="json-header-actions">

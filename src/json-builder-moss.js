@@ -26,7 +26,7 @@ export function generateMoss() {
 
   if (state.moss.promptMode === 'caption') {
     output.value = document.getElementById('moss-caption').value;
-    if (chip) chip.textContent = 'MOSS caption';
+    if (chip) chip.textContent = chip.title = 'MOSS caption';
     return;
   }
 
@@ -42,7 +42,7 @@ export function generateMoss() {
     height: state.canvas.height,
   });
   output.value = JSON.stringify(layout, null, 2);
-  if (chip) chip.textContent = `MOSS layout · ${state.canvas.width}×${state.canvas.height}`;
+  if (chip) chip.textContent = chip.title = `MOSS layout · ${state.canvas.width}×${state.canvas.height}`;
   if (dropped > 0 && !droppedToastShown) {
     showToast(`Dropped ${dropped} zero-size box${dropped > 1 ? 'es' : ''} from the MOSS layout.`, 'warning');
     droppedToastShown = true;

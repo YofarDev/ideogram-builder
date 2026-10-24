@@ -96,6 +96,11 @@ Gold outline on every interactive control. `:focus-visible` carries the ring; `:
 ### Pills (`.pill-group`)
 Radio-backed toggle. Active label takes gold fill + `--on-accent` text. Group has `role="radiogroup"`, labeled by an external span.
 
+### Toolbars
+- **Top bar = workspace**: brand, tabs (single line, `white-space: nowrap`), output-folder icon, model switch, backend. Nothing generation-specific.
+- **Editor toolbar = canvas + generation**: canvas controls (aspect, tier, dims, preview) on the left; `.gen-controls` (seed, engine/speed pills, `.gen-actions` = Generate + Queue) right-aligned. The toolbar wraps (`flex-wrap`), and Generate + Queue always wrap together, so they are never clipped.
+- Pill groups never shrink (`flex-shrink: 0`). Verify at 1280px wide: nothing may clip.
+
 ### Panels
 `.panel` + `.panel-header` + `.panel-body`. Section grouping via `<fieldset class="panel-section">` with `<legend class="panel-section-title">`. No side-stripe accent; the heading family swap carries identity.
 

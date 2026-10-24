@@ -196,5 +196,5 @@ function generateIdeogram() {
   output.style_description.color_palette = state.globalPalette;
   document.getElementById('json-output').value = JSON.stringify(output, null, 2);
   const chip = document.getElementById('json-format-chip');
-  if (chip) chip.textContent = 'Ideogram JSON';
+  if (chip) chip.textContent = chip.title = 'Ideogram JSON';
 }
