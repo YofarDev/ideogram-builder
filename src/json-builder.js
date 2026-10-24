@@ -33,7 +33,8 @@ export function initJsonBuilder() {
 
   // Shared apply path for other surfaces (gallery load, session restore, PNG
   // import): full format detection + model switch, same as the Apply button.
-  on('prompt:apply', ({ raw }) => applyJsonText(raw, null));
+  // `quiet` skips the "Switched to …" toast when the emitter shows its own.
+  on('prompt:apply', ({ raw, quiet }) => applyJsonText(raw, null, { quiet }));
 
   // Capture textarea value on pointerdown, before canvas pointerup
   // can overwrite it via state:changed → generateJSON().
@@ -81,7 +82,7 @@ export function initJsonBuilder() {
   });
 }
 
-function applyJsonText(raw, btnId) {
+function applyJsonText(raw, btnId, { quiet = false } = {}) {
   const btn = document.getElementById(btnId);
   const format = detectPromptFormat(raw);
   if (format === 'empty') {
@@ -92,7 +93,7 @@ function applyJsonText(raw, btnId) {
   if (format === 'ideogram') {
     if (state.model === 'moss') {
       emit('model:set', { model: 'ideogram', seed: false });
-      showToast('Switched to Ideogram 4 — pasted Ideogram JSON.', 'info');
+      if (!quiet) showToast('Switched to Ideogram 4 — pasted Ideogram JSON.', 'info');
     }
     const json = JSON.parse(raw);
     isLoadingFromJSON = true;
@@ -105,7 +106,7 @@ function applyJsonText(raw, btnId) {
   if (format === 'moss' || format === 'moss-draft') {
     if (state.model !== 'moss') {
       emit('model:set', { model: 'moss', seed: false });
-      showToast('Switched to MOSS-Image — pasted MOSS layout JSON.', 'info');
+      if (!quiet) showToast('Switched to MOSS-Image — pasted MOSS layout JSON.', 'info');
     }
     isLoadingFromJSON = true;
     applyMossText(raw);

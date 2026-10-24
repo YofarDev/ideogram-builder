@@ -32,12 +32,13 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON pane dispatcher: format-detecting apply (Ideogram/MOSS/draft/caption + auto model switch), Ideogram output, format chip | state, events, toast, prompt-convert, json-builder-moss |
 | `json-builder-moss.js` | MOSS layout/caption output + MOSS apply path (split of json-builder) | state, events, toast, prompt-moss |
+| `json-convert.js` | `#btn-convert-json` (⇄ in the JSON header): converts the pane's prompt Ideogram ↔ MOSS and applies it via `prompt:apply` (overwrites the target model's fields) | state, events, toast, prompt-convert |
 | `model.js` | Workspace switch (`#model-toggle`, Ideogram/MOSS), `model:set`/`model:changed` events, persistence | state, events |
 | `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll; moss → `runpod.endpoints.moss` | nothing |
 | `settings-box.js` | Box Properties form: type toggle (obj/text/character), text/desc/tags, X/Y/W/H (split of settings) | state, events |
 | `settings-moss.js` | MOSS fieldset: prompt format, caption/meta/canvas/negative, D4 seeding on model switch | state, events, toast, prompt-convert |
 | `prompt-moss.js` | Pure MOSS layout helpers: buildMossLayout/compileMoss/parseMoss/predicates (ComfyUI-matching maths) | nothing |
-| `prompt-convert.js` | Pure format detection + Ideogram↔MOSS global converters | prompt-moss |
+| `prompt-convert.js` | Pure format detection, Ideogram↔MOSS global converters, full-document `ideogramToMoss` / `mossToIdeogram` | prompt-moss |
 | `lora-library.js` | LoRA library data: per-model built-ins + user entries in localStorage | nothing |
 | `lora-add.js` | "+ Add" LoRA form: URL or file upload (XHR progress) → `lora:added` | state, events, toast |
 | `gallery-meta.js` | Gallery card meta restore (model-first, MOSS preset/negative/prompt-mode) | state, events, lora |
@@ -77,7 +78,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `collection:add` | `{ importJson, imageUrl?, model? }` | gallery (card button), editor (JSON header button) | collections (addItem with model) |
 | `model:set` | `{ model, seed? }` — request a switch; `seed: false` suppresses D4 field seeding (paste-driven switches) | json-builder, gallery-meta, session-moss, png-import (via prompt:apply), collections | model |
 | `model:changed` | `{ model, previous, seed }` | model | settings (4M→2M), settings-box (type toggle re-render), settings-moss (D4 seeding), json-builder (regenerate), lora (per-model filter) |
-| `prompt:apply` | `{ raw }` — shared apply path (format detection + model switch + boxes) | json-builder (own button), gallery (loadItem), session (applyContent), png-import, collections (loadItemToEditor), ai-enhancer-moss | json-builder |
+| `prompt:apply` | `{ raw, quiet? }` — shared apply path (format detection + model switch + boxes); `quiet` skips the "Switched to …" toast | json-builder (own button), gallery (loadItem), session (applyContent), png-import, collections (loadItemToEditor), ai-enhancer-moss, json-convert (quiet) | json-builder |
 | `lora:added` | `{ entry }` | lora-add | lora (library insert) |
 | `vision:find-more-results` | `{ elements }` | vision (Find missing) | audit (render as add_element cards) |
 
@@ -89,6 +90,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 - **Editing canvas interactions?** → `src/canvas.js` + `src/state.js`
 - **Editing color palette?** → `src/palette.js` + `src/state.js`
 - **Editing JSON output format?** → `src/json-builder.js`
+- **Editing Ideogram ↔ MOSS conversion?** → `src/prompt-convert.js` (mapping) + `src/json-convert.js` (button)
 - **Editing RunPod generation?** → `src/runpod.js`
 - **Editing Modal generation?** → `src/modal.js`
 - **Switching which backend a job uses?** → `src/backend.js` (reads `localStorage.ideogram_backend`)

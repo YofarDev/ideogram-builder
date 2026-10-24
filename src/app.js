@@ -3,6 +3,7 @@
 import { initCanvas, initCanvasEvents, deleteSelectedBox, setPreviewMode } from './canvas.js';
 import { initPalette } from './palette.js';
 import { initJsonBuilder } from './json-builder.js';
+import { initJsonConvert } from './json-convert.js';
 import { enqueue, initQueue } from './queue.js';
 import { initImport } from './png-import.js';
 import { initModel } from './model.js';
@@ -28,6 +29,7 @@ initSettingsMoss();
 initAIEnhancer();
 initPalette();
 initJsonBuilder();
+initJsonConvert();
 initCanvasEvents();
 initLayers();
 initImport();
