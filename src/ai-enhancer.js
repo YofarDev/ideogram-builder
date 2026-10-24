@@ -1,4 +1,6 @@
 import { emit } from './events.js';
+import { state } from './state.js';
+import { mossSystemPrompt, mossUserPrompt, applyMossEnhanceResult } from './ai-enhancer-moss.js';
 
 const SYSTEM_PROMPT = `You convert a natural-language user idea into a structured JSON caption for Ideogram 4 image generation. The caption will be loaded into a visual bounding-box editor where each element becomes a selectable, resizable region on a canvas.
 
@@ -197,6 +199,12 @@ function gcd(a, b) {
   return b === 0 ? a : gcd(b, a % b);
 }
 
+// MOSS draft boxes are absolute pixels — the tab's selector holds pixel sizes
+function mossCanvasSize() {
+  const [w, h] = (document.getElementById('ai-aspect-ratio').value || '1024x1024').split('x').map(Number);
+  return { width: w || 1024, height: h || 1024 };
+}
+
 async function enhancePrompt() {
   const prompt = document.getElementById('ai-prompt').value.trim();
   if (!prompt) {
@@ -227,6 +235,16 @@ async function enhancePrompt() {
   const baseUrl = p.base_url || defaultBaseUrls[provider] || 'https://api.deepseek.com/v1';
   const apiUrl = `${baseUrl}/chat/completions`;
 
+  // MOSS mode: layout draft (top-left pixel xyxy at the selected canvas size)
+  // or plain caption, per the tab's format selector. Ideogram path unchanged.
+  const mossFormat = state.model === 'moss'
+    ? (document.querySelector('input[name="ai_moss_format"]:checked')?.value || 'layout')
+    : null;
+  const systemPrompt = mossFormat ? mossSystemPrompt(mossFormat) : SYSTEM_PROMPT;
+  const userMessage = mossFormat
+    ? mossUserPrompt(prompt, mossFormat, mossCanvasSize())
+    : `TARGET IMAGE ASPECT RATIO: ${aspectRatioFromSelector()} (width:height).\nUser idea: ${prompt}`;
+
   setLoading(true);
 
   try {
@@ -241,10 +259,10 @@ async function enhancePrompt() {
       },
       body: JSON.stringify({
         model,
-        response_format: { type: 'json_object' },
+        ...(mossFormat === 'caption' ? {} : { response_format: { type: 'json_object' } }),
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `TARGET IMAGE ASPECT RATIO: ${aspectRatioFromSelector()} (width:height).\nUser idea: ${prompt}` },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
         ],
         max_tokens: 4096,
       }),
@@ -261,6 +279,14 @@ async function enhancePrompt() {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error('Empty response from API');
+
+    if (mossFormat) {
+      const applied = applyMossEnhanceResult(content, mossFormat);
+      if (!applied.ok) throw new Error(applied.error);
+      document.querySelector('.tab-btn[data-tab="editor"]')?.click();
+      showStatus('Prompt enhanced successfully', 'success');
+      return;
+    }
 
     const json = JSON.parse(content);
 

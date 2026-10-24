@@ -138,3 +138,58 @@ describe('runJob', () => {
     await expect(p).rejects.toThrow(/Aborted|abort/i)
   })
 })
+
+describe('runJob moss routing', () => {
+  async function importModule() {
+    vi.resetModules()
+    return await import('../runpod.js')
+  }
+
+  it('submits to endpoints.moss with model and negative_prompt', async () => {
+    global.fetch = mockFetchSequence([
+      { body: { runpod: { api_key: 'k', endpoint_id: 'ep-ideo', endpoints: { moss: 'ep-moss' } } } },
+      { body: { id: 'job-1' } },
+      { body: { status: 'COMPLETED', output: { images: [
+        { filename: 'out.png', type: 'base64', data: 'AAAA' }
+      ]}}},
+      { body: new Blob() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
+    const mod = await importModule()
+    const result = await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', negativePrompt: 'nsfw' }))
+    expect(result.dataUrl).toContain('base64,AAAA')
+    const submitCall = global.fetch.mock.calls[1]
+    expect(submitCall[0]).toBe('https://api.runpod.ai/v2/ep-moss/run')
+    const body = JSON.parse(submitCall[1].body)
+    expect(body.input.model).toBe('moss')
+    expect(body.input.negative_prompt).toBe('nsfw')
+    expect(body.input.preset).toBe('Fast')
+  })
+
+  it('throws naming runpod.endpoints.moss when it is missing', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({ runpod: { api_key: 'k', endpoint_id: 'ep' } }),
+    })
+    const mod = await importModule()
+    await expect(mod.runJob(baseSnapshot({ model: 'moss' }))).rejects.toThrow(/runpod\.endpoints\.moss/)
+  })
+
+  it('ideogram payload carries no model/negative_prompt keys', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { id: 'job-1' } },
+      { body: { status: 'COMPLETED', output: { images: [
+        { filename: 'out.png', type: 'base64', data: 'AAAA' }
+      ]}}},
+      { body: new Blob() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot())
+    const body = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(body.input).not.toHaveProperty('model')
+    expect(body.input).not.toHaveProperty('negative_prompt')
+  })
+})

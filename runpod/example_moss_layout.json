@@ -1,0 +1,24 @@
+{
+  "summary": {
+    "meta": ["poster"],
+    "canvas": "single",
+    "caption": "A minimalist travel poster of a flat blue mountain range on a warm cream background.",
+    "palette": ["#F3E9D2"]
+  },
+  "items": [
+    {
+      "label": "text",
+      "caption": "Large dark-blue title centered at the top.",
+      "text": "EXPLORE",
+      "bbox": [-416, -384, -288, 384]
+    },
+    {
+      "label": "object",
+      "caption": "A flat blue mountain illustration.",
+      "bbox": [-192, -288, 384, 288],
+      "palette": ["#2B4C7E"]
+    }
+  ],
+  "bbox_coord_space": "abs_centralized",
+  "bbox_format": "yxyx"
+}

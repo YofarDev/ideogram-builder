@@ -3,14 +3,16 @@
 
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
+import { state } from './state.js';
 import { render } from './collections-ui.js';
+import { exportActive as exportActiveIo, importCollection } from './collections-io.js';
 import {
   collections, activeId, expandedId, editingId,
   getAll, getActive, parsePrompt, labelFor,
-  uid, load, save, setExpandedId, setEditingId,
+  load, save, setExpandedId, setEditingId,
   createCollection, setActive, renameActive, deleteActive,
   addItem, removeItem, duplicateItem,
-  extractTokens, resolveTokens,
+  extractTokens, resolveTokens, detectModel,
 } from './collections-data.js';
 
 export { getAll, getActive, labelFor, createCollection, setActive, renameActive, deleteActive, addItem, removeItem, duplicateItem };
@@ -34,7 +36,7 @@ function saveEdit(itemId) {
 export function generateItem(itemId) {
   const it = getActive()?.items.find(i => i.id === itemId);
   if (!it) return;
-  emit('queue:enqueue', { importJson: resolveTokens(itemId, it.importJson) });
+  emit('queue:enqueue', { importJson: resolveTokens(itemId, it.importJson), model: detectModel(it) });
   showToast('Queued this prompt.', 'success');
 }
 
@@ -42,6 +44,13 @@ export function loadItemToEditor(itemId) {
   const it = getActive()?.items.find(i => i.id === itemId);
   if (!it) return;
   const resolved = resolveTokens(itemId, it.importJson);
+  if (detectModel(it) === 'moss') {
+    // MOSS layout/caption — same apply path as pasting it (model switch + boxes)
+    emit('prompt:apply', { raw: resolved });
+    document.getElementById('tab-btn-editor')?.click();
+    emit('canvas:relayout');
+    return;
+  }
   const json = parsePrompt(resolved);
   if (!json.high_level_description && !json.compositional_deconstruction) {
     showToast('This prompt has no loadable structure.', 'error');
@@ -57,44 +66,8 @@ export function loadItemToEditor(itemId) {
 export function generateCollection() {
   const c = getActive();
   if (!c || c.items.length === 0) { showToast('Collection is empty.', 'error'); return; }
-  c.items.forEach(i => emit('queue:enqueue', { importJson: i.importJson }));
+  c.items.forEach(i => emit('queue:enqueue', { importJson: i.importJson, model: detectModel(i) }));
   showToast(`Queued ${c.items.length} jobs from "${c.name}".`, 'success');
-}
-
-function exportActive() {
-  const c = getActive();
-  if (!c || c.items.length === 0) return;
-  const payload = { name: c.name, exportedAt: new Date().toISOString(), items: c.items.map(i => ({ importJson: i.importJson })) };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = (c.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'collection') + '.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function importCollection(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      const items = Array.isArray(data.items)
-        ? data.items.filter(i => i.importJson).map(i => ({ id: uid(), importJson: i.importJson }))
-        : [];
-      if (!items.length) { showToast('No prompts found in file.', 'error'); return; }
-      const c = { id: uid(), name: (data.name || 'Imported').slice(0, 60), items, createdAt: Date.now() };
-      collections.unshift(c);
-      activeId = c.id;
-      setExpandedId(null);
-      save();
-      emit('collection:data-changed');
-      showToast(`Imported "${c.name}" (${items.length}).`, 'success');
-    } catch { showToast('Could not read that file.', 'error'); }
-  };
-  reader.readAsText(file);
 }
 
 function bind() {
@@ -160,7 +133,7 @@ function bind() {
       showToast(`Deleted "${name}".`, 'info');
     }
   });
-  document.getElementById('btn-collection-export')?.addEventListener('click', exportActive);
+  document.getElementById('btn-collection-export')?.addEventListener('click', () => exportActiveIo(getActive));
   const importInput = document.getElementById('collection-import-input');
   document.getElementById('btn-collection-import')?.addEventListener('click', () => importInput?.click());
   importInput?.addEventListener('change', () => { if (importInput.files[0]) importCollection(importInput.files[0]); importInput.value = ''; });
@@ -179,13 +152,13 @@ function bind() {
 
   document.getElementById('btn-add-to-collection')?.addEventListener('click', () => {
     const json = document.getElementById('json-output')?.value;
-    const c = addItem(json);
+    const c = addItem(json, null, state.model);
     if (c) showToast(`Added to "${c.name}".`, 'success');
     else showToast('Create a collection first.', 'error');
   });
 
-  on('collection:add', ({ importJson, imageUrl }) => {
-    const c = addItem(importJson, imageUrl);
+  on('collection:add', ({ importJson, imageUrl, model }) => {
+    const c = addItem(importJson, imageUrl, model);
     if (c) showToast(`Added to "${c.name}".`, 'success');
     else showToast('Create a collection first.', 'error');
   });

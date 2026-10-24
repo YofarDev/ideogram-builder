@@ -4,6 +4,7 @@ import { state } from '../state.js'
 const DOM_HTML = `
   <button id="btn-generate-image">Generate</button>
   <textarea id="json-output">{"high_level_description":"test"}</textarea>
+  <textarea id="moss-negative">nsfw</textarea>
   <div id="generate-status"></div>
   <div id="queue-panel"></div>
 `
@@ -168,6 +169,9 @@ describe('queue', () => {
         photoArtMode: 1,
         backend: 'runpod',
         loras: [],
+        model: 'ideogram',
+        negativePrompt: '',
+        promptFormat: 'layout',
       },
     })
   })
@@ -185,5 +189,90 @@ describe('queue', () => {
       expect(card.getAttribute('title')).toContain('GPU OOM')
     })
     expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+  })
+})
+
+describe('buildSnapshot model fields', () => {
+  // loadQueue() calls vi.resetModules(), so the queue module sees a FRESH
+  // state.js instance — grab that instance to set model fields on it.
+  async function loadQueueWithState(mocks) {
+    const mod = await loadQueue(mocks)
+    const fresh = await import('../state.js')
+    return { mod, freshState: fresh.state }
+  }
+
+  it('moss snapshots carry model, moss preset, negative prompt and format', async () => {
+    let captured
+    const { mod, freshState } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      captured = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'caption', preset: 'Quality' }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(captured.model).toBe('moss')
+    expect(captured.preset).toBe('Quality')
+    expect(captured.negativePrompt).toBe('nsfw')
+    expect(captured.promptFormat).toBe('caption')
+  })
+
+  it('ideogram snapshots use the UI preset and empty negativePrompt', async () => {
+    let captured
+    const { mod, freshState } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      captured = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    freshState.model = 'ideogram'
+    freshState.preset = 'Quality'          // Ideogram steps-preset, not MOSS's
+    freshState.moss = { promptMode: 'caption', preset: 'Turbo' }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(captured.model).toBe('ideogram')
+    expect(captured.preset).toBe('Quality')
+    expect(captured.negativePrompt).toBe('')
+    expect(captured.promptFormat).toBe('layout')
+  })
+
+  it('enqueueImportJson can pass a collection item model', async () => {
+    let captured
+    const { mod, freshState } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      captured = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    freshState.model = 'ideogram'
+    mod.enqueueImportJson('{"high_level_description":"coll"}', { model: 'moss' })
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(captured.model).toBe('moss')
+    expect(captured.importJson).toContain('coll')
+  })
+})
+
+describe('image:ready meta model fields', () => {
+  it('moss jobs carry model, negativePrompt, promptFormat and mossPreset', async () => {
+    const emit = vi.fn()
+    const { mod, freshState } = await (async () => {
+      const m = await loadQueue({ emit, runJob: okRunJob() })
+      return { mod: m, freshState: (await import('../state.js')).state }
+    })()
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Quality' }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    const meta = emit.mock.calls.find(c => c[0] === 'image:ready')[1].meta
+    expect(meta.model).toBe('moss')
+    expect(meta.mossPreset).toBe('Quality')
+    expect(meta.negativePrompt).toBe('nsfw')
+    expect(meta.promptFormat).toBe('layout')
+    // ideogram-only key absent for moss, and preset stays the moss preset
+    expect(meta.preset).toBe('Quality')
   })
 })

@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
+import { detectPromptFormat } from './prompt-convert.js';
 
 export function initImport() {
   document.addEventListener('dragover', (e) => e.preventDefault());
@@ -41,12 +42,17 @@ async function importImage(file) {
 
     if (file.type === 'image/png') {
       file.arrayBuffer().then((buff) => {
-        const json = extractComfyUIMetadata(buff);
-        if (json) {
-          document.getElementById('json-output').value = JSON.stringify(json, null, 2);
-          emit('state:loaded', { json });
-          showToast('PNG metadata extracted.', 'success');
+        const found = extractComfyUIMetadata(buff);
+        if (!found) return;
+        if (found.ideogram) {
+          document.getElementById('json-output').value = JSON.stringify(found.ideogram, null, 2);
+          emit('state:loaded', { json: found.ideogram });
+        } else {
+          // MOSS layout (any node's inputs.text) — shared apply path switches
+          // the model and rebuilds boxes from the parsed layout
+          emit('prompt:apply', { raw: found.moss });
         }
+        showToast('PNG metadata extracted.', 'success');
       }).catch(() => { /* non-critical */ });
     }
   };
@@ -96,11 +102,17 @@ function extractComfyUIMetadata(arrayBuffer) {
     offset += length + 4;
   }
 
-  for (const key of Object.keys(result.prompt || {})) {
-    try {
-      const json = JSON.parse(result.prompt[key].inputs.text);
-      if (json.hasOwnProperty('high_level_description')) return json;
-    } catch (e) { /* skip */ }
+  // Scan every node's inputs.text — Ideogram JSON wins, else the first MOSS
+  // layout (the MOSS workflow puts it in node "7", but any node counts).
+  let mossRaw = null;
+  for (const node of Object.values(result.prompt || {})) {
+    const text = node?.inputs?.text;
+    if (typeof text !== 'string' || !text.trim()) continue;
+    const format = detectPromptFormat(text);
+    if (format === 'ideogram') return { ideogram: JSON.parse(text) };
+    if (!mossRaw && (format === 'moss' || format === 'moss-draft')) mossRaw = text;
   }
-  return null;
+  return mossRaw ? { moss: mossRaw } : null;
 }
+
+export { extractComfyUIMetadata };

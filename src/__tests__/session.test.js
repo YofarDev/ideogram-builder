@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { state, MODE_PHOTO, MODE_ARTSTYLE } from '../state.js'
-import { emit, resetAllListeners } from '../events.js'
+import { emit, on, resetAllListeners } from '../events.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
@@ -81,6 +81,7 @@ describe('captureSnapshot', () => {
       aiModel: 'deepseek::deepseek-chat',
       visionModel: 'local',
       recaptionModel: '',
+      model: 'ideogram',
     })
     expect(snap.ui).toEqual({ tab: 'gallery', preview: true })
   })
@@ -420,5 +421,102 @@ describe('initSession wiring', () => {
     emit('canvas:reset')
     session.initSession()
     expect(session.loadSession().content).toBe('{"keep":1}')
+  })
+})
+
+describe('MOSS session (D1)', () => {
+  afterEach(() => {
+    delete document.body.dataset.model
+    delete document.body.dataset.mossPrompt
+  })
+
+  const MOSS_DOM = SNAPSHOT_DOM + `
+    <input type="radio" name="moss_preset" value="Fast">
+    <input type="radio" name="moss_preset" value="Quality" checked>
+    <input type="radio" name="moss_prompt_mode" value="layout" checked>
+    <input type="radio" name="moss_prompt_mode" value="caption">
+    <textarea id="moss-caption">A fox in snow</textarea>
+    <input id="moss-meta" value="poster">
+    <select id="moss-canvas"><option value="" selected></option></select>
+    <textarea id="moss-negative">nsfw</textarea>
+  `
+
+  const MOSS_LAYOUT = JSON.stringify({
+    summary: { caption: 'A fox in snow' },
+    items: [{ label: 'character', caption: 'hero', tags: ['hero'], bbox: [-256, -256, 256, 256] }],
+    bbox_coord_space: 'abs_centralized',
+    bbox_format: 'yxyx',
+  })
+
+  it('captureSnapshot stores model, moss fields, preset and prompt mode', () => {
+    document.body.innerHTML = MOSS_DOM
+    document.body.dataset.model = 'moss'
+    document.body.dataset.mossPrompt = 'layout'
+    const snap = session.captureSnapshot()
+    expect(snap.config.model).toBe('moss')
+    expect(snap.config.mossPreset).toBe('Quality')
+    expect(snap.config.mossPromptMode).toBe('layout')
+    expect(snap.config.moss).toEqual({ caption: 'A fox in snow', meta: 'poster', canvas: '', negative: 'nsfw' })
+  })
+
+  it('captureSnapshot keeps the legacy shape when not in moss mode', () => {
+    document.body.innerHTML = MOSS_DOM
+    const snap = session.captureSnapshot()
+    expect(snap.config.model).toBe('ideogram')
+    expect(snap.config).not.toHaveProperty('moss')
+    expect(snap.config).not.toHaveProperty('mossPreset')
+  })
+
+  it('restore switches model (seed:false) before content, then fills moss inputs', () => {
+    document.body.innerHTML = MOSS_DOM
+    const seq = []
+    on('model:set', (p) => { seq.push('model:set'); state.model = p.model })
+    on('prompt:apply', () => seq.push('prompt:apply'))
+    on('state:loaded', () => seq.push('state:loaded'))
+
+    session.writeSession({
+      version: 1,
+      content: MOSS_LAYOUT,
+      config: {
+        model: 'moss', mossPreset: 'Fast', mossPromptMode: 'caption',
+        moss: { caption: 'A fox', meta: 'poster', canvas: 'single', negative: 'blurry' },
+        size: '1', steps: 'Default', mode: 'art_style', seed: -1, aspectRatio: '768x1152',
+        aiModel: '', visionModel: '', recaptionModel: '',
+      },
+      ui: { tab: 'editor', preview: false },
+    })
+    session.restore()
+
+    expect(seq[0]).toBe('model:set')
+    expect(seq).toContain('prompt:apply')
+    expect(state.model).toBe('moss')
+    expect(state.moss.preset).toBe('Fast')
+    expect(state.moss.promptMode).toBe('caption')
+    expect(document.getElementById('moss-caption').value).toBe('A fox')
+    expect(document.getElementById('moss-negative').value).toBe('blurry')
+    // character + tags survive through the layout content round-trip
+    const applied = seq.filter(x => x === 'prompt:apply').length
+    expect(applied).toBe(1)
+  })
+
+  it('legacy session (no model) restores identically and never emits model:set', () => {
+    document.body.innerHTML = MOSS_DOM
+    const sets = []
+    const loads = []
+    on('model:set', (p) => sets.push(p))
+    on('state:loaded', (p) => loads.push(p))
+    session.writeSession({
+      version: 1,
+      content: '{"high_level_description":"legacy"}',
+      config: { size: '1', steps: 'Quality', mode: 'art_style', seed: 7, aspectRatio: '1024x1024', aiModel: '', visionModel: '', recaptionModel: '' },
+      ui: { tab: 'editor', preview: false },
+    })
+    session.restore()
+    expect(sets).toEqual([])
+    expect(loads.length).toBe(1)
+    expect(loads[0].json.high_level_description).toBe('legacy')
+    // steps radio restored (state.preset itself is synced by settings.js, not
+    // wired in this unit test)
+    expect(document.querySelector('input[name="steps"][data-preset="Quality"]').checked).toBe(true)
   })
 })

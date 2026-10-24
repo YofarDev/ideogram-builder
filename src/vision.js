@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { fetchConfig, populateModelSelect, populateLLMVisionModels } from './vision-config.js';
+import { visionToMoss } from './vision-moss.js';
 
 let isProcessing = false;
 let processed = false;
@@ -342,7 +343,15 @@ export function initVision() {
           if (vj) vj.value = jsonStr
           const importJson = JSON.stringify({ ...data.json, _source: 'vision' }, null, 2);
           emit('image:ready', { imageUrl: downscaled, dataUrl: downscaled, source: 'vision', model: selectedModel, importJson });
-          emit('state:loaded', { json: data.json });
+          if (state.model === 'moss') {
+            // Pipeline returns Ideogram JSON — convert globals client-side and
+            // let the MOSS fields fill; elements are already editor-format.
+            emit('state:loaded', { json: data.json, moss: visionToMoss(data.json) });
+            emit('state:changed');  // regenerate the pane as a MOSS layout
+            showToast('Converted from Ideogram analysis.', 'info');
+          } else {
+            emit('state:loaded', { json: data.json });
+          }
 
           processed = true;
           processBtn.textContent = 'Load in Editor';

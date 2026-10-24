@@ -1,9 +1,15 @@
 """
 Modal backend for Ideogram Builder.
 
-Reuses the existing RunPod image (runpod/Dockerfile): ComfyUI + custom nodes +
-the 4 Ideogram-4 models + LoRAs + handler.py. Modal hosts the same container;
-the endpoint delegates to handler.handler() unchanged.
+Hosts two ComfyUI workers behind one token-authed web proxy:
+
+- `Comfy` — the RunPod Ideogram-4 image (runpod/Dockerfile)
+- `ComfyMoss` — the MOSS-Image image (runpod/Dockerfile.moss)
+
+The proxy routes on the request body: `{"model": "moss"}` → ComfyMoss, anything
+else → Comfy. User-uploaded LoRAs live in the "ideogram-loras" Modal Volume,
+mounted at /comfyui/models/loras/user on both classes and reloaded before each
+job (`modal volume put ideogram-loras <local> /moss/name.safetensors`).
 
 Deploy (from repo root):
 
@@ -20,8 +26,8 @@ Put the printed URL + that token into ~/.config/llm-credentials.json under "moda
       "auth_token": "<same-secret>"
     }
 
-GPU default is T4 (16GB, cheapest). The Classic (v1) dual-model workflow may
-need more VRAM — change GPU to "A10G" (24GB) below if it OOMs.
+GPU default is RTX-PRO-6000 (96GB) for both workers; set IDEOGRAM_GPU=A10G at
+deploy time for cheaper hardware.
 """
 
 import os
@@ -40,6 +46,13 @@ COMFY_IMAGE = modal.Image.from_dockerfile(
     "runpod/Dockerfile",
     context_dir=str(REPO_ROOT),
 )
+# MOSS-Image twin: ComfyUI (pinned ≥ MOSS merge), rgthree, MOSS models, same handler.
+MOSS_IMAGE = modal.Image.from_dockerfile(
+    "runpod/Dockerfile.moss",
+    context_dir=str(REPO_ROOT),
+)
+# User-uploaded LoRAs (Phase C upload flow targets this volume).
+LORA_VOL = modal.Volume.from_name("ideogram-loras", create_if_missing=True)
 # Lightweight proxy that terminates HTTP, checks the token, then calls into the GPU class.
 PROXY_IMAGE = modal.Image.debian_slim().pip_install("fastapi")
 
@@ -48,18 +61,10 @@ SECRET = modal.Secret.from_name("ideogram-builder")
 app = modal.App("ideogram-builder")
 
 
-@app.cls(
-    image=COMFY_IMAGE,
-    gpu=GPU,
-    scaledown_window=300,  # keep container warm 5 min after last request
-    min_containers=0,      # scale to zero when idle
-    timeout=900,           # 15 min per generation (ComfyUI + model load)
-    secrets=[SECRET],
-)
-class Comfy:
-    """One ComfyUI process per container, reused across requests."""
+class _ComfyWorker:
+    """Shared ComfyUI lifecycle. Plain methods, called by the Modal-decorated
+    subclasses below — Modal requires each worker declared as its own @app.cls."""
 
-    @modal.enter()
     def startup(self):
         env = {**os.environ, "COMFY_API_AVAILABLE_INTERVAL_MS": "500"}
         self.proc = subprocess.Popen(
@@ -84,7 +89,6 @@ class Comfy:
             time.sleep(0.5)
         raise RuntimeError("ComfyUI did not become ready")
 
-    @modal.exit()
     def shutdown(self):
         self.proc.terminate()
         try:
@@ -92,13 +96,64 @@ class Comfy:
         except subprocess.TimeoutExpired:
             self.proc.kill()
 
-    @modal.method()
     def generate(self, payload: dict) -> dict:
+        # Pick up LoRAs uploaded to the volume since the last job.
+        LORA_VOL.reload()
         # handler.py is at /handler.py in the image; reuse its full websocket path.
         import sys
         sys.path.insert(0, "/")
         import handler as comfy
         return comfy.handler({"input": payload, "id": "modal"})
+
+
+@app.cls(
+    image=COMFY_IMAGE,
+    gpu=GPU,
+    scaledown_window=300,  # keep container warm 5 min after last request
+    min_containers=0,      # scale to zero when idle
+    timeout=900,           # 15 min per generation (ComfyUI + model load)
+    secrets=[SECRET],
+    volumes={"/comfyui/models/loras/user": LORA_VOL},
+)
+class Comfy(_ComfyWorker):
+    """Ideogram-4 worker: one ComfyUI process per container, reused across requests."""
+
+    @modal.enter()
+    def startup(self):
+        super().startup()
+
+    @modal.exit()
+    def shutdown(self):
+        super().shutdown()
+
+    @modal.method()
+    def generate(self, payload: dict) -> dict:
+        return super().generate(payload)
+
+
+@app.cls(
+    image=MOSS_IMAGE,
+    gpu=GPU,
+    scaledown_window=300,
+    min_containers=0,
+    timeout=900,
+    secrets=[SECRET],
+    volumes={"/comfyui/models/loras/user": LORA_VOL},
+)
+class ComfyMoss(_ComfyWorker):
+    """MOSS-Image worker: same lifecycle, MOSS models + template only."""
+
+    @modal.enter()
+    def startup(self):
+        super().startup()
+
+    @modal.exit()
+    def shutdown(self):
+        super().shutdown()
+
+    @modal.method()
+    def generate(self, payload: dict) -> dict:
+        return super().generate(payload)
 
 
 @app.function(
@@ -131,7 +186,8 @@ def web_app():
     async def generate(req: Request):
         _check_auth(req)
         payload = await req.json()
-        call = Comfy().generate.spawn(payload)
+        target = ComfyMoss if payload.get("model") == "moss" else Comfy
+        call = target().generate.spawn(payload)
         return {"call_id": call.object_id}
 
     @api.get("/status/{call_id}")

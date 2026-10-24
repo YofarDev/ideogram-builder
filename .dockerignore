@@ -2,3 +2,4 @@
 !runpod/handler.py
 !runpod/workflow_template_lora.json
 !runpod/workflow_template_lora_turbo.json
+!runpod/workflow_template_moss.json

@@ -117,7 +117,7 @@ export function initCanvasEvents() {
         x: (startX / state.canvas.width) * 1000,
         y: (startY / state.canvas.height) * 1000,
         w: 0, h: 0,
-        mode: 'obj', text: '', desc: '', colors: [],
+        mode: 'obj', text: '', desc: '', colors: [], tags: [],
         color: randomLayerColor(),
         visible: true, locked: false,
       };
@@ -226,7 +226,7 @@ export function initCanvasEvents() {
     const box = {
       id: nextBoxId(),
       x: 375, y: 375, w: 250, h: 250,
-      mode: 'obj', text: '', desc: '', colors: [],
+      mode: 'obj', text: '', desc: '', colors: [], tags: [],
       color: randomLayerColor(),
       visible: true, locked: false,
     };
@@ -318,6 +318,7 @@ export function initCanvasEvents() {
         text: element.text ?? '',
         desc: element.desc,
         colors: element.color_palette ?? [],
+        tags: element.tags ?? [],
         color: randomLayerColor(),
         visible: true, locked: false,
       };

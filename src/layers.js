@@ -91,7 +91,7 @@ function buildRow(box) {
 
   const badge = document.createElement('span');
   badge.className = 'layer-badge';
-  badge.textContent = box.mode === 'text' ? 'TXT' : 'OBJ';
+  badge.textContent = box.mode === 'text' ? 'TXT' : box.mode === 'character' ? 'CHR' : 'OBJ';
   info.appendChild(badge);
 
   row.appendChild(info);

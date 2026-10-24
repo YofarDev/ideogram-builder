@@ -131,3 +131,60 @@ describe('gallery', () => {
     expect(saveCalls.length).toBe(0)
   })
 })
+
+describe('model-aware gallery', () => {
+  const ITEMS = (meta) => [{
+    id: 'a.png', img: 'a.png', prompt_json: JSON.stringify({ high_level_description: 'x' }), mtime: 1, meta,
+  }]
+
+  // initGallery fires an initial (empty) render; the tab click renders again.
+  // Sequencing the mock avoids the two async renders interleaving.
+  function mockItems(items) {
+    global.fetch = vi.fn()
+      .mockResolvedValueOnce({ json: async () => [] })
+      .mockResolvedValueOnce({ json: async () => items })
+  }
+
+  it('card shows a MOSS chip when meta.model is moss, Ideogram otherwise', async () => {
+    mockItems([...ITEMS({ model: 'moss' }), ...ITEMS({})])
+    await initGalleryModule()
+    document.querySelector('.tab-btn[data-tab="gallery"]').click()
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('.gallery-card').length).toBe(2)
+    })
+    const chips = [...document.querySelectorAll('.gallery-card-model')].map(e => e.textContent)
+    expect(chips).toEqual(['MOSS', 'Ideogram'])
+  })
+
+  it('loadItem routes MOSS prompt JSON through prompt:apply', async () => {
+    const mossLayout = JSON.stringify({
+      summary: { caption: 'A fox' },
+      items: [{ label: 'object', caption: 'd', bbox: [0, 0, 100, 100] }],
+      bbox_coord_space: 'abs_centralized',
+      bbox_format: 'yxyx',
+    })
+    mockItems([{ id: 'm.png', img: 'm.png', prompt_json: mossLayout, mtime: 2, meta: { model: 'moss' } }])
+    await initGalleryModule()
+    const applied = []
+    on('prompt:apply', ({ raw }) => applied.push(raw))
+    document.querySelector('.tab-btn[data-tab="gallery"]').click()
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('.gallery-card').length).toBe(1)
+    })
+    document.querySelector('.gallery-card').click()
+    expect(applied).toEqual([mossLayout])
+  })
+
+  it('collection:add from a card carries the meta model', async () => {
+    mockItems(ITEMS({ model: 'moss' }))
+    await initGalleryModule()
+    const adds = []
+    on('collection:add', (p) => adds.push(p))
+    document.querySelector('.tab-btn[data-tab="gallery"]').click()
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('.gallery-card').length).toBe(1)
+    })
+    document.querySelector('.gallery-card-btn.add-collection').click()
+    expect(adds[0].model).toBe('moss')
+  })
+})

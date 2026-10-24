@@ -403,6 +403,7 @@
             line-height: 0;
             margin: auto;
             flex-shrink: 0;
+            position: relative;
         }
 
         #canvas-wrapper {
@@ -737,6 +738,20 @@
             font-size: 10px;
             color: var(--text-dim);
             margin-bottom: 3px;
+        }
+
+        /* Model chip on gallery cards (Ideogram / MOSS) */
+        .gallery-card-model {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            border: 1px solid var(--hairline-strong);
+            border-radius: 999px;
+            padding: 1px 7px;
+            margin-bottom: 4px;
         }
 
         .gallery-card-prompt {
@@ -1458,6 +1473,59 @@
             gap: 4px;
         }
 
+        /* "+ Add" LoRA form (URL or local file → Modal volume / private HF repo) */
+        .lora-add-btn {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 2px 10px;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .lora-add-btn:hover { color: var(--text); border-color: var(--hairline-hover); }
+
+        .lora-add-form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 8px 0 4px;
+        }
+
+        .lora-add-form[hidden] { display: none; }
+
+        .lora-add-form input[type="text"],
+        .lora-add-form select,
+        .lora-add-form input[type="file"] {
+            width: 100%;
+            font-size: 12px;
+            padding: 5px 8px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            box-sizing: border-box;
+        }
+
+        .lora-add-hint { font-size: 11px; color: var(--text-muted); }
+
+        .lora-card-delete {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            line-height: 1;
+            font-size: 13px;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .lora-card-delete:hover { color: var(--danger); background: var(--danger-dim); }
+
         .lora-card {
             display: flex;
             align-items: center;
@@ -1803,6 +1871,7 @@
             cursor: pointer;
             transition: all 0.15s;
             letter-spacing: 0.01em;
+            white-space: nowrap;
         }
 
         .pill-group input[type="radio"]:checked + .pill-label {
@@ -1813,6 +1882,65 @@
         .pill-group input[type="radio"]:not(:checked) + .pill-label:hover {
             color: var(--text);
             background: var(--accent-dim);
+        }
+
+        /* Model switch (Ideogram 4 / MOSS-Image) — MOSS accent is a green tint so
+           the active model can't be missed; gold accent stays everywhere else. */
+        body[data-model="moss"] .ideogram-only,
+        body:not([data-model="moss"]) .moss-only { display: none !important; }
+
+        body[data-model="moss"] #model-moss:checked + .pill-label {
+            background: oklch(72% 0.09 145);
+            color: oklch(20% 0.05 145);
+        }
+
+        body[data-model="moss"] #model-moss:not(:checked) + .pill-label:hover {
+            background: oklch(72% 0.09 145 / 0.15);
+            color: var(--text);
+        }
+
+        /* MOSS caption mode — boxes ignored, meta/canvas hidden */
+        body[data-moss-prompt="caption"] #moss-meta-group,
+        body[data-moss-prompt="caption"] #moss-canvas-group { display: none !important; }
+
+        body[data-moss-prompt="caption"] #canvas-wrapper .bounding-box { opacity: 0.35; }
+
+        #caption-mode-banner {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-strong);
+            pointer-events: none;
+        }
+
+        body:not([data-moss-prompt="caption"]) #caption-mode-banner { display: none; }
+
+        /* Format chip next to the Prompt JSON title — shrinks with ellipsis so
+           it never overlaps the title or the action buttons */
+        .json-format-chip {
+            font-size: 10.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: 999px;
+            padding: 2px 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex-shrink: 1;
         }
 
         /* Panel section groups */
@@ -2204,13 +2332,18 @@
         body:has(.main-content.gallery-active) .steps-toggle,
         body:has(.main-content.prompt-active) .steps-toggle,
         body:has(.main-content.json2caption-active) .steps-toggle,
-        body:has(.main-content.vision-active) .steps-toggle {
+        body:has(.main-content.vision-active) .steps-toggle,
+        body:has(.main-content.gallery-active) .moss-toggle,
+        body:has(.main-content.prompt-active) .moss-toggle,
+        body:has(.main-content.json2caption-active) .moss-toggle,
+        body:has(.main-content.vision-active) .moss-toggle {
             display: none;
         }
 
         body:has(.main-content.collections-active) .workflow-toggle,
         body:has(.main-content.collections-active) .backend-toggle,
-        body:has(.main-content.collections-active) .steps-toggle {
+        body:has(.main-content.collections-active) .steps-toggle,
+        body:has(.main-content.collections-active) .moss-toggle {
             display: none;
         }
 
@@ -3045,25 +3178,39 @@
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <button id="btn-open-output" class="btn btn-secondary" style="font-size:11px;padding:5px 12px;" title="Open the folder where generated images are saved">Open Output Folder</button>
         <div class="toolbar-spacer"></div>
+        <div class="model-toggle pill-group" id="model-toggle" role="radiogroup" aria-label="Image model">
+            <input type="radio" id="model-ideogram" name="model" value="ideogram" checked>
+            <label for="model-ideogram" class="pill-label">Ideogram 4</label>
+            <input type="radio" id="model-moss" name="model" value="moss">
+            <label for="model-moss" class="pill-label">MOSS</label>
+        </div>
         <div class="backend-toggle pill-group" id="backend-toggle" role="radiogroup" aria-label="Generation backend">
             <input type="radio" id="backend-runpod" name="backend" value="runpod" checked>
             <label for="backend-runpod" class="pill-label">RunPod</label>
             <input type="radio" id="backend-modal" name="backend" value="modal">
             <label for="backend-modal" class="pill-label">Modal</label>
         </div>
-        <div class="workflow-toggle pill-group" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
+        <div class="workflow-toggle pill-group ideogram-only" id="workflow-toggle" role="radiogroup" aria-label="Workflow engine">
             <input type="radio" id="workflow-turbo" name="workflow" value="turbo" checked>
             <label for="workflow-turbo" class="pill-label">Turbo</label>
             <input type="radio" id="workflow-classic" name="workflow" value="v1">
             <label for="workflow-classic" class="pill-label">Classic</label>
         </div>
-        <div class="steps-toggle pill-group" id="steps-toggle" role="radiogroup" aria-label="Speed">
+        <div class="steps-toggle pill-group ideogram-only" id="steps-toggle" role="radiogroup" aria-label="Speed">
             <input type="radio" id="steps_fast" name="steps" value="2" data-preset="Turbo">
             <label for="steps_fast" class="pill-label">Fast</label>
             <input type="radio" id="steps_default" name="steps" value="4" data-preset="Default" checked>
             <label for="steps_default" class="pill-label">Default</label>
             <input type="radio" id="steps_quality" name="steps" value="8" data-preset="Quality">
             <label for="steps_quality" class="pill-label">Quality</label>
+        </div>
+        <div class="moss-toggle pill-group moss-only" id="moss-preset-toggle" role="radiogroup" aria-label="MOSS preset">
+            <input type="radio" id="moss_preset_turbo" name="moss_preset" value="Turbo">
+            <label for="moss_preset_turbo" class="pill-label" title="Experimental 8-step distillation LoRA">Turbo β</label>
+            <input type="radio" id="moss_preset_fast" name="moss_preset" value="Fast" checked>
+            <label for="moss_preset_fast" class="pill-label">Fast</label>
+            <input type="radio" id="moss_preset_quality" name="moss_preset" value="Quality">
+            <label for="moss_preset_quality" class="pill-label">Quality</label>
         </div>
     </header>
 
@@ -3079,7 +3226,7 @@
                 </div>
                 <div class="panel-body">
                     <fieldset class="panel-section">
-                        <div class="input-group" id="turbo-strength-group">
+                        <div class="input-group ideogram-only" id="turbo-strength-group">
                             <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
                                 Turbo Strength
                             </label>
@@ -3089,11 +3236,29 @@
                                 <div class="lora-header" id="lora-toggle" role="button" tabindex="0" aria-expanded="true">
                                     <span class="lora-header-icon">▼</span>
                                     <label>LoRA</label>
+                                    <button type="button" id="btn-lora-add" class="lora-add-btn" title="Add a LoRA (URL or local file)">+ Add</button>
+                                </div>
+                                <div id="lora-add-form" class="lora-add-form" hidden>
+                                    <input type="text" id="lora-add-label" placeholder="Label (optional)">
+                                    <select id="lora-add-model">
+                                        <option value="ideogram">Ideogram 4</option>
+                                        <option value="moss">MOSS</option>
+                                    </select>
+                                    <div class="pill-group" role="radiogroup" aria-label="LoRA source">
+                                        <input type="radio" id="lora_add_url" name="lora_add_source" value="url" checked>
+                                        <label for="lora_add_url" class="pill-label">URL</label>
+                                        <input type="radio" id="lora_add_file" name="lora_add_source" value="file">
+                                        <label for="lora_add_file" class="pill-label">File</label>
+                                    </div>
+                                    <input type="text" id="lora-add-url" placeholder="https://huggingface.co/…/lora.safetensors">
+                                    <input type="file" id="lora-add-file" accept=".safetensors" style="display:none">
+                                    <div id="lora-add-hint" class="lora-add-hint" aria-live="polite"></div>
+                                    <button type="button" id="btn-lora-add-confirm" class="btn btn-primary" style="font-size:12px;padding:5px 14px;">Add</button>
                                 </div>
                                 <div class="lora-card-list" id="lora-list"></div>
                             </div>
                     </fieldset>
-                    <fieldset class="panel-section">
+                    <fieldset class="panel-section ideogram-only">
                         <div class="input-group">
                             <label for="high_level_description">High Level Description</label>
                             <textarea id="high_level_description" rows="5" placeholder="e.g. A serene landscape at dawn"></textarea>
@@ -3103,28 +3268,60 @@
                             <textarea id="background" rows="5" placeholder="Describe the background environment"></textarea>
                         </div>
                     </fieldset>
-                    <div class="workflow-toggle pill-group" role="radiogroup" aria-label="Mode" style="margin-bottom:6px;">
+                    <div class="workflow-toggle pill-group ideogram-only" role="radiogroup" aria-label="Mode" style="margin-bottom:6px;">
                         <input type="radio" id="mode_photo" name="art_mode" value="photo">
                         <label for="mode_photo" class="pill-label">Photo</label>
                         <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
                         <label for="mode_artstyle" class="pill-label">Art Style</label>
                     </div>
-                    <div class="input-group">
+                    <div class="input-group ideogram-only">
                         <label for="medium">Medium</label>
                         <input type="text" id="medium">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group ideogram-only">
                         <label id="mode_label" for="art_style">Art Style</label>
                         <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group ideogram-only">
                         <label for="aesthetics">Aesthetics</label>
                         <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
                     </div>
-                    <div class="input-group">
+                    <div class="input-group ideogram-only">
                         <label for="lighting">Lighting</label>
                         <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
                     </div>
+                    <fieldset class="panel-section moss-only" id="moss-fields">
+                        <div class="input-group">
+                            <label>Prompt Format</label>
+                            <div class="pill-group" role="radiogroup" aria-label="MOSS prompt format" style="margin-bottom:6px;">
+                                <input type="radio" id="moss_prompt_layout" name="moss_prompt_mode" value="layout" checked>
+                                <label for="moss_prompt_layout" class="pill-label">Layout</label>
+                                <input type="radio" id="moss_prompt_caption" name="moss_prompt_mode" value="caption">
+                                <label for="moss_prompt_caption" class="pill-label">Caption</label>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="moss-caption">Caption</label>
+                            <textarea id="moss-caption" rows="6" placeholder="Describe the whole image…"></textarea>
+                        </div>
+                        <div class="input-group" id="moss-meta-group">
+                            <label for="moss-meta">Meta Tags</label>
+                            <input type="text" id="moss-meta" placeholder="e.g. poster, illustration">
+                        </div>
+                        <div class="input-group" id="moss-canvas-group">
+                            <label for="moss-canvas">Canvas</label>
+                            <select id="moss-canvas">
+                                <option value="">—</option>
+                                <option value="single">single</option>
+                                <option value="multi_panel">multi_panel</option>
+                                <option value="collage">collage</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="moss-negative">Negative Prompt</label>
+                            <textarea id="moss-negative" rows="2">nsfw, worst quality, bad anatomy, watermark, jpeg artifact</textarea>
+                        </div>
+                    </fieldset>
                     <div class="input-group">
                         <label>Preset</label>
                         <div class="preset-row">
@@ -3164,7 +3361,7 @@
                             <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
                             <button class="size-btn" data-size="1.5" aria-pressed="false">1.5M</button>
                             <button class="size-btn" data-size="2" aria-pressed="false">2M</button>
-                            <button class="size-btn" data-size="4" aria-pressed="false">4M</button>
+                            <button class="size-btn ideogram-only" data-size="4" aria-pressed="false">4M</button>
                         </div>
                     </div>
                         <span class="dim-display" id="dim-display" aria-live="polite">768 × 1152</span>
@@ -3193,6 +3390,7 @@
 
                 <div class="canvas-container">
                     <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
+                    <div id="caption-mode-banner" class="moss-only">Caption mode — boxes are ignored</div>
                 </div>
             </div>
 
@@ -3206,6 +3404,12 @@
                                 <option value="">Loading...</option>
                             </select>
                             <button id="btn-config" class="icon-btn" aria-label="Open credentials file" title="Open credentials file"><span aria-hidden="true">&#9881;</span></button>
+                            <div class="pill-group moss-only" id="ai-moss-format" role="radiogroup" aria-label="MOSS output format" style="margin-left:8px;">
+                                <input type="radio" id="ai_moss_layout" name="ai_moss_format" value="layout" checked>
+                                <label for="ai_moss_layout" class="pill-label">Layout</label>
+                                <input type="radio" id="ai_moss_caption" name="ai_moss_format" value="caption">
+                                <label for="ai_moss_caption" class="pill-label">Caption</label>
+                            </div>
                         </div>
                     </div>
                     <div class="prompt-ar-row">
@@ -3386,8 +3590,8 @@
                                 <button id="btn-vision-find-more" class="btn" type="button" style="display:none;">Find missing</button>
                                 <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
                             </div>
-                            <div class="vision-audit" id="vision-audit">
-                                <div class="vision-audit-controls">
+                            <p class="moss-only" style="font-size:12px;color:var(--text-muted);padding:8px 2px;">Audit supports Ideogram JSON only.</p>
+                            <div class="vision-audit ideogram-only" id="vision-audit">                                <div class="vision-audit-controls">
                                     <select id="audit-model" class="ai-model-select" aria-label="Audit model"></select>
                                     <button id="btn-audit-run" class="btn btn-primary" type="button">Run Audit</button>
                                 </div>
@@ -3427,6 +3631,7 @@
                             <input type="hidden" id="box-mode" value="obj">
                             <button type="button" class="mode-btn active" data-mode="obj" aria-pressed="true">Object</button>
                             <button type="button" class="mode-btn" data-mode="text" aria-pressed="false">Text</button>
+                            <button type="button" class="mode-btn moss-only" data-mode="character" aria-pressed="false">Character</button>
                         </div>
                     </div>
                     <div class="input-group" id="text-input-group" style="display: none;">
@@ -3436,6 +3641,10 @@
                     <div class="input-group">
                         <label for="box-desc">Description</label>
                         <textarea id="box-desc" rows="6" placeholder="Describe this element…"></textarea>
+                    </div>
+                    <div class="input-group moss-only" id="box-tags-group">
+                        <label for="box-tags">Tags</label>
+                        <input type="text" id="box-tags" placeholder="Comma-separated, e.g. hero, swordsman">
                     </div>
                     <div class="input-group">
                         <label>Position &amp; Size <span class="geom-unit">(px)</span></label>
@@ -3466,7 +3675,11 @@
                         <span class="card-chevron" aria-hidden="true">&#9656;</span>
                         Prompt JSON
                     </button>
+                    <span id="json-format-chip" class="json-format-chip" aria-live="polite">Ideogram JSON</span>
                     <div class="json-header-actions">
+                        <button id="btn-convert-json" class="json-action-btn" aria-label="Convert to MOSS layout" title="Convert to MOSS layout">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                        </button>
                         <button id="btn-add-to-collection" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                         </button>

@@ -1,0 +1,39 @@
+FROM runpod/worker-comfyui:5.8.5-base
+
+# ponytail: triton JIT needs cc + Python.h at runtime; base image ships neither.
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3-dev && rm -rf /var/lib/apt/lists/*
+
+# MOSS-Image support merged into ComfyUI master on Oct 16 2026 (>= e087d8f6);
+# pin a known-good commit so surprise upstream breakage can't creep in.
+RUN rm -rf /comfyui && \
+    git clone https://github.com/comfyanonymous/ComfyUI.git /comfyui && \
+    cd /comfyui && \
+    git checkout 7cebca52227c63b4180ceed448cbd7ad22903b6d && \
+    pip install -r requirements.txt
+
+# Only rgthree needed (Power Lora Loader). KJNodes is Ideogram-only.
+RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes/rgthree-comfy && \
+    cd /comfyui/custom_nodes/rgthree-comfy && \
+    pip install -r requirements.txt
+
+# VERIFY: int8_convrot DiT loads with plain UNETLoader on native ComfyUI (the
+# official template does this). If it errors, add BobJohnson24/ComfyUI-INT8-Fast
+# like the Ideogram image, or fall back to moss_image_sft_bf16.safetensors.
+# VERIFY: qwen3.5_9b_w4a8_gptq runs on RTX 3090/A5000 (needs a w4a8 kernel).
+# If not, fall back to text_encoders/qwen3.5_9b_int8_convrot.safetensors.
+RUN mkdir -p /comfyui/models/diffusion_models /comfyui/models/text_encoders /comfyui/models/vae
+RUN wget -q -O /comfyui/models/diffusion_models/moss_image_sft_int8_convrot.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_int8_convrot.safetensors
+RUN wget -q -O /comfyui/models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors
+RUN wget -q -O /comfyui/models/vae/flux2-vae_small.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/vae/flux2-vae_small.safetensors
+
+# Turbo β preset: community 8-step DMD distillation LoRA (lodestones).
+RUN mkdir -p /comfyui/models/loras/moss/control /comfyui/models/loras/user
+RUN wget -q -O /comfyui/models/loras/moss/control/moss_sft_dmd8.safetensors \
+    https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd/resolve/main/lora.safetensors
+
+# Dockerfile lives in runpod/ but build context is repo root. Same shared
+# handler as the Ideogram image; only the MOSS template ships here.
+COPY runpod/handler.py /handler.py
+COPY runpod/workflow_template_moss.json /workflow_template_moss.json
+
+CMD ["/start.sh"]

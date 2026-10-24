@@ -19,11 +19,16 @@ function buildSnapshot() {
     } catch {
         importJson = jsonText;
     }
+    const isMoss = state.model === 'moss';
     return {
         importJson,
+        model: state.model,
+        // MOSS-only; empty for Ideogram so its payload stays unchanged
+        negativePrompt: isMoss ? (document.getElementById('moss-negative')?.value ?? '') : '',
+        promptFormat: isMoss ? state.moss.promptMode : 'layout',
         width: state.canvas.width,
         height: state.canvas.height,
-        preset: state.preset,
+        preset: isMoss ? state.moss.preset : state.preset,
         workflow: state.workflow,
         turboStrength: state.turboStrength,
         loras: state.loras.map(l => ({
@@ -37,10 +42,13 @@ function buildSnapshot() {
     };
 }
 
-function makeJob(importJson) {
+function makeJob(importJson, model) {
+    const snapshot = { ...buildSnapshot(), importJson };
+    // Collections pass their item's model; other snapshot fields stay from the UI (v1)
+    if (model) snapshot.model = model;
     return {
         id: counter++,
-        snapshot: { ...buildSnapshot(), importJson },
+        snapshot,
         status: 'queued',
         abort: new AbortController(),
     };
@@ -57,9 +65,9 @@ export function enqueue() {
     drain();
 }
 
-export function enqueueImportJson(importJson) {
+export function enqueueImportJson(importJson, { model } = {}) {
     if (!importJson || !importJson.trim()) return;
-    queue.push(makeJob(importJson));
+    queue.push(makeJob(importJson, model));
     render();
     drain();
 }
@@ -103,6 +111,11 @@ async function drain() {
                 photoArtMode: job.snapshot.photoArtMode,
                 backend: job.snapshot.backend,
                 loras: job.snapshot.loras.map(l => ({ filename: l.filename, source_url: l.source_url, strengths: l.strengths })),
+                // Model context for gallery restore (absent on pre-MOSS jobs = ideogram)
+                model: job.snapshot.model || 'ideogram',
+                negativePrompt: job.snapshot.negativePrompt ?? '',
+                promptFormat: job.snapshot.promptFormat || 'layout',
+                ...(job.snapshot.model === 'moss' ? { mossPreset: job.snapshot.preset } : {}),
             };
             emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, loras: job.snapshot.loras, source: 'generation', meta });
         } catch (err) {
@@ -167,6 +180,6 @@ export function initQueue() {
             if (btn) removeJob(Number(btn.dataset.id));
         });
     }
-    on('queue:enqueue', ({ importJson }) => enqueueImportJson(importJson));
+    on('queue:enqueue', ({ importJson, model }) => enqueueImportJson(importJson, { model }));
     render();
 }

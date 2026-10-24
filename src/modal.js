@@ -51,6 +51,10 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
                 turbo_strength: snapshot.turboStrength,
                 loras: snapshot.loras,
                 seed: snapshot.seed,
+                ...(snapshot.model === 'moss' ? {
+                    model: 'moss',
+                    negative_prompt: snapshot.negativePrompt ?? '',
+                } : {}),
             }),
             signal,
         });

@@ -178,3 +178,44 @@ describe('modal runJob', () => {
     }
   })
 })
+
+describe('modal runJob moss payload', () => {
+  async function importModule() {
+    return await import('../modal.js')
+  }
+
+  it('adds model and negative_prompt for moss snapshots', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'call-1' } },
+      { body: { status: 'completed', result: { output: { images: [
+        { filename: 'out.png', data: 'AAAA' }
+      ]}}} },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', negativePrompt: 'nsfw' }))
+    const submitCall = global.fetch.mock.calls[1]
+    const body = JSON.parse(submitCall[1].body)
+    expect(body.model).toBe('moss')
+    expect(body.negative_prompt).toBe('nsfw')
+  })
+
+  it('ideogram body carries no model key', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'call-1' } },
+      { body: { status: 'completed', result: { output: { images: [
+        { filename: 'out.png', data: 'AAAA' }
+      ]}}} },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot())
+    const body = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(body).not.toHaveProperty('model')
+    expect(body).not.toHaveProperty('negative_prompt')
+  })
+})
