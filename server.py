@@ -12,12 +12,13 @@ from datetime import datetime
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.error import URLError
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 CREDENTIALS_PATH = Path.home() / ".config" / "llm-credentials.json"
 OUTPUT_DIR = Path(__file__).parent / "output"
 IMG_TO_JSON_DIR = Path(__file__).parent / "img-to-json"
+LORA_CACHE_DIR = Path.home() / ".cache" / "ideogram-builder" / "loras"
 PORT = int(os.environ.get("PORT", "8080"))
 
 _vision_state = {"proc": None, "cancelled": False, "status": ""}
@@ -80,6 +81,80 @@ def _lenient_json(raw: str):
         except json.JSONDecodeError:
             return None
     return None
+
+
+# --- Local LoRA uploads (Phase C) --------------------------------------------
+# Files stream to ~/.cache/ideogram-builder/loras/<model>/, then go to every
+# configured target: the Modal volume (for Modal workers) and/or the private
+# HF repo (for RunPod workers, downloaded with HF_TOKEN on the worker).
+
+LORA_NAME_RE = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _sanitize_lora_name(raw_name: str) -> str:
+    """Same normalization as handler._sanitize_filename (basename + charset)."""
+    name = os.path.basename(urlparse(raw_name).path)
+    name = LORA_NAME_RE.sub("_", name)
+    if not name:
+        name = "lora.safetensors"
+    return name
+
+
+def _validate_lora_upload(model: str, raw_name: str) -> tuple[str, str]:
+    """Returns (error, sanitized_name); error is '' when the request is valid."""
+    if model not in ("ideogram", "moss"):
+        return f"model must be 'ideogram' or 'moss', got '{model}'", ""
+    if not raw_name.lower().endswith(".safetensors"):
+        return "only .safetensors files are accepted", ""
+    return "", _sanitize_lora_name(raw_name)
+
+
+def _lora_upload_targets(creds: dict) -> dict:
+    hf = creds.get("huggingface") or {}
+    modal = creds.get("modal") or {}
+    return {
+        "modal": bool(modal.get("lora_volume")),
+        "hf": bool(hf.get("token") and hf.get("lora_repo")),
+    }
+
+
+def _scrub_secrets(text: str, secrets) -> str:
+    for s in secrets:
+        if s:
+            text = text.replace(s, "***")
+    return text[:300]
+
+
+def _hf_lora_upload(creds: dict, local: Path, model: str, name: str) -> str:
+    """Upload to the private HF repo via the hf CLI (list argv, never a shell).
+    Returns the resolve URL; the token only ever travels in the env."""
+    hf = creds["huggingface"]
+    repo, token = hf["lora_repo"], hf["token"]
+    env = {**os.environ, "HF_TOKEN": token}
+    # Create the repo once; "already exists" failures are fine.
+    subprocess.run(
+        ["hf", "repo", "create", repo, "--private", "--type", "model"],
+        capture_output=True, env=env, timeout=120,
+    )
+    res = subprocess.run(
+        ["hf", "upload", repo, str(local), f"{model}/{name}", "--private"],
+        capture_output=True, env=env, timeout=3600,
+    )
+    if res.returncode != 0:
+        raise RuntimeError("hf upload failed: " + _scrub_secrets(
+            res.stderr.decode("utf-8", "replace"), [token]))
+    return f"https://huggingface.co/{repo}/resolve/main/{model}/{name}"
+
+
+def _modal_lora_put(creds: dict, local: Path, model: str, name: str):
+    volume = creds["modal"]["lora_volume"]
+    res = subprocess.run(
+        ["modal", "volume", "put", "--force", volume, str(local), f"/{model}/{name}"],
+        capture_output=True, timeout=3600,
+    )
+    if res.returncode != 0:
+        raise RuntimeError("modal volume put failed: " + _scrub_secrets(
+            res.stderr.decode("utf-8", "replace"), []))
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -638,6 +713,12 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(200, config)
             except FileNotFoundError:
                 self._send_json(200, {"error": "credentials file not found"})
+        elif self.path == "/api/lora/targets":
+            try:
+                creds = json.loads(CREDENTIALS_PATH.read_text())
+            except FileNotFoundError:
+                creds = {}
+            self._send_json(200, _lora_upload_targets(creds))
         elif self.path == "/api/open-output":
             OUTPUT_DIR.mkdir(exist_ok=True)
             if sys.platform == "darwin":
@@ -710,6 +791,61 @@ class Handler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        if self.path.startswith("/api/lora/upload"):
+            params = parse_qs(urlparse(self.path).query)
+            model = (params.get("model") or ["ideogram"])[0]
+            raw_name = (params.get("name") or [""])[0]
+            error, name = _validate_lora_upload(model, raw_name)
+            if error:
+                self._send_json(400, {"error": error})
+                return
+
+            try:
+                creds = json.loads(CREDENTIALS_PATH.read_text())
+            except FileNotFoundError:
+                creds = {}
+            targets = _lora_upload_targets(creds)
+            if not targets["modal"] and not targets["hf"]:
+                self._send_json(400, {"error": "no upload target configured (modal.lora_volume or huggingface.lora_repo)"})
+                return
+
+            # Stream the raw body to disk in 1 MB chunks — never whole-file in memory
+            dest_dir = LORA_CACHE_DIR / model
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / name
+            remaining = int(self.headers.get("Content-Length", 0))
+            with open(dest, "wb") as f:
+                while remaining > 0:
+                    chunk = self.rfile.read(min(1024 * 1024, remaining))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    remaining -= len(chunk)
+
+            # Runs inside this request's thread — ThreadingHTTPServer keeps
+            # serving other requests during long uploads.
+            warnings = []
+            try:
+                if targets["modal"]:
+                    _modal_lora_put(creds, dest, model, name)
+                else:
+                    warnings.append("modal target not configured; skipped")
+                source_url = None
+                if targets["hf"]:
+                    source_url = _hf_lora_upload(creds, dest, model, name)
+                else:
+                    warnings.append("hf target not configured; skipped")
+            except RuntimeError as e:
+                self._send_json(500, {"error": str(e)})
+                return
+
+            self._send_json(200, {
+                "filename": f"user/{model}/{name}",
+                "source_url": source_url,
+                "targets": [t for t, on in targets.items() if on],
+                "warnings": warnings,
+            })
+            return
         if self.path == "/api/img-to-json/cancel":
             _vision_state["cancelled"] = True
             proc = _vision_state["proc"]

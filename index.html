@@ -1459,6 +1459,59 @@
             gap: 4px;
         }
 
+        /* "+ Add" LoRA form (URL or local file → Modal volume / private HF repo) */
+        .lora-add-btn {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 2px 10px;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .lora-add-btn:hover { color: var(--text); border-color: var(--hairline-hover); }
+
+        .lora-add-form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 8px 0 4px;
+        }
+
+        .lora-add-form[hidden] { display: none; }
+
+        .lora-add-form input[type="text"],
+        .lora-add-form select,
+        .lora-add-form input[type="file"] {
+            width: 100%;
+            font-size: 12px;
+            padding: 5px 8px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            box-sizing: border-box;
+        }
+
+        .lora-add-hint { font-size: 11px; color: var(--text-muted); }
+
+        .lora-card-delete {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            line-height: 1;
+            font-size: 13px;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+
+        .lora-card-delete:hover { color: var(--danger); background: var(--danger-dim); }
+
         .lora-card {
             display: flex;
             align-items: center;
@@ -3169,6 +3222,24 @@
                                 <div class="lora-header" id="lora-toggle" role="button" tabindex="0" aria-expanded="true">
                                     <span class="lora-header-icon">▼</span>
                                     <label>LoRA</label>
+                                    <button type="button" id="btn-lora-add" class="lora-add-btn" title="Add a LoRA (URL or local file)">+ Add</button>
+                                </div>
+                                <div id="lora-add-form" class="lora-add-form" hidden>
+                                    <input type="text" id="lora-add-label" placeholder="Label (optional)">
+                                    <select id="lora-add-model">
+                                        <option value="ideogram">Ideogram 4</option>
+                                        <option value="moss">MOSS</option>
+                                    </select>
+                                    <div class="pill-group" role="radiogroup" aria-label="LoRA source">
+                                        <input type="radio" id="lora_add_url" name="lora_add_source" value="url" checked>
+                                        <label for="lora_add_url" class="pill-label">URL</label>
+                                        <input type="radio" id="lora_add_file" name="lora_add_source" value="file">
+                                        <label for="lora_add_file" class="pill-label">File</label>
+                                    </div>
+                                    <input type="text" id="lora-add-url" placeholder="https://huggingface.co/…/lora.safetensors">
+                                    <input type="file" id="lora-add-file" accept=".safetensors" style="display:none">
+                                    <div id="lora-add-hint" class="lora-add-hint" aria-live="polite"></div>
+                                    <button type="button" id="btn-lora-add-confirm" class="btn btn-primary" style="font-size:12px;padding:5px 14px;">Add</button>
                                 </div>
                                 <div class="lora-card-list" id="lora-list"></div>
                             </div>

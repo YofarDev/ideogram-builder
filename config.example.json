@@ -65,5 +65,14 @@
     "endpoints": {
       "moss": "your-moss-endpoint-id"
     }
+  },
+  "modal": {
+    "endpoint_url": "https://<workspace>--ideogram-builder-web-app.modal.run/generate",
+    "auth_token": "<same-secret-as-modal-secret>",
+    "lora_volume": "ideogram-loras"
+  },
+  "huggingface": {
+    "token": "hf-your-hf-token",
+    "lora_repo": "your-name/private-loras"
   }
 }
