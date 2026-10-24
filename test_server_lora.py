@@ -8,6 +8,7 @@ import threading
 import urllib.request
 from pathlib import Path
 from unittest import mock
+from urllib.parse import urlparse
 
 import pytest
 
@@ -169,3 +170,53 @@ def test_upload_rejects_when_no_target(tmp_path, monkeypatch):
         assert e.code == 400
         assert "no upload target" in json.loads(e.read())["error"]
     httpd.shutdown()
+
+
+# --- Truncated uploads / bad Content-Length ------------------------------------
+
+
+def _raw_post(base, path, headers, body=b""):
+    """Raw socket POST that shuts down the write side — lets us lie about
+    Content-Length to simulate a mid-upload client disconnect."""
+    import socket
+    u = urlparse(base)
+    sock = socket.create_connection((u.hostname, u.port), timeout=10)
+    req = f"POST {path} HTTP/1.1\r\nHost: {u.hostname}:{u.port}\r\n{headers}Connection: close\r\n\r\n"
+    sock.sendall(req.encode() + body)
+    sock.shutdown(socket.SHUT_WR)
+    resp = b""
+    while True:
+        data = sock.recv(4096)
+        if not data:
+            break
+        resp += data
+    sock.close()
+    return resp
+
+
+def test_upload_truncated_body_deleted_and_rejected(lora_server):
+    base, tmp = lora_server
+    body = b"partial-bytes"
+    promised = len(body) + 500  # lie: client promises more than it sends
+    with mock.patch.object(server.subprocess, "run") as run:
+        resp = _raw_post(base, "/api/lora/upload?name=x.safetensors&model=moss",
+                         f"Content-Length: {promised}\r\n", body)
+        run.assert_not_called()  # partial files never reach any target
+    status_line = resp.split(b"\r\n")[0]
+    assert b"400" in status_line
+    assert b"upload incomplete" in resp
+    assert not (tmp / "loras" / "moss" / "x.safetensors").exists()
+
+
+def test_upload_missing_content_length_rejected(lora_server):
+    base, tmp = lora_server
+    resp = _raw_post(base, "/api/lora/upload?name=x.safetensors&model=moss", "", b"")
+    assert b"411" in resp.split(b"\r\n")[0]
+    assert not (tmp / "loras" / "moss" / "x.safetensors").exists()
+
+
+def test_upload_zero_content_length_rejected(lora_server):
+    base, tmp = lora_server
+    resp = _raw_post(base, "/api/lora/upload?name=x.safetensors&model=moss", "Content-Length: 0\r\n", b"")
+    assert b"411" in resp.split(b"\r\n")[0]
+    assert not any((tmp / "loras").rglob("*.safetensors")) if (tmp / "loras").exists() else True

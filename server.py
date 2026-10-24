@@ -809,11 +809,20 @@ class Handler(SimpleHTTPRequestHandler):
                 self._send_json(400, {"error": "no upload target configured (modal.lora_volume or huggingface.lora_repo)"})
                 return
 
+            # Uploads need a known length (chunked transfer is not supported)
+            length_header = self.headers.get("Content-Length")
+            try:
+                remaining = int(length_header) if length_header is not None else 0
+            except ValueError:
+                remaining = 0
+            if remaining <= 0:
+                self._send_json(411, {"error": "Content-Length required"})
+                return
+
             # Stream the raw body to disk in 1 MB chunks — never whole-file in memory
             dest_dir = LORA_CACHE_DIR / model
             dest_dir.mkdir(parents=True, exist_ok=True)
             dest = dest_dir / name
-            remaining = int(self.headers.get("Content-Length", 0))
             with open(dest, "wb") as f:
                 while remaining > 0:
                     chunk = self.rfile.read(min(1024 * 1024, remaining))
@@ -821,6 +830,12 @@ class Handler(SimpleHTTPRequestHandler):
                         break
                     f.write(chunk)
                     remaining -= len(chunk)
+            if remaining > 0:
+                # Client disconnected mid-upload — discard the partial file and
+                # never push it to any target.
+                dest.unlink(missing_ok=True)
+                self._send_json(400, {"error": "upload incomplete"})
+                return
 
             # Runs inside this request's thread — ThreadingHTTPServer keeps
             # serving other requests during long uploads.
