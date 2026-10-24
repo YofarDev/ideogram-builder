@@ -164,12 +164,32 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store, must-revalidate")
         super().end_headers()
 
-    def _send_json(self, status, data):
+    def _send_json(self, status, data, close=False):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
+        if close:
+            self.send_header("Connection", "close")
+            self.close_connection = True
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
+
+    def _reject_upload(self, status, error):
+        """Early /api/lora/upload rejection: best-effort drain of a small body
+        (<= 1 MB) then close cleanly, so a client still mid-send doesn't see
+        ConnectionResetError when the socket drops unread bytes."""
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = 0
+        if 0 < length <= 1024 * 1024:
+            remaining = length
+            while remaining > 0:
+                chunk = self.rfile.read(min(1024 * 1024, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        self._send_json(status, {"error": error}, close=True)
 
     def _canonicalize_and_verify(self, raw_dict: dict) -> tuple[dict, list[str]]:
         try:
@@ -797,7 +817,7 @@ class Handler(SimpleHTTPRequestHandler):
             raw_name = (params.get("name") or [""])[0]
             error, name = _validate_lora_upload(model, raw_name)
             if error:
-                self._send_json(400, {"error": error})
+                self._reject_upload(400, error)
                 return
 
             try:
@@ -806,7 +826,7 @@ class Handler(SimpleHTTPRequestHandler):
                 creds = {}
             targets = _lora_upload_targets(creds)
             if not targets["modal"] and not targets["hf"]:
-                self._send_json(400, {"error": "no upload target configured (modal.lora_volume or huggingface.lora_repo)"})
+                self._reject_upload(400, "no upload target configured (modal.lora_volume or huggingface.lora_repo)")
                 return
 
             # Uploads need a known length (chunked transfer is not supported)
@@ -816,7 +836,7 @@ class Handler(SimpleHTTPRequestHandler):
             except ValueError:
                 remaining = 0
             if remaining <= 0:
-                self._send_json(411, {"error": "Content-Length required"})
+                self._reject_upload(411, "Content-Length required")
                 return
 
             # Stream the raw body to disk in 1 MB chunks — never whole-file in memory

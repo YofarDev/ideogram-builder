@@ -144,7 +144,9 @@ def test_upload_endpoint_streams_and_dispatches(lora_server):
 
 
 def test_upload_rejects_non_safetensors(lora_server):
-    base, _ = lora_server
+    # 1-byte body: the server drains small bodies before closing, so the clean
+    # 400 is the expected path; a reset is tolerated only with no side effects.
+    base, tmp = lora_server
     req = urllib.request.Request(base + "/api/lora/upload?name=x.bin&model=moss", data=b"x", method="POST")
     try:
         urllib.request.urlopen(req)
@@ -152,6 +154,8 @@ def test_upload_rejects_non_safetensors(lora_server):
     except urllib.error.HTTPError as e:
         assert e.code == 400
         assert ".safetensors" in json.loads(e.read())["error"]
+    except ConnectionResetError:
+        assert not (tmp / "loras" / "moss" / "x.bin").exists()
 
 
 def test_upload_rejects_when_no_target(tmp_path, monkeypatch):
