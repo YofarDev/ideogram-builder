@@ -125,6 +125,24 @@ def test_moss_seed_passthrough():
     assert build_moss(seed=123)["10"]["inputs"]["seed"] == 123
 
 
+@pytest.mark.parametrize("workflow_key", ["turbo", "v1"])
+@pytest.mark.parametrize("seed", [None, -1])
+def test_ideogram_seed_randomised(workflow_key, seed):
+    # Before the fix, "random" jobs reused the template's hard-coded seed
+    template_seed = load_repo_template(workflow_key)["160"]["inputs"]["seed"]
+    seeds = {handler.build_workflow(workflow_key, "PJ", 768, 1152, "Default", seed, [], 0.8)["160"]["inputs"]["seed"]
+             for _ in range(3)}
+    assert len(seeds) == 3
+    assert template_seed not in seeds
+    assert all(0 <= s <= 2**53 - 1 for s in seeds)
+
+
+@pytest.mark.parametrize("workflow_key", ["turbo", "v1"])
+def test_ideogram_seed_passthrough(workflow_key):
+    wf = handler.build_workflow(workflow_key, "PJ", 768, 1152, "Default", 0, [], 0.8)
+    assert wf["160"]["inputs"]["seed"] == 0
+
+
 # --- handler() input validation -----------------------------------------------
 
 
@@ -180,12 +198,13 @@ def test_ideogram_turbo_workflow_unchanged():
 
 
 def test_ideogram_v1_workflow_unchanged():
-    wf = handler.build_workflow("v1", "PJ", 512, 512, "Default", None,
+    wf = handler.build_workflow("v1", "PJ", 512, 512, "Default", 7,
                                 [{"filename": "a.safetensors", "strengths": {"positive": 0.5, "unconditional": 0.25}}], 0.8)
     expected = load_repo_template("v1")
     expected["98:27"]["inputs"]["value"] = 512
     expected["98:28"]["inputs"]["value"] = 512
     expected["188"]["inputs"]["value"] = "PJ"
+    expected["160"]["inputs"]["seed"] = 7
     expected["98:156"]["inputs"]["choice"] = "Default"
     expected["98:156"]["inputs"]["index"] = 2
     expected["166"]["inputs"]["lora_1"] = {"on": True, "lora": "a.safetensors", "strength": 0.5}

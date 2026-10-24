@@ -268,6 +268,14 @@ def _populate_lora_loader(wf, node_id, loras, strength_key):
         inputs["lora_1"] = {"on": False, "lora": "", "strength": 1.0}
 
 
+def _resolve_seed(seed):
+    """None or negative (the UI's "random" -1) → fresh server-side seed. Without
+    this the template's hard-coded seed is reused and every "random" job repeats."""
+    if seed is None or seed < 0:
+        return random.randint(0, 2**53 - 1)
+    return seed
+
+
 def build_workflow(workflow_key, import_json, width, height, preset, seed, loras, turbo_strength):
     if workflow_key == "v1":
         return _build_workflow_v1(import_json, width, height, preset, seed, loras)
@@ -280,8 +288,7 @@ def _build_workflow_turbo(import_json, width, height, preset, seed, loras, turbo
     wf = _load_template("turbo")
     wf["98:27"]["inputs"]["value"] = width
     wf["98:28"]["inputs"]["value"] = height
-    if seed is not None and seed >= 0:
-        wf["160"]["inputs"]["seed"] = seed
+    wf["160"]["inputs"]["seed"] = _resolve_seed(seed)
     if preset in PRESET_INDEX:
         wf["98:156"]["inputs"]["choice"] = preset
         wf["98:156"]["inputs"]["index"] = PRESET_INDEX[preset]
@@ -297,8 +304,7 @@ def _build_workflow_v1(import_json, width, height, preset, seed, loras):
     wf["98:27"]["inputs"]["value"] = width
     wf["98:28"]["inputs"]["value"] = height
     wf["188"]["inputs"]["value"] = import_json
-    if seed is not None and seed >= 0:
-        wf["160"]["inputs"]["seed"] = seed
+    wf["160"]["inputs"]["seed"] = _resolve_seed(seed)
     if preset in PRESET_INDEX:
         wf["98:156"]["inputs"]["choice"] = preset
         wf["98:156"]["inputs"]["index"] = PRESET_INDEX[preset]
@@ -311,8 +317,7 @@ def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
     """MOSS-Image workflow (workflow_template_moss.json). Prompt is the compiled
     layout JSON or a plain caption; negative may be an empty string."""
     settings = MOSS_PRESETS[preset]
-    if seed is None or seed < 0:
-        seed = random.randint(0, 2**53 - 1)
+    seed = _resolve_seed(seed)
     wf = _load_template("moss")
     wf["7"]["inputs"]["text"] = prompt
     wf["8"]["inputs"]["text"] = negative
