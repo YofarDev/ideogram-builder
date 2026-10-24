@@ -113,7 +113,7 @@ def test_moss_no_loras_disables_slot():
 def test_moss_seed_randomised_when_missing():
     seeds = {build_moss(seed=None)["10"]["inputs"]["seed"] for _ in range(3)}
     assert len(seeds) == 3
-    assert all(0 <= s <= 2**53 - 1 for s in seeds)
+    assert all(0 <= s <= handler.SEED_MAX for s in seeds)
 
 
 def test_moss_seed_randomised_when_negative():
@@ -134,7 +134,7 @@ def test_ideogram_seed_randomised(workflow_key, seed):
              for _ in range(3)}
     assert len(seeds) == 3
     assert template_seed not in seeds
-    assert all(0 <= s <= 2**53 - 1 for s in seeds)
+    assert all(0 <= s <= handler.SEED_MAX for s in seeds)
 
 
 @pytest.mark.parametrize("workflow_key", ["turbo", "v1"])

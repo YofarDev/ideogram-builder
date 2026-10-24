@@ -45,6 +45,8 @@ LORAS_DIR = "/comfyui/models/loras"
 
 PRESET_INDEX = {"Quality": 1, "Default": 2, "Turbo": 3}
 
+SEED_MAX = 2**50  # max accepted by the Seed (rgthree) node in the Ideogram templates
+
 # MOSS-Image sampler presets, resolved server-side. Turbo β ships with the
 # DMD distillation LoRA (node 4 of the template); the others bypass it.
 # VERIFY: Turbo sampler/scheduler — the DMD card doesn't name a ComfyUI sampler,
@@ -270,9 +272,11 @@ def _populate_lora_loader(wf, node_id, loras, strength_key):
 
 def _resolve_seed(seed):
     """None or negative (the UI's "random" -1) → fresh server-side seed. Without
-    this the template's hard-coded seed is reused and every "random" job repeats."""
+    this the template's hard-coded seed is reused and every "random" job repeats.
+    Capped at 2**50: the Ideogram templates' Seed (rgthree) node rejects anything
+    larger (KSampler on MOSS accepts more, but one range keeps them consistent)."""
     if seed is None or seed < 0:
-        return random.randint(0, 2**53 - 1)
+        return random.randint(0, SEED_MAX)
     return seed
 
 
