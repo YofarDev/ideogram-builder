@@ -881,6 +881,28 @@ class Handler(SimpleHTTPRequestHandler):
                 "warnings": warnings,
             })
             return
+        if self.path == "/api/log":
+            # Mirror client-side errors into the terminal: the snackbar in the
+            # UI auto-hides after a few seconds, the terminal keeps the full
+            # message and context.
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except ValueError:
+                body = {}
+            level = str(body.get("level") or "info")[:16]
+            message = str(body.get("message") or "").strip()[:2000]
+            context = body.get("context") or {}
+            if isinstance(context, dict):
+                ctx = " ".join(f"{k}={context[k]}" for k in sorted(context) if context[k] is not None)
+            else:
+                ctx = str(context)[:500]
+            line = f"[client:{level}] {message}"
+            if ctx:
+                line += f" ({ctx})"
+            print(line, file=sys.stderr, flush=True)
+            self._send_json(200, {"ok": True})
+            return
         if self.path == "/api/img-to-json/cancel":
             _vision_state["cancelled"] = True
             proc = _vision_state["proc"]

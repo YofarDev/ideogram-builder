@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { emit, on } from './events.js';
 import { showToast } from './toast.js';
+import { logError } from './client-log.js';
 import { runJob } from './backend.js';
 
 let queue = [];
@@ -128,6 +129,12 @@ async function drain() {
             job.error = err.message;
             if (statusEl()) statusEl().textContent = 'Error: ' + err.message;
             showToast('Generation failed: ' + err.message, 'error');
+            // The snackbar fades out — keep the failure in the server terminal too.
+            logError(`Generation failed: ${err.message}`, {
+                model: job.snapshot.model || 'ideogram',
+                backend: job.snapshot.backend,
+                seed: job.snapshot.seed,
+            });
         }
         render();
     }
