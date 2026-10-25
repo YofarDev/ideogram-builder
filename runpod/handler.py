@@ -232,9 +232,12 @@ def ensure_loras(loras):
                 raise ValueError("Lora entry missing both filename and source_url")
             filename = _sanitize_filename(source_url)
 
-        dest = os.path.join(LORAS_DIR, filename)
-        realpath = os.path.realpath(dest)
-        if not realpath.startswith(os.path.realpath(LORAS_DIR) + os.sep):
+        # Lexical containment: normpath catches ".." traversal, but unlike
+        # realpath it tolerates symlinks under LORAS_DIR — Modal mounts the
+        # LoRA volume at /comfyui/models/loras/user, and resolving that link
+        # would wrongly reject every "user/..." filename.
+        dest = os.path.normpath(os.path.join(LORAS_DIR, filename))
+        if not dest.startswith(os.path.normpath(LORAS_DIR) + os.sep):
             raise ValueError(f"Unsafe lora filename rejected: {filename}")
 
         if not os.path.exists(dest):

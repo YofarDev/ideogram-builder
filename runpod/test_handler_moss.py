@@ -313,3 +313,30 @@ def test_ensure_loras_resolves_subpath(monkeypatch, tmp_path):
           "strengths": {"positive": 1.0}}])
     assert resolved == [{"filename": "user/moss/x.safetensors", "strengths": {"positive": 1.0}}]
     assert downloads == [("https://huggingface.co/user/repo/resolve/main/x.safetensors", "user/moss/x.safetensors")]
+
+
+def test_ensure_loras_accepts_symlinked_subdir(monkeypatch, tmp_path):
+    """Modal mounts the LoRA volume at LORAS_DIR/user via symlink; filenames
+    under it must pass the containment check (realpath would reject them)."""
+    monkeypatch.setattr(handler, "LORAS_DIR", str(tmp_path / "loras"))
+    volume_root = tmp_path / "volume"
+    (volume_root / "moss").mkdir(parents=True)
+    (volume_root / "moss" / "x.safetensors").write_bytes(b"x")
+    loras = tmp_path / "loras"
+    loras.mkdir()
+    loras.joinpath("user").symlink_to(volume_root, target_is_directory=True)
+
+    resolved = handler.ensure_loras(
+        [{"filename": "user/moss/x.safetensors",
+          "source_url": None,
+          "strengths": {"positive": 1.0}}])
+    assert resolved == [{"filename": "user/moss/x.safetensors", "strengths": {"positive": 1.0}}]
+
+
+def test_ensure_loras_rejects_traversal(monkeypatch, tmp_path):
+    monkeypatch.setattr(handler, "LORAS_DIR", str(tmp_path))
+    with pytest.raises(ValueError, match="Unsafe lora filename"):
+        handler.ensure_loras(
+            [{"filename": "../escape.safetensors",
+              "source_url": "https://example.com/x.safetensors",
+              "strengths": {"positive": 1.0}}])
