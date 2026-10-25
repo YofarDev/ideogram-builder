@@ -224,3 +224,35 @@ def test_upload_zero_content_length_rejected(lora_server):
     resp = _raw_post(base, "/api/lora/upload?name=x.safetensors&model=moss", "Content-Length: 0\r\n", b"")
     assert b"411" in resp.split(b"\r\n")[0]
     assert not any((tmp / "loras").rglob("*.safetensors")) if (tmp / "loras").exists() else True
+
+
+# --- /api/log ------------------------------------------------------------------
+
+
+def test_log_endpoint_prints_to_stderr(lora_server, capsys):
+    base, _ = lora_server
+    req = urllib.request.Request(
+        base + "/api/log",
+        data=json.dumps({
+            "level": "error",
+            "message": "Generation failed: Unsafe lora filename rejected",
+            "context": {"model": "moss", "backend": "modal", "seed": -1},
+        }).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        assert json.loads(resp.read()) == {"ok": True}
+    err = capsys.readouterr().err
+    assert "[client:error] Generation failed: Unsafe lora filename rejected" in err
+    assert "backend=modal" in err and "model=moss" in err
+
+
+def test_log_endpoint_survives_bad_body(lora_server):
+    base, _ = lora_server
+    req = urllib.request.Request(
+        base + "/api/log",
+        data=b"not json",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req) as resp:
+        assert json.loads(resp.read()) == {"ok": True}

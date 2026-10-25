@@ -97,12 +97,20 @@ Gold outline on every interactive control. `:focus-visible` carries the ring; `:
 Radio-backed toggle. Active label takes gold fill + `--on-accent` text. Group has `role="radiogroup"`, labeled by an external span.
 
 ### Toolbars
-- **Top bar = workspace**: brand, tabs (single line, `white-space: nowrap`), output-folder icon, model switch, backend. Nothing generation-specific.
-- **Editor toolbar = canvas + generation**: canvas controls (aspect, tier, dims, preview) on the left; `.gen-controls` (seed, engine/speed pills, `.gen-actions` = Generate + Queue) right-aligned. The toolbar wraps (`flex-wrap`), and Generate + Queue always wrap together, so they are never clipped.
+- **Top bar = workspace**: brand, tabs (Editor · Assist · Collections · Gallery; single line, `white-space: nowrap`), output-folder icon, model switch, backend. Nothing generation-specific. **Assist** groups the three AI tools (Text → JSON, Image → JSON, JSON → Caption) behind `.assist-subtabs`; the top button remembers the last sub-tab.
+- **Editor toolbar = canvas + generation**, two `.toolbar-row`s: `.canvas-controls` (aspect, tier, dims, preview, then `.gen-actions` = Generate + Queue right-aligned) and `.gen-controls` (seed, engine pills, turbo strength, speed/MOSS preset, LoRA button right-aligned). Rows wrap (`flex-wrap`); Generate + Queue always wrap together, so they are never clipped.
+- **Popovers** (`.queue-panel`, `.lora-panel`) hang off the editor toolbar's bottom-right, close on outside click / Escape, never more than one open.
 - Pill groups never shrink (`flex-shrink: 0`). Verify at 1280px wide: nothing may clip.
 
 ### Panels
 `.panel` + `.panel-header` + `.panel-body`. Section grouping via `<fieldset class="panel-section">` with `<legend class="panel-section-title">`. No side-stripe accent; the heading family swap carries identity.
+
+### Sidebars
+- **Left = Prompt** (what to depict): Ideogram → Scene (description, background), Style (preset, photo/art, medium, style, aesthetics, lighting); MOSS → Scene (format, caption, meta, canvas, negative). Palette last. No generation parameters here.
+- **Right = Layers, Box Properties, Prompt JSON.**
+
+### LoRA popover
+Active stack on top (click order = stack order; strength slider per entry), searchable library below (current model only; Enter picks the first match; user entries delete on hover). Toolbar button badges the active count; its tooltip lists active names. Built to scale to a long library: only the library scrolls.
 
 ### Bounding boxes
 1.5px hairline-hover border in default state, dimmed when another box is selected. Selected box gets 2px dashed accent border + glow. Handles: 8px corner indicators (non-interactive), 10px round resize handle with extended `::before` hit area for touch.

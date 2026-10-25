@@ -42,7 +42,14 @@ export function initGallery() {
     });
 }
 
+// Tabs reached through a grouped top-level button (Assist → its sub-tabs)
+const ASSIST_TABS = ['prompt', 'vision', 'json2caption'];
+
 function switchTab(tab) {
+    // The Assist top button remembers the last sub-tab, so it reopens there and
+    // stays highlighted while any of its sub-tabs is active.
+    const group = document.querySelector('.tab-btn[data-tab-group="assist"]');
+    if (group && ASSIST_TABS.includes(tab)) group.dataset.tab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => {
         const isActive = b.dataset.tab === tab;
         b.classList.toggle('active', isActive);

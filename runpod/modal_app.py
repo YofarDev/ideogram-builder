@@ -32,6 +32,7 @@ deploy time for cheaper hardware.
 
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -97,10 +98,22 @@ class _ComfyWorker:
             self.proc.kill()
 
     def generate(self, payload: dict) -> dict:
-        # Pick up LoRAs uploaded to the volume since the last job.
-        LORA_VOL.reload()
-        # handler.py is at /handler.py in the image; reuse its full websocket path.
-        import sys
+        # Pick up LoRAs uploaded to the volume since the last job. Tolerate
+        # failure: ComfyUI keeps volume files mmap'd after first use, and
+        # Modal refuses to reload while handles are open — without the
+        # try/except every queued job after the first fails with "there are
+        # open files preventing the operation". A stale view is harmless:
+        # ensure_loras re-downloads anything missing from its source_url, so
+        # we only lose picking up external `modal volume put` uploads on a
+        # warm container.
+        try:
+            LORA_VOL.reload()
+        except Exception as e:
+            print(f"[volume] reload skipped: {e}", file=sys.stderr, flush=True)
+        # handler.py is at /handler.py in the image; reuse its full websocket
+        # path. (sys comes from the module import — a function-level
+        # `import sys` here would shadow it for the whole scope and break the
+        # sys.stderr reference in the except block above.)
         sys.path.insert(0, "/")
         import handler as comfy
         return comfy.handler({"input": payload, "id": "modal"})

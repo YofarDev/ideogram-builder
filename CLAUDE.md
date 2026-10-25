@@ -40,6 +40,8 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `prompt-moss.js` | Pure MOSS layout helpers: buildMossLayout/compileMoss/parseMoss/predicates (ComfyUI-matching maths) | nothing |
 | `prompt-convert.js` | Pure format detection, Ideogram↔MOSS global converters, full-document `ideogramToMoss` / `mossToIdeogram` | prompt-moss |
 | `lora-library.js` | LoRA library data: per-model built-ins + user entries in localStorage | nothing |
+| `lora-panel.js` | LoRA popover chrome: open/close (outside click, Escape), search box → callbacks (split of lora) | nothing |
+| `lora-cards.js` | Pure HTML templates for LoRA popover cards (split of lora) | escape-html |
 | `lora-add.js` | "+ Add" LoRA form: URL or file upload (XHR progress) → `lora:added` | state, events, toast |
 | `gallery-meta.js` | Gallery card meta restore (model-first, MOSS preset/negative/prompt-mode) | state, events, lora |
 | `session-moss.js` | MOSS session capture/restore (model, moss inputs, prompt mode, preset) | state, events |
@@ -51,10 +53,10 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, backend, toast |
 | `png-import.js` | PNG metadata parsing, drag-drop; per-node prompt detection (Ideogram/MOSS) → `prompt:apply` | state, events, toast, prompt-convert |
 | `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo); MOSS mode delegates to ai-enhancer-moss | state, events, ai-enhancer-moss |
-| `gallery.js` | Tab switching, history grid, model chips, MOSS load routing | events, state, prompt-convert, gallery-meta |
-| `settings.js` | Mode toggle, aspect ratio (persisted), box form fields | state, events |
+| `gallery.js` | Tab switching (incl. the Assist group → prompt/vision/json2caption sub-tabs), history grid, model chips, MOSS load routing | events, state, prompt-convert, gallery-meta |
+| `settings.js` | Mode toggle, aspect ratio (persisted), box form fields, toolbar generation params (seed, engine, turbo strength, backend) | state, events |
 | `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
-| `lora.js` | LoRA panel: per-model rendering, multi-selection, user-entry delete, restore | state, events, toast, lora-library |
+| `lora.js` | LoRA toolbar popover (`#btn-lora` → `#lora-panel`): active stack + strength, searchable per-model library, user-entry delete, restore | state, events, toast, lora-library, lora-cards, lora-panel |
 | `collections.js` | Collections actions: per-model items, batch generate with each item's model, load-to-editor | events, state, toast, collections-data, collections-ui, collections-io |
 | `app.js` | Button wiring, init orchestration | all modules |
 | `session.js` | Session persistence — save/restore content + config + UI (+ MOSS via session-moss) to `localStorage.ideogram_session` | events, prompt-convert, session-moss |
