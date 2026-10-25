@@ -146,8 +146,6 @@ export function initLoraAdd() {
   const addBtn = document.getElementById('btn-lora-add');
   if (!addBtn) return;
 
-  // + Add sits inside #lora-toggle (which collapses the section) — don't let
-  // the click bubble.
   addBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (form().hidden) openForm();

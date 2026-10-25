@@ -342,7 +342,7 @@
         }
 
         .left-sidebar {
-            width: 300px;
+            width: 290px;
             flex-shrink: 0;
             overflow-y: auto;
             min-height: 0;
@@ -359,7 +359,7 @@
         }
 
         .right-sidebar {
-            width: 340px;
+            width: 320px;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -1454,48 +1454,94 @@
             line-height: 1;
         }
 
-        /* LoRA Card Chips — compact tag-based layout */
-        .lora-header {
+        /* LoRA popover — toggled by #btn-lora in the editor toolbar, overlays the
+           canvas like #queue-panel. Active stack on top, searchable library below. */
+        .lora-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 360px;
+            max-height: min(70vh, 620px);
             display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+            background: var(--surface);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-strong);
+            z-index: 40;
+        }
+        .lora-panel[hidden] { display: none; }
+
+        .lora-panel-head {
+            display: flex;
+            gap: 6px;
             align-items: center;
-            gap: 4px;
-            cursor: pointer;
-            user-select: none;
         }
-        .lora-header-icon {
-            font-size: 10px;
+
+        #lora-search {
+            flex: 1;
+            min-width: 0;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 7px 10px;
+            outline: none;
+        }
+        #lora-search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+        .lora-section-title {
+            font-size: 10.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             color: var(--text-muted);
-            transition: transform 0.15s;
+            padding: 6px 2px 0;
         }
+        .lora-section-count { color: var(--text-faint); font-weight: 500; }
+
         .lora-card-list {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
+        /* Library grows with the user's collection — it scrolls, the active stack doesn't */
+        .lora-card-list.lora-library {
+            overflow-y: auto;
+            min-height: 0;
+            flex: 1;
+            padding-right: 2px;
+        }
+
+        .lora-trigger { flex-shrink: 0; }
 
         /* "+ Add" LoRA form (URL or local file → Modal volume / private HF repo) */
         .lora-add-btn {
-            margin-left: auto;
-            font-size: 11px;
-            padding: 2px 10px;
+            flex-shrink: 0;
+            font-size: 12px;
+            padding: 6px 10px;
             color: var(--text-muted);
             background: var(--surface-2);
             border: 1px solid var(--border-strong);
             border-radius: var(--radius-sm);
             cursor: pointer;
         }
-
         .lora-add-btn:hover { color: var(--text); border-color: var(--hairline-hover); }
 
         .lora-add-form {
             display: flex;
             flex-direction: column;
             gap: 6px;
-            margin: 8px 0 4px;
+            padding: 8px;
+            background: var(--bg);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
         }
-
         .lora-add-form[hidden] { display: none; }
-
         .lora-add-form input[type="text"],
         .lora-add-form select,
         .lora-add-form input[type="file"] {
@@ -1506,52 +1552,57 @@
             background: var(--surface-2);
             border: 1px solid var(--border-strong);
             border-radius: var(--radius-sm);
-            box-sizing: border-box;
         }
-
+        .lora-add-form .btn { align-self: flex-end; }
         .lora-add-hint { font-size: 11px; color: var(--text-muted); }
-
-        .lora-card-delete {
-            flex-shrink: 0;
-            width: 18px;
-            height: 18px;
-            line-height: 1;
-            font-size: 13px;
-            color: var(--text-muted);
-            background: none;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-        }
-
-        .lora-card-delete:hover { color: var(--danger); background: var(--danger-dim); }
+        .lora-add-hint:empty { display: none; }
 
         .lora-card {
             display: flex;
             align-items: center;
             gap: 8px;
+            min-height: 32px;
             padding: 5px 8px;
             border-radius: var(--radius-sm);
             background: var(--surface-2);
             border: 1px solid var(--border);
             cursor: pointer;
             transition: border-color 0.15s, background 0.15s;
+        }
+        .lora-card:hover { border-color: var(--hairline-hover); }
+        .lora-card.active {
+            border-color: var(--hairline-hover);
+            background: var(--accent-faint);
+        }
+
+        /* Checkbox-style indicator: empty in the library, gold tick when active */
+        .lora-card-check {
+            flex-shrink: 0;
+            width: 14px;
+            height: 14px;
+            border: 1px solid var(--hairline-hover);
+            border-radius: 3px;
             position: relative;
         }
-
-        .lora-card:hover {
-            border-color: var(--hairline-hover);
-        }
-
-        .lora-card.active {
+        .lora-card.active .lora-card-check {
+            background: var(--accent);
             border-color: var(--accent);
-            background: var(--accent-dim);
+        }
+        .lora-card.active .lora-card-check::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 1px;
+            width: 4px;
+            height: 8px;
+            border: solid var(--on-accent);
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
         }
 
         .lora-card-name {
-            font-family: var(--font-display);
-            font-size: 12px;
-            color: var(--text);
+            font-size: 12.5px;
+            color: var(--text-label);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1559,35 +1610,34 @@
             min-width: 0;
             line-height: 1.3;
         }
+        .lora-card.active .lora-card-name { color: var(--text); }
 
-        .lora-card:not(.active) .lora-card-name {
-            color: var(--text-muted);
+        .lora-card-delete {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            line-height: 1;
+            font-size: 14px;
+            color: var(--text-faint);
+            background: none;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s;
         }
+        .lora-card:hover .lora-card-delete,
+        .lora-card-delete:focus-visible { opacity: 1; }
+        .lora-card-delete:hover { color: var(--danger); background: var(--danger-dim); }
 
         .lora-card-strength {
             display: flex;
             align-items: center;
-            gap: 4px;
-            opacity: 0;
-            width: 0;
-            overflow: hidden;
-            transition: opacity 0.2s, width 0.2s;
-        }
-
-        .lora-card.active .lora-card-strength {
-            opacity: 1;
-            width: 80px;
-        }
-
-        .lora-card-strength-label {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            color: var(--text-dim);
+            gap: 6px;
             flex-shrink: 0;
-            text-transform: uppercase;
+            width: 130px;
+            cursor: default;
         }
-
         .lora-card-strength input[type="range"] {
             flex: 1;
             min-width: 0;
@@ -1597,13 +1647,11 @@
             border: none;
             cursor: pointer;
         }
-
         .lora-card-strength input[type="range"]::-webkit-slider-runnable-track {
             height: 3px;
             background: var(--hairline-strong);
             border-radius: 2px;
         }
-
         .lora-card-strength input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 12px;
@@ -1615,14 +1663,12 @@
             cursor: pointer;
             box-shadow: var(--shadow-weak);
         }
-
         .lora-card-strength input[type="range"]::-moz-range-track {
             height: 3px;
             background: var(--hairline-strong);
             border-radius: 2px;
             border: none;
         }
-
         .lora-card-strength input[type="range"]::-moz-range-thumb {
             width: 12px;
             height: 12px;
@@ -1631,23 +1677,35 @@
             border: 2px solid var(--bg);
             cursor: pointer;
         }
-
         .lora-card-strength-value {
-            font-family: var(--font-body);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 500;
             color: var(--text-dim);
-            min-width: 20px;
+            min-width: 28px;
             text-align: right;
+            font-variant-numeric: tabular-nums;
         }
 
         .lora-empty {
-            font-size: 11px;
-            color: var(--text-faint);
+            font-size: 12px;
+            color: var(--text-dim);
             font-style: italic;
-            padding: 4px 0;
-            letter-spacing: 0.01em;
+            padding: 6px 2px;
         }
+
+        /* Turbo strength — sits right after the Turbo/Classic pills */
+        .turbo-strength-group input[type="number"] {
+            width: 58px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+        }
+        .turbo-strength-group input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 
         .preset-row {
             display: flex;
@@ -3172,17 +3230,44 @@
         .toolbar-icon-btn { flex-shrink: 0; color: var(--text-muted); }
         .pill-group { flex-shrink: 0; }
 
-        .editor-toolbar { flex-wrap: wrap; row-gap: 10px; }
-        .gen-controls {
+        /* Editor toolbar = two rows: canvas controls + Generate/Queue on top,
+           every generation parameter (seed, engine, speed, LoRA) below. */
+        .editor-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+        .toolbar-row {
             display: flex;
             flex-wrap: wrap;
-            justify-content: flex-end;
             align-items: center;
-            gap: 10px;
-            margin-left: auto;
+            gap: 10px 12px;
         }
-        .gen-actions { display: flex; gap: 10px; flex-shrink: 0; }
+        .gen-controls {
+            padding-top: 10px;
+            border-top: 1px solid var(--hairline);
+        }
+        .gen-actions { display: flex; gap: 10px; flex-shrink: 0; margin-left: auto; }
+        .gen-controls .lora-trigger { margin-left: auto; }
+        #aspect-ratio { min-width: 0; }
         .json-header .json-action-btn { padding: 6px 6px; }
+
+        .style-mode-toggle { margin-bottom: 12px; }
+        .preset-delete { flex-shrink: 0; padding: 4px 9px; font-size: 15px; line-height: 1; }
+        .preset-delete:hover { color: var(--danger); }
+        .preset-row .preset-name-input { flex: 1; width: auto; min-width: 0; }
+
+        /* Assist sub-tabs — shown only while one of the three AI tools is active */
+        .assist-subtabs { display: none; align-self: flex-start; }
+        .main-content:is(.prompt-active, .vision-active, .json2caption-active) .assist-subtabs { display: inline-flex; }
+        .subtab-btn {
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            padding: 7px 14px;
+            border: none;
+            border-radius: 0;
+            background: none;
+            color: var(--text-dim);
+        }
+        .subtab-btn:hover { color: var(--text); }
+        .subtab-btn.active { background: var(--accent); color: var(--on-accent); }
 
         .json-header .card-toggle { flex: 0 0 auto; white-space: nowrap; }
         .json-format-chip {
@@ -3193,9 +3278,6 @@
             padding: 2px 8px;
         }
 
-        /* LoRA library scrolls inside its own box so the prompt fields stay in view */
-        .lora-card-list { max-height: 228px; overflow-y: auto; padding-right: 2px; }
-        .lora-card-name { font-family: var(--font-body); font-size: 12.5px; }
     </style>
 </head>
 <body>
@@ -3203,9 +3285,7 @@
     <header class="toolbar">
         <div class="toolbar-brand">Ideogram <em>Builder</em></div>
         <button class="tab-btn active" data-tab="editor" role="tab" aria-selected="true" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
-        <button class="tab-btn" data-tab="prompt" role="tab" aria-selected="false" aria-controls="tab-prompt" id="tab-btn-prompt">Prompt to JSON</button>
-        <button class="tab-btn" data-tab="json2caption" role="tab" aria-selected="false" aria-controls="tab-json2caption" id="tab-btn-json2caption">JSON to Caption</button>
-        <button class="tab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Vision</button>
+        <button class="tab-btn" data-tab="prompt" data-tab-group="assist" role="tab" aria-selected="false" id="tab-btn-assist" title="AI tools: text → JSON, image → JSON, JSON → caption">Assist</button>
         <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
         <button id="btn-open-output" class="icon-btn toolbar-icon-btn" type="button" title="Open the folder where generated images are saved" aria-label="Open output folder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
@@ -3225,85 +3305,70 @@
     </header>
 
     <div class="main-content">
-        <!-- LEFT: Global Settings -->
+        <!-- LEFT: Prompt content (what to depict). Generation params live in the editor toolbar. -->
         <div class="left-sidebar">
             <div class="panel collapsible" id="global-settings-panel">
                 <div class="panel-header">
                     <button type="button" class="card-toggle" aria-expanded="true">
                         <span class="card-chevron" aria-hidden="true">&#9656;</span>
-                        Global Settings
+                        Prompt
                     </button>
                 </div>
                 <div class="panel-body">
-                    <fieldset class="panel-section">
-                        <div class="input-group ideogram-only" id="turbo-strength-group">
-                            <label for="turbo-strength" style="display:block;font-size:12px;font-weight:500;color:var(--text-label);margin-bottom:5px;">
-                                Turbo Strength
-                            </label>
-                            <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8" style="width:80px;">
-                        </div>
-                            <div class="input-group lora-section">
-                                <div class="lora-header" id="lora-toggle" role="button" tabindex="0" aria-expanded="true">
-                                    <span class="lora-header-icon">▼</span>
-                                    <label>LoRA</label>
-                                    <button type="button" id="btn-lora-add" class="lora-add-btn" title="Add a LoRA (URL or local file)">+ Add</button>
-                                </div>
-                                <div id="lora-add-form" class="lora-add-form" hidden>
-                                    <input type="text" id="lora-add-label" placeholder="Label (optional)">
-                                    <select id="lora-add-model">
-                                        <option value="ideogram">Ideogram 4</option>
-                                        <option value="moss">MOSS</option>
-                                    </select>
-                                    <div class="pill-group" role="radiogroup" aria-label="LoRA source">
-                                        <input type="radio" id="lora_add_url" name="lora_add_source" value="url" checked>
-                                        <label for="lora_add_url" class="pill-label">URL</label>
-                                        <input type="radio" id="lora_add_file" name="lora_add_source" value="file">
-                                        <label for="lora_add_file" class="pill-label">File</label>
-                                    </div>
-                                    <input type="text" id="lora-add-url" placeholder="https://huggingface.co/…/lora.safetensors">
-                                    <input type="file" id="lora-add-file" accept=".safetensors" style="display:none">
-                                    <div id="lora-add-hint" class="lora-add-hint" aria-live="polite"></div>
-                                    <button type="button" id="btn-lora-add-confirm" class="btn btn-primary" style="font-size:12px;padding:5px 14px;">Add</button>
-                                </div>
-                                <div class="lora-card-list" id="lora-list"></div>
-                            </div>
-                    </fieldset>
                     <fieldset class="panel-section ideogram-only">
+                        <legend class="panel-section-title">Scene</legend>
                         <div class="input-group">
                             <label for="high_level_description">High Level Description</label>
                             <textarea id="high_level_description" rows="5" placeholder="e.g. A serene landscape at dawn"></textarea>
                         </div>
                         <div class="input-group">
                             <label for="background">Background</label>
-                            <textarea id="background" rows="5" placeholder="Describe the background environment"></textarea>
+                            <textarea id="background" rows="4" placeholder="Describe the background environment"></textarea>
                         </div>
                     </fieldset>
-                    <div class="workflow-toggle pill-group ideogram-only" role="radiogroup" aria-label="Mode" style="margin-bottom:6px;">
-                        <input type="radio" id="mode_photo" name="art_mode" value="photo">
-                        <label for="mode_photo" class="pill-label">Photo</label>
-                        <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
-                        <label for="mode_artstyle" class="pill-label">Art Style</label>
-                    </div>
-                    <div class="input-group ideogram-only">
-                        <label for="medium">Medium</label>
-                        <input type="text" id="medium">
-                    </div>
-                    <div class="input-group ideogram-only">
-                        <label id="mode_label" for="art_style">Art Style</label>
-                        <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
-                    </div>
-                    <div class="input-group ideogram-only">
-                        <label for="aesthetics">Aesthetics</label>
-                        <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
-                    </div>
-                    <div class="input-group ideogram-only">
-                        <label for="lighting">Lighting</label>
-                        <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
-                    </div>
-                    <fieldset class="panel-section moss-only" id="moss-fields">
+                    <fieldset class="panel-section ideogram-only">
+                        <legend class="panel-section-title">Style</legend>
                         <div class="input-group">
-                            <label>Prompt Format</label>
-                            <div class="pill-group" role="radiogroup" aria-label="MOSS prompt format" style="margin-bottom:6px;">
+                            <label for="style-preset-editor">Preset</label>
+                            <div class="preset-row">
+                                <select id="style-preset-editor" class="ai-model-select">
+                                    <option value="">None</option>
+                                </select>
+                                <button id="btn-delete-preset" class="icon-btn preset-delete" type="button" aria-label="Delete selected preset" title="Delete selected preset">&times;</button>
+                            </div>
+                            <div class="preset-row">
+                                <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Save current style as…" aria-label="New preset name">
+                                <button id="btn-save-preset" class="btn btn-ghost" type="button">Save</button>
+                            </div>
+                        </div>
+                        <div class="pill-group style-mode-toggle" role="radiogroup" aria-label="Mode">
+                            <input type="radio" id="mode_photo" name="art_mode" value="photo">
+                            <label for="mode_photo" class="pill-label">Photo</label>
+                            <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
+                            <label for="mode_artstyle" class="pill-label">Art Style</label>
+                        </div>
+                        <div class="input-group">
+                            <label for="medium">Medium</label>
+                            <input type="text" id="medium">
+                        </div>
+                        <div class="input-group">
+                            <label id="mode_label" for="art_style">Art Style</label>
+                            <input type="text" id="art_style" placeholder="e.g. impressionist, minimalist">
+                        </div>
+                        <div class="input-group">
+                            <label for="aesthetics">Aesthetics</label>
+                            <input type="text" id="aesthetics" placeholder="e.g. cinematic, moody">
+                        </div>
+                        <div class="input-group">
+                            <label for="lighting">Lighting</label>
+                            <input type="text" id="lighting" placeholder="e.g. golden hour, soft diffused">
+                        </div>
+                    </fieldset>
+                    <fieldset class="panel-section moss-only" id="moss-fields">
+                        <legend class="panel-section-title">Scene</legend>
+                        <div class="input-group">
+                            <label id="moss-prompt-format-label">Prompt Format</label>
+                            <div class="pill-group" role="radiogroup" aria-labelledby="moss-prompt-format-label">
                                 <input type="radio" id="moss_prompt_layout" name="moss_prompt_mode" value="layout" checked>
                                 <label for="moss_prompt_layout" class="pill-label">Layout</label>
                                 <input type="radio" id="moss_prompt_caption" name="moss_prompt_mode" value="caption">
@@ -3332,22 +3397,10 @@
                             <textarea id="moss-negative" rows="2">nsfw, worst quality, bad anatomy, watermark, jpeg artifact</textarea>
                         </div>
                     </fieldset>
-                    <div class="input-group">
-                        <label>Preset</label>
-                        <div class="preset-row">
-                            <select id="style-preset-editor" class="ai-model-select">
-                                <option value="">None</option>
-                            </select>
-                        </div>
-                        <div class="preset-row">
-                            <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Name">
-                            <button id="btn-save-preset" class="btn btn-ghost">Save</button>
-                            <button id="btn-delete-preset" class="btn btn-danger">Del</button>
-                        </div>
-                    </div>
-                    <div class="input-group">
+                    <fieldset class="panel-section">
+                        <legend class="panel-section-title">Palette</legend>
                         <div id="global-colors" class="color-list"></div>
-                    </div>
+                    </fieldset>
                 </div>
             </div>
         </div>
@@ -3356,9 +3409,10 @@
         <div class="center-col">
             <div class="tab-content active" id="tab-editor" role="tabpanel" aria-labelledby="tab-btn-editor">
                 <div class="editor-toolbar" id="editor-toolbar">
+                    <div class="toolbar-row canvas-controls">
                     <div class="ar-group">
-                        <label for="aspect-ratio">Aspect</label>
-                        <select id="aspect-ratio">
+                        <label for="aspect-ratio" class="sr-only">Aspect ratio</label>
+                        <select id="aspect-ratio" title="Aspect ratio">
                             <option value="768x1152" selected>2:3, Photo Portrait</option>
                             <option value="1024x1024">1:1, Square</option>
                             <option value="1152x864">4:3, Classic</option>
@@ -3382,7 +3436,14 @@
                     <button id="btn-preview" type="button" class="icon-btn" aria-label="Toggle preview mode" title="Preview — hide overlays">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
-                    <div class="gen-controls">
+                    <div class="gen-actions">
+                        <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
+                        <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
+                            Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
+                        </button>
+                    </div>
+                    </div>
+                    <div class="toolbar-row gen-controls">
                         <div class="ar-group seed-group">
                             <label for="seed-input">Seed</label>
                             <div class="seed-row">
@@ -3395,6 +3456,10 @@
                             <label for="workflow-turbo" class="pill-label">Turbo</label>
                             <input type="radio" id="workflow-classic" name="workflow" value="v1">
                             <label for="workflow-classic" class="pill-label">Classic</label>
+                        </div>
+                        <div class="ar-group turbo-strength-group ideogram-only" id="turbo-strength-group">
+                            <label for="turbo-strength" title="Turbo distillation strength">Str</label>
+                            <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8">
                         </div>
                         <div class="steps-toggle pill-group ideogram-only" id="steps-toggle" role="radiogroup" aria-label="Speed">
                             <input type="radio" id="steps_fast" name="steps" value="2" data-preset="Turbo">
@@ -3412,15 +3477,39 @@
                             <input type="radio" id="moss_preset_quality" name="moss_preset" value="Quality">
                             <label for="moss_preset_quality" class="pill-label">Quality</label>
                         </div>
-                        <div class="gen-actions">
-                            <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
-                            <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
-                                Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
-                            </button>
-                        </div>
+                        <button id="btn-lora" type="button" class="btn btn-secondary lora-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="lora-panel" title="LoRAs — none active">
+                            LoRA<span class="queue-badge" id="lora-badge" hidden aria-hidden="true">0</span>
+                        </button>
                     </div>
                     <span id="generate-status" class="generate-status" role="status" aria-live="polite"></span>
                     <div id="queue-panel" class="queue-panel" aria-label="Generation queue" role="list" hidden></div>
+                    <div id="lora-panel" class="lora-panel" role="dialog" aria-label="LoRAs" hidden>
+                        <div class="lora-panel-head">
+                            <input type="search" id="lora-search" placeholder="Search LoRAs…" aria-label="Search LoRAs" autocomplete="off">
+                            <button type="button" id="btn-lora-add" class="lora-add-btn" title="Add a LoRA (URL or local file)">+ Add</button>
+                        </div>
+                        <div id="lora-add-form" class="lora-add-form" hidden>
+                            <input type="text" id="lora-add-label" placeholder="Label (optional)" aria-label="LoRA label">
+                            <select id="lora-add-model" aria-label="Model">
+                                <option value="ideogram">Ideogram 4</option>
+                                <option value="moss">MOSS</option>
+                            </select>
+                            <div class="pill-group" role="radiogroup" aria-label="LoRA source">
+                                <input type="radio" id="lora_add_url" name="lora_add_source" value="url" checked>
+                                <label for="lora_add_url" class="pill-label">URL</label>
+                                <input type="radio" id="lora_add_file" name="lora_add_source" value="file">
+                                <label for="lora_add_file" class="pill-label">File</label>
+                            </div>
+                            <input type="text" id="lora-add-url" placeholder="https://huggingface.co/…/lora.safetensors" aria-label="LoRA URL">
+                            <input type="file" id="lora-add-file" accept=".safetensors" style="display:none" aria-label="LoRA file">
+                            <div id="lora-add-hint" class="lora-add-hint" aria-live="polite"></div>
+                            <button type="button" id="btn-lora-add-confirm" class="btn btn-primary">Add to library</button>
+                        </div>
+                        <div class="lora-section-title">Active</div>
+                        <div id="lora-active" class="lora-card-list"></div>
+                        <div class="lora-section-title">Library <span id="lora-library-count" class="lora-section-count">0</span></div>
+                        <div id="lora-list" class="lora-card-list lora-library"></div>
+                    </div>
                 </div>
 
                 <div class="canvas-container">
@@ -3428,6 +3517,13 @@
                     <div id="caption-mode-banner" class="moss-only">Caption mode — boxes are ignored</div>
                 </div>
             </div>
+
+            <!-- Assist sub-tabs: the three AI tools share one top-level tab -->
+            <nav class="assist-subtabs pill-group" role="tablist" aria-label="Assist tools">
+                <button class="tab-btn subtab-btn" data-tab="prompt" role="tab" aria-selected="false" aria-controls="tab-prompt" id="tab-btn-prompt">Text → JSON</button>
+                <button class="tab-btn subtab-btn" data-tab="vision" role="tab" aria-selected="false" aria-controls="tab-vision" id="tab-btn-vision">Image → JSON</button>
+                <button class="tab-btn subtab-btn" data-tab="json2caption" role="tab" aria-selected="false" aria-controls="tab-json2caption" id="tab-btn-json2caption">JSON → Caption</button>
+            </nav>
 
             <div class="tab-content" id="tab-prompt" role="tabpanel" aria-labelledby="tab-btn-prompt">
                 <div class="prompt-section">

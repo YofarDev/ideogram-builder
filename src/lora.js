@@ -1,16 +1,19 @@
-// lora.js — LoRA panel: renders the active model's library, multi-selection,
-// user-entry deletion. Library data lives in lora-library.js; the "+ Add" form
-// in lora-add.js emits `lora:added`. Talks to the rest of the app via state.
+// lora.js — LoRA popover (toolbar "LoRA" button): active stack with strength
+// sliders on top, searchable library of the active model's entries below.
+// Library data lives in lora-library.js; the "+ Add" form in lora-add.js emits
+// `lora:added`. Talks to the rest of the app via state.
 
 import { state } from './state.js';
 import { on } from './events.js';
 import { showToast } from './toast.js';
+import { activeCard, libraryCard } from './lora-cards.js';
+import { initLoraPanel } from './lora-panel.js';
 import { BUILTIN_LORAS, loadUserLoras, saveUserLoras } from './lora-library.js';
 
 // ponytail: Set preserves insertion order → active LoRAs stack in click order
 const activeIds = new Set();
-let collapsed = false;
 let userLoras = [];
+let query = '';
 
 function allEntries() {
   return [...BUILTIN_LORAS, ...userLoras];
@@ -37,59 +40,60 @@ function syncState() {
   });
 }
 
+function libraryMatches() {
+  const q = query.trim().toLowerCase();
+  return visibleEntries().filter(e => !activeIds.has(e.id) && (!q || e.label.toLowerCase().includes(q)));
+}
+
 function renderCards() {
+  const activeList = document.getElementById('lora-active');
   const list = document.getElementById('lora-list');
   if (!list) return;
 
-  const entries = collapsed ? visibleEntries().filter(e => activeIds.has(e.id)) : visibleEntries();
+  const active = [...activeIds].map(getEntry).filter(Boolean);
+  const library = libraryMatches();
 
-  list.innerHTML = entries.map(entry => {
-    const isActive = activeIds.has(entry.id);
-    const strVal = entry.strengths.positive;
-    const del = isUserEntry(entry)
-      ? `<button type="button" class="lora-card-delete" data-id="${entry.id}" aria-label="Remove LoRA" title="Remove from library">&times;</button>`
-      : '';
-    return `
-      <div class="lora-card${isActive ? ' active' : ''}" data-id="${entry.id}">
-        <span class="lora-card-name" title="${entry.label}">${entry.label}</span>
-        <div class="lora-card-strength">
-          <span class="lora-card-strength-label">Str</span>
-          <input type="range" min="0" max="2" step="0.05" value="${strVal}"
-                 data-id="${entry.id}" class="lora-strength-range" aria-label="LoRA strength">
-          <span class="lora-card-strength-value">${strVal.toFixed(1)}</span>
-        </div>
-        ${del}
-      </div>`;
-  }).join('');
+  if (activeList) {
+    activeList.innerHTML = active.length
+      ? active.map(activeCard).join('')
+      : '<div class="lora-empty">None active — pick one below.</div>';
+  }
+  list.innerHTML = library.length
+    ? library.map(e => libraryCard(e, isUserEntry(e))).join('')
+    : `<div class="lora-empty">${query ? 'No LoRA matches.' : 'All LoRAs are active.'}</div>`;
 
-  list.querySelectorAll('.lora-card').forEach(card => {
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.lora-card-strength') || e.target.closest('.lora-card-delete')) return;
-      toggleLora(card.dataset.id);
-    });
-  });
-
-  list.querySelectorAll('.lora-strength-range').forEach(range => {
-    range.addEventListener('input', (e) => {
-      e.stopPropagation();
-      updateStrength(range.dataset.id, parseFloat(range.value));
-    });
-  });
-
-  list.querySelectorAll('.lora-card-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteUserLora(btn.dataset.id);
-    });
-  });
+  const libCount = document.getElementById('lora-library-count');
+  if (libCount) libCount.textContent = String(visibleEntries().length - active.length);
+  updateTrigger(active);
 }
 
-function updateToggleIcon() {
-  const toggle = document.getElementById('lora-toggle');
-  if (!toggle) return;
-  const icon = toggle.querySelector('.lora-header-icon');
-  if (icon) icon.textContent = collapsed ? '▶' : '▼';
-  toggle.setAttribute('aria-expanded', String(!collapsed));
+// Toolbar button: badge = active count, tooltip = active names
+function updateTrigger(active) {
+  const badge = document.getElementById('lora-badge');
+  if (badge) {
+    badge.textContent = String(active.length);
+    badge.hidden = active.length === 0;
+  }
+  const btn = document.getElementById('btn-lora');
+  if (btn) btn.title = active.length ? active.map(e => e.label).join('\n') : 'LoRAs — none active';
+}
+
+function bindListEvents(root) {
+  // initLora can run more than once on the same DOM (session restore, tests)
+  if (root.dataset.loraBound) return;
+  root.dataset.loraBound = '1';
+  root.addEventListener('click', (e) => {
+    const del = e.target.closest('.lora-card-delete');
+    if (del) return deleteUserLora(del.dataset.id);
+    if (e.target.closest('.lora-card-strength')) return;
+    const card = e.target.closest('.lora-card');
+    if (card) toggleLora(card.dataset.id);
+  });
+  root.addEventListener('input', (e) => {
+    if (e.target.classList.contains('lora-strength-range')) {
+      updateStrength(e.target.dataset.id, parseFloat(e.target.value));
+    }
+  });
 }
 
 function toggleLora(id) {
@@ -97,9 +101,6 @@ function toggleLora(id) {
   if (activeIds.has(id)) activeIds.delete(id);
   else activeIds.add(id);
   syncState();
-  collapsed = true;
-  localStorage.setItem('ideogram_lora_collapsed', 'true');
-  updateToggleIcon();
   renderCards();
 }
 
@@ -108,10 +109,8 @@ function updateStrength(id, value) {
   if (!entry) return;
   entry.strengths.positive = value;
   const card = document.querySelector(`.lora-card[data-id="${id}"]`);
-  if (card) {
-    const valSpan = card.querySelector('.lora-card-strength-value');
-    if (valSpan) valSpan.textContent = value.toFixed(1);
-  }
+  const valSpan = card?.querySelector('.lora-card-strength-value');
+  if (valSpan) valSpan.textContent = value.toFixed(2);
   if (activeIds.has(id)) syncState();
 }
 
@@ -125,27 +124,32 @@ function deleteUserLora(id) {
   renderCards();
 }
 
-function initToggle() {
-  const toggle = document.getElementById('lora-toggle');
-  if (!toggle) return;
+// Search box callbacks for lora-panel.js
+function onSearch(value) {
+  query = value;
+  renderCards();
+}
 
-  const saved = localStorage.getItem('ideogram_lora_collapsed');
-  collapsed = saved === 'true';
-
-  toggle.addEventListener('click', () => {
-    collapsed = !collapsed;
-    localStorage.setItem('ideogram_lora_collapsed', String(collapsed));
-    updateToggleIcon();
-    renderCards();
-  });
+// Enter activates the first match — type-to-pick without the mouse.
+// Returns true when something was picked so the panel can clear the box.
+function onPickFirst() {
+  const first = libraryMatches()[0];
+  if (!first) return false;
+  query = '';
+  toggleLora(first.id);
+  return true;
 }
 
 export function initLora() {
   activeIds.clear();
-  collapsed = false;
+  query = '';
   state.loras = [];
   userLoras = loadUserLoras();
-  initToggle();
+  ['lora-active', 'lora-list'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) bindListEvents(el);
+  });
+  initLoraPanel({ onSearch, onPickFirst });
   renderCards();
 
   on('lora:added', ({ entry }) => {
@@ -186,8 +190,5 @@ export function restoreLorasFromMeta(loras) {
     }
   });
   syncState();
-  collapsed = true;
-  localStorage.setItem('ideogram_lora_collapsed', 'true');
-  updateToggleIcon();
   renderCards();
 }

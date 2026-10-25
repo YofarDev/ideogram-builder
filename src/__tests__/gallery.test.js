@@ -188,3 +188,27 @@ describe('model-aware gallery', () => {
     expect(adds[0].model).toBe('moss')
   })
 })
+
+describe('assist tab group', () => {
+  beforeEach(() => {
+    document.querySelector('.main-content').insertAdjacentHTML('afterbegin', `
+      <button class="tab-btn" data-tab="prompt" data-tab-group="assist">Assist</button>
+      <button class="tab-btn" data-tab="prompt">Text</button>
+      <div class="tab-content" id="tab-prompt"></div>`)
+    global.fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+  })
+
+  it('a sub-tab keeps the Assist button active and remembers it', async () => {
+    await initGalleryModule()
+    const assist = document.querySelector('[data-tab-group="assist"]')
+    document.querySelector('button.tab-btn:not([data-tab-group])[data-tab="vision"]').click()
+    expect(assist.classList.contains('active')).toBe(true)
+    expect(document.querySelector('.main-content').classList.contains('vision-active')).toBe(true)
+
+    document.querySelector('.tab-btn[data-tab="gallery"]').click()
+    expect(assist.classList.contains('active')).toBe(false)
+
+    assist.click()
+    expect(document.getElementById('tab-vision').classList.contains('active')).toBe(true)
+  })
+})
