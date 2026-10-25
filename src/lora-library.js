@@ -123,6 +123,14 @@ export const BUILTIN_LORAS = [
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
   {
+    id: 'kiki-moss-epoch10',
+    label: 'Kiki (Studio Ghibli) — MOSS (epoch 10)',
+    model: 'moss',
+    filename: 'user/moss/kiki_moss_epoch10.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/kiki_moss_epoch10/resolve/main/kiki_moss_epoch10.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
     id: 'yofardev-moss-v1',
     label: 'Yofardev (v1) — MOSS',
     model: 'moss',
