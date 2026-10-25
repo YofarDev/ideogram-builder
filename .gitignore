@@ -1,6 +1,7 @@
 output/
 __pycache__/
 node_modules/
+.cache/
 .agents
 .claude
 .gemini
