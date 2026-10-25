@@ -122,12 +122,12 @@ describe('per-model library', () => {
     localStorage.setItem('ideogram_loras_user', JSON.stringify([mossEntry]))
   })
 
-  it('moss mode shows only that model entries (built-ins hidden)', () => {
+  it('moss mode shows only that model entries (ideogram built-ins hidden)', () => {
     state.model = 'moss'
     loraModule.initLora()
-    const cards = [...document.querySelectorAll('.lora-card')]
-    expect(cards.length).toBe(1)
-    expect(cards[0].dataset.id).toBe('user-1')
+    const ids = [...document.querySelectorAll('.lora-card')].map(c => c.dataset.id)
+    const builtinIds = BUILTIN_LORAS.filter(b => b.model === 'moss').map(b => b.id)
+    expect(ids).toEqual([...builtinIds, 'user-1'])
   })
 
   it('ideogram mode hides moss entries', () => {
@@ -154,7 +154,9 @@ describe('per-model library', () => {
     loraModule.initLora()
     document.querySelector('.lora-card-delete[data-id="user-1"]').click()
     expect(localStorage.getItem('ideogram_loras_user')).toBe('[]')
-    expect(document.querySelectorAll('.lora-card').length).toBe(0)
+    const ids = [...document.querySelectorAll('.lora-card')].map(c => c.dataset.id)
+    const builtinIds = BUILTIN_LORAS.filter(b => b.model === 'moss').map(b => b.id)
+    expect(ids).toEqual(builtinIds)
   })
 
   it('model:changed drops active LoRAs of the other model', () => {

@@ -1,5 +1,5 @@
-// lora-library.js — LoRA library data: built-in Ideogram entries plus user
-// entries persisted to localStorage. Data only; lora.js owns the panel DOM.
+// lora-library.js — LoRA library data: built-in Ideogram and MOSS entries plus
+// user entries persisted to localStorage. Data only; lora.js owns the panel DOM.
 
 export const BUILTIN_LORAS = [
   {
@@ -112,6 +112,22 @@ export const BUILTIN_LORAS = [
     model: 'ideogram',
     filename: 'retro_anime_id4_v1_000003000.safetensors',
     source_url: 'https://huggingface.co/Yofardev/retro_anime_id4_v1/resolve/main/retro_anime_id4_v1_000003000.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'kiki-moss-v1',
+    label: 'Kiki (Studio Ghibli) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/kiki_moss_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/kiki_moss_v1/resolve/main/kiki_moss_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'yofardev-moss-v1',
+    label: 'Yofardev (v1) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/yofardev_moss_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/yofardev_moss_v1/resolve/main/yofardev_moss_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
 ];
