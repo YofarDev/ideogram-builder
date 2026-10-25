@@ -3,7 +3,7 @@
 // prompt:apply path, which switches the model and rebuilds the boxes. Unlike
 // the model toggle's D4 seeding, this overwrites the target model's fields.
 
-import { state } from './state.js';
+import { state, MODEL_MOSS } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { detectPromptFormat, ideogramToMoss, mossToIdeogram } from './prompt-convert.js';
@@ -51,8 +51,13 @@ export function initJsonConvert() {
     captured = document.getElementById('json-output').value;
   });
   b.addEventListener('click', () => {
-    const result = convertPromptText(captured || document.getElementById('json-output').value);
+    const raw = captured || document.getElementById('json-output').value;
     captured = '';
+    // Switch to MOSS before building the layout: the switch can shrink the
+    // canvas (4M → 2M), and the layout's absolute coords must target the final
+    // size. seed: false — the converted prompt overwrites the MOSS fields anyway.
+    if (detectPromptFormat(raw) === 'ideogram') emit('model:set', { model: MODEL_MOSS, seed: false });
+    const result = convertPromptText(raw);
     if (result.error) {
       showToast(result.error, 'warning');
       return;

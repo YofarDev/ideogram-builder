@@ -137,6 +137,26 @@ describe('Convert button', () => {
     expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/Converted to MOSS layout/), 'info')
   })
 
+  it('builds the MOSS layout for the canvas size after the model switch (4M → 2M)', () => {
+    initJsonConvert()
+    state.canvas.width = 2048
+    state.canvas.height = 2048
+    // Stand-in for model.js + settings.js: switching to MOSS drops the 4M tier
+    on('model:set', ({ model }) => {
+      state.model = model
+      state.canvas.width = 1024
+      state.canvas.height = 1024
+    })
+    const applied = []
+    on('prompt:apply', (payload) => applied.push(payload))
+    document.getElementById('json-output').value = JSON.stringify(IDEOGRAM)
+    const btn = document.getElementById('btn-convert-json')
+    btn.dispatchEvent(new Event('pointerdown'))
+    btn.click()
+    const { layout } = ideogramToMoss(IDEOGRAM, { width: 1024, height: 1024 })
+    expect(JSON.parse(applied[0].raw).items.map(i => i.bbox)).toEqual(layout.items.map(i => i.bbox))
+  })
+
   it('title follows the active model', () => {
     initJsonConvert()
     expect(document.getElementById('btn-convert-json').title).toBe('Convert to MOSS layout')
