@@ -4,15 +4,43 @@ Modal backend for Ideogram Builder.
 Hosts two ComfyUI workers behind one token-authed web proxy:
 
 - `Comfy` — the RunPod Ideogram-4 image (runpod/Dockerfile)
-- `ComfyMoss` — the MOSS-Image image (runpod/Dockerfile.moss)
+- `ComfyMossWorker` — the MOSS-Image image (runpod/Dockerfile.moss) with
+  MOSS-only deployment settings; `ComfyMossSnapshotWorker` replaces it as the
+  proxy target when MOSS_SNAPSHOT_MODE=gpu_experimental (experimental).
 
-The proxy routes on the request body: `{"model": "moss"}` → ComfyMoss, anything
-else → Comfy. User-uploaded LoRAs live in the "ideogram-loras" Modal Volume,
-mounted at /comfyui/models/loras/user on both classes and reloaded before each
-job (`modal volume put ideogram-loras <local> /moss/name.safetensors`).
+The proxy routes on the request body: `{"model": "moss"}` → ComfyMossWorker,
+anything else → Comfy. User-uploaded LoRAs live in the "ideogram-loras" Modal
+Volume, mounted at /comfyui/models/loras/user on both classes and reloaded
+before each job (`modal volume put ideogram-loras <local> /moss/name.safetensors`).
+
+MOSS worker settings are SEPARATE from the Ideogram worker (GPU, launch args,
+memory policy, lifetime, warmup, snapshots) and are configured at deploy time:
+
+    MOSS_GPU                   GPU for ComfyMoss only        (default IDEOGRAM_GPU)
+    MOSS_RUNTIME_PROFILE       named runtime profile         (default "baseline")
+    MOSS_MEMORY_MODE           auto|highvram|gpu_only        (profile override)
+    MOSS_DIT_FORMAT            int8_convrot|bf16             (profile override)
+    MOSS_ENCODER_FORMAT        w4a8|int8_convrot|bf16        (profile override)
+    MOSS_COMPILE_BACKEND       off|inductor|cudagraphs       (profile override)
+    MOSS_WARMUP                warm representative workflow after readiness (default false)
+    MOSS_ENABLED_PRESETS       comma allow-list ∩ profile support
+    MOSS_MIN_CONTAINERS        0|1                           (default 0)
+    MOSS_SCALEDOWN_SECONDS     300|600|1200                  (default 300)
+    MOSS_SNAPSHOT_MODE         off|gpu_experimental          (default off)
+    MOSS_STARTUP_DIAG          print runtime_check report at startup (default true)
+
+Override combinations are validated by runpod/moss_config.resolve_profile():
+only declared, immutable profile IDs are ever served. GET /capabilities serves
+the validated preset list from deploy-time configuration — it never starts a
+GPU container.
+
+Volumes:
+    ideogram-loras    user LoRAs (both workers, unchanged)
+    moss-models       optional pinned benchmark assets (runpod/moss_assets.py populate)
+    moss-compile-cache|moss-compile-cache-dev  persistent Inductor/Triton caches
+    moss-bench        benchmark artifacts
 
 Deploy (from repo root):
-
     modal deploy runpod/modal_app.py
 
 Then create the shared-secret token once (used by the web endpoint + the UI):
@@ -30,6 +58,8 @@ GPU default is RTX-PRO-6000 (96GB) for both workers; set IDEOGRAM_GPU=A10G at
 deploy time for cheaper hardware.
 """
 
+import inspect
+import json
 import os
 import subprocess
 import sys
@@ -39,44 +69,106 @@ from pathlib import Path
 import modal
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+RUNPOD_DIR = Path(__file__).resolve().parent
 COMFY_HOST = "127.0.0.1:8188"
 GPU = os.environ.get("IDEOGRAM_GPU", "RTX-PRO-6000")  # 96GB; set A100-80GB for Classic
+
+# --- MOSS deployment settings (evaluated at deploy time, baked into env) -------
+MOSS_GPU = os.environ.get("MOSS_GPU", GPU)
+MOSS_WARMUP = (os.environ.get("MOSS_WARMUP") or "false").strip().lower() == "true"
+MOSS_STARTUP_DIAG = (os.environ.get("MOSS_STARTUP_DIAG") or "true").strip().lower() != "false"
+MOSS_SNAPSHOT_MODE = (os.environ.get("MOSS_SNAPSHOT_MODE") or "off").strip().lower()
+
+# Validate profile + deployment knobs ONCE at deploy time so a bad combination
+# fails `modal deploy` instead of every request.
+import moss_config  # noqa: E402  (runpod/ is this file's directory)
+
+_deploy_env = os.environ
+MOSS_PROFILE = moss_config.resolve_profile(_deploy_env)
+MOSS_DEPLOYMENT = moss_config.deployment_settings(_deploy_env)
+MOSS_ENABLED_PRESETS = moss_config.resolve_enabled_presets(_deploy_env)[1]
+
+# Env baked into the MOSS GPU container + proxy so runtime code sees the same
+# configuration the deploy validated.
+_MOSS_ENV = {
+    "MOSS_RUNTIME_PROFILE": MOSS_PROFILE["profile_id"],
+    "MOSS_ENABLED_PRESETS": ",".join(MOSS_ENABLED_PRESETS),
+    "MOSS_MIN_CONTAINERS": str(MOSS_DEPLOYMENT["min_containers"]),
+    "MOSS_SCALEDOWN_SECONDS": str(MOSS_DEPLOYMENT["scaledown_seconds"]),
+    "MOSS_SNAPSHOT_MODE": MOSS_DEPLOYMENT["snapshot_mode"],
+}
+for var, field in moss_config.PROFILE_ENV_FIELDS.items():
+    raw = _deploy_env.get(var)
+    if raw:
+        _MOSS_ENV[var] = raw
+if os.environ.get("MOSS_WARMUP"):
+    _MOSS_ENV["MOSS_WARMUP"] = os.environ["MOSS_WARMUP"]
 
 # Same image RunPod builds: ComfyUI, KJNodes, rgthree, 4 Ideogram-4 models, LoRAs, handler.py.
 COMFY_IMAGE = modal.Image.from_dockerfile(
     "runpod/Dockerfile",
     context_dir=str(REPO_ROOT),
 )
-# MOSS-Image twin: ComfyUI (pinned ≥ MOSS merge), rgthree, MOSS models, same handler.
+# MOSS-Image twin: pinned ComfyUI + rgthree + Spectrum, MOSS models, helper modules, same handler.
 MOSS_IMAGE = modal.Image.from_dockerfile(
     "runpod/Dockerfile.moss",
     context_dir=str(REPO_ROOT),
 )
-# User-uploaded LoRAs (Phase C upload flow targets this volume).
-LORA_VOL = modal.Volume.from_name("ideogram-loras", create_if_missing=True)
-# Lightweight proxy that terminates HTTP, checks the token, then calls into the GPU class.
-PROXY_IMAGE = modal.Image.debian_slim().pip_install("fastapi")
+# Lightweight proxy that terminates HTTP, checks the token, then calls into the
+# GPU class. Carries moss_config/moss_assets so /capabilities resolves the
+# deployment configuration without ever touching a GPU container.
+PROXY_IMAGE = (
+    modal.Image.debian_slim()
+    .pip_install("fastapi")
+    .add_local_file(RUNPOD_DIR / "moss_config.py", "/root/moss_config.py")
+    .add_local_file(RUNPOD_DIR / "moss_assets.py", "/root/moss_assets.py")
+    .add_local_file(RUNPOD_DIR / "moss-models.json", "/root/moss-models.json")
+)
 
 SECRET = modal.Secret.from_name("ideogram-builder")
 
 app = modal.App("ideogram-builder")
+
+# Volumes: user LoRAs (shared), MOSS benchmark models, compiler caches, bench artifacts.
+LORA_VOL = modal.Volume.from_name("ideogram-loras", create_if_missing=True)
+MOSS_MODELS_VOL = modal.Volume.from_name("moss-models", create_if_missing=True)
+MOSS_COMPILE_CACHE_VOL = modal.Volume.from_name("moss-compile-cache", create_if_missing=True)
+MOSS_COMPILE_CACHE_VOL_DEV = modal.Volume.from_name("moss-compile-cache-dev", create_if_missing=True)
+MOSS_BENCH_VOL = modal.Volume.from_name("moss-bench", create_if_missing=True)
+
+MOSS_VOLUMES = {
+    "/comfyui/models/loras/user": LORA_VOL,
+    "/moss-models": MOSS_MODELS_VOL,
+    "/moss-compile-cache": MOSS_COMPILE_CACHE_VOL,
+    "/moss-compile-cache-dev": MOSS_COMPILE_CACHE_VOL_DEV,
+}
 
 
 class _ComfyWorker:
     """Shared ComfyUI lifecycle. Plain methods, called by the Modal-decorated
     subclasses below — Modal requires each worker declared as its own @app.cls."""
 
+    def comfy_args(self):
+        return [
+            "python3", "/comfyui/main.py",
+            "--listen", "127.0.0.1", "--port", "8188",
+            "--preview-method", "none",
+        ]
+
+    def comfy_env(self, env):
+        return {**env, "COMFY_API_AVAILABLE_INTERVAL_MS": "500"}
+
+    def post_ready(self):
+        """Hook after the HTTP server answers, before serving requests."""
+        return
+
     def startup(self):
-        env = {**os.environ, "COMFY_API_AVAILABLE_INTERVAL_MS": "500"}
-        self.proc = subprocess.Popen(
-            [
-                "python3", "/comfyui/main.py",
-                "--listen", "127.0.0.1", "--port", "8188",
-                "--preview-method", "none",
-            ],
-            env=env,
-        )
-        # Block until ComfyUI answers. /tmp/comfyui.pid (runpod convention) is
+        env = self.comfy_env(os.environ)
+        args = self.comfy_args()
+        print(f"[startup] launching ComfyUI: {' '.join(args[1:])}")
+        self.proc = subprocess.Popen(args, env=env)
+        # Block until ComfyUI answers. HTTP readiness only — model readiness
+        # is post_ready()'s job. /tmp/comfyui.pid (runpod convention) is
         # absent here, so just poll the HTTP endpoint directly.
         import requests
         for _ in range(600):  # up to 5 min for cold model listing
@@ -84,11 +176,13 @@ class _ComfyWorker:
                 raise RuntimeError(f"ComfyUI exited early with code {self.proc.returncode}")
             try:
                 if requests.get(f"http://{COMFY_HOST}/", timeout=2).status_code == 200:
-                    return
+                    break
             except Exception:
                 pass
             time.sleep(0.5)
-        raise RuntimeError("ComfyUI did not become ready")
+        else:
+            raise RuntimeError("ComfyUI did not become ready")
+        self.post_ready()
 
     def shutdown(self):
         self.proc.terminate()
@@ -119,6 +213,154 @@ class _ComfyWorker:
         return comfy.handler({"input": payload, "id": "modal"})
 
 
+# --- MOSS-specific lifecycle ---------------------------------------------------
+
+def _moss_comfy_args(profile):
+    """Launch flags implied by the profile. Memory modes are alternatives —
+    never combine the mutually exclusive residency flags."""
+    args = [
+        "python3", "/comfyui/main.py",
+        "--listen", "127.0.0.1", "--port", "8188",
+        "--preview-method", "none",
+    ]
+    if profile["memory_mode"] == "highvram":
+        args.append("--highvram")
+    elif profile["memory_mode"] == "gpu_only":
+        args.append("--gpu-only")
+    # Triton is comfy-kitchen's opt-in backend; leave it off unless a dedicated
+    # profile validates it (do not enable every experimental --fast option).
+    return args
+
+
+def _moss_compile_cache_env(profile):
+    """Persistent compiler caches, namespaced by the axes that invalidate them:
+    GPU capability, torch/Triton build, profile identity. Committed through the
+    volume lifecycle so concurrent fresh workers never share a partial cache."""
+    if profile.get("compile_backend", "off") == "off":
+        return {}, None
+    env = {}
+    env["TORCHINDUCTOR_CACHE_DIR"] = "/moss-compile-cache/inductor"
+    env["TRITON_CACHE_DIR"] = "/moss-compile-cache/triton"
+    # Runtime namespace subdir computed in post_ready once torch/GPU are known.
+    env["MOSS_COMPILE_BACKEND"] = profile["compile_backend"]
+    return env, "/moss-compile-cache"
+
+
+class ComfyMoss(_ComfyWorker):
+    """MOSS-Image worker: MOSS deployment settings, asset verification,
+    optional compiler-cache env, optional representative warmup."""
+
+    _profile = MOSS_PROFILE
+
+    def comfy_args(self):
+        return _moss_comfy_args(self._profile)
+
+    def comfy_env(self, env):
+        env = {**env, **_MOSS_ENV, "COMFY_API_AVAILABLE_INTERVAL_MS": "500"}
+        cache_env, _root = _moss_compile_cache_env(self._profile)
+        env.update(cache_env)
+        return env
+
+    def post_ready(self):
+        import runtime_check
+
+        if MOSS_STARTUP_DIAG:
+            info = runtime_check.collect()
+            print("[startup] runtime identity:\n" + runtime_check.json.dumps(info, indent=2, default=str))
+            ok, detail = runtime_check.accelerated_backend_enabled(info)
+            print(f"[startup] accelerated backend: {detail}")
+
+        # Readable failure for an optimized profile whose runtime cannot meet
+        # its declared requirements (e.g. quantized formats need cu130+).
+        runtime_check.enforce_profile_requirements(self._profile)
+
+        # Pinned assets must exist before the first request — never download
+        # large files during a user request.
+        import moss_assets
+        moss_assets.assert_profile_assets(self._profile, MOSS_ENABLED_PRESETS)
+
+        # Expose the optional /moss-models volume through ComfyUI's
+        # extra-model-paths config when it has content.
+        models_yaml = Path("/comfyui/extra_model_paths.yaml")
+        if not models_yaml.exists() and Path("/moss-models").exists():
+            try:
+                if any(Path("/moss-models").iterdir()):
+                    moss_assets.write_extra_model_paths("/comfyui/extra_model_paths.yaml")
+                    print("[startup] extra model paths -> /moss-models")
+            except Exception as e:  # noqa: BLE001
+                print(f"[startup] extra model paths skipped: {e}")
+
+        if self._profile.get("warmup"):
+            self.run_warmup()
+
+    def run_warmup(self):
+        """One representative warmup workflow after HTTP readiness: warms the
+        profile's DiT/encoder/VAE, the Turbo adapter and the compile bucket at
+        1024². Warmup jobs are marked (prefix 'warmup') and their outputs are
+        deleted — they never enter user history. One warmup does NOT initialise
+        every preset; preset/shape switches still carry first-use cost."""
+        import json as _json
+        import uuid as _uuid
+
+        import moss_assets
+        import moss_workflow
+        import requests
+
+        sys.path.insert(0, "/")
+        started = time.monotonic()
+        try:
+            template = _json.loads(Path("/workflow_template_moss.json").read_text())
+            assets = moss_assets.resolve_profile_assets(self._profile)
+            adapter_ref = None
+            if "Turbo" in MOSS_ENABLED_PRESETS and moss_config.MOSS_PRESETS["Turbo"]["adapter"]:
+                try:
+                    adapter_ref = moss_assets.resolve_adapter(moss_config.MOSS_PRESETS["Turbo"]["adapter"])[1]
+                except moss_assets.AssetError:
+                    pass  # warm the bare models if the adapter is absent
+            wf = moss_workflow.build_warmup_workflow(
+                template, profile=self._profile, assets=assets, adapter_ref=adapter_ref)
+            client_id = f"warmup-{_uuid.uuid4()}"
+            resp = requests.post(
+                f"http://{COMFY_HOST}/prompt",
+                data=_json.dumps({"prompt": wf, "client_id": client_id}),
+                headers={"Content-Type": "application/json"}, timeout=30)
+            resp.raise_for_status()
+            prompt_id = resp.json()["prompt_id"]
+            for _ in range(1200):  # up to 10 min for the first uncached run
+                if self.proc.poll() is not None:
+                    raise RuntimeError(f"warmup: ComfyUI exited early ({self.proc.returncode})")
+                history = requests.get(f"http://{COMFY_HOST}/history/{prompt_id}", timeout=10).json()
+                if prompt_id in history:
+                    status = history[prompt_id].get("status", {})
+                    if status.get("status_str") == "error":
+                        raise RuntimeError(f"warmup workflow failed: {status}")
+                    break
+                time.sleep(0.5)
+            else:
+                raise RuntimeError("warmup workflow did not complete in 10 min")
+            # Remove temporary warmup outputs so they never reach the gallery.
+            out_dir = Path("/comfyui/output/warmup")
+            if out_dir.exists():
+                for f in out_dir.iterdir():
+                    f.unlink(missing_ok=True)
+                try:
+                    out_dir.rmdir()
+                except OSError:
+                    pass
+            elapsed = time.monotonic() - started
+            print(f"[startup] warmup completed in {elapsed:.1f}s (model readiness)")
+        except Exception as e:  # noqa: BLE001 — a failing warmup must fail startup loudly
+            print(f"[startup] WARMUP FAILED: {e}", file=sys.stderr, flush=True)
+            raise
+
+
+def _snapshot_supported():
+    try:
+        return "enable_memory_snapshot" in inspect.signature(modal.App.cls).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 @app.cls(
     image=COMFY_IMAGE,
     gpu=GPU,
@@ -144,17 +386,22 @@ class Comfy(_ComfyWorker):
         return super().generate(payload)
 
 
-@app.cls(
+_moss_cls_kwargs = dict(
     image=MOSS_IMAGE,
-    gpu=GPU,
-    scaledown_window=300,
-    min_containers=0,
+    gpu=MOSS_GPU,
+    scaledown_window=MOSS_DEPLOYMENT["scaledown_seconds"],
+    min_containers=MOSS_DEPLOYMENT["min_containers"],
     timeout=900,
+    startup_timeout=1200,  # model listing + asset checks + optional warmup
     secrets=[SECRET],
-    volumes={"/comfyui/models/loras/user": LORA_VOL},
+    volumes=MOSS_VOLUMES,
 )
-class ComfyMoss(_ComfyWorker):
-    """MOSS-Image worker: same lifecycle, MOSS models + template only."""
+
+
+@app.cls(**_moss_cls_kwargs)
+class ComfyMossWorker(ComfyMoss):
+    """MOSS worker on the validated profile. Experimental snapshot mode lives
+    in ComfyMossSnapshotWorker; these two are never both routed to."""
 
     @modal.enter()
     def startup(self):
@@ -169,10 +416,42 @@ class ComfyMoss(_ComfyWorker):
         return super().generate(payload)
 
 
+if MOSS_DEPLOYMENT["snapshot_mode"] == "gpu_experimental":
+    if not _snapshot_supported():
+        raise SystemExit(
+            "MOSS_SNAPSHOT_MODE=gpu_experimental requires a Modal SDK with memory-snapshot "
+            "support (enable_memory_snapshot). Upgrade modal or set MOSS_SNAPSHOT_MODE=off."
+        )
+
+    @app.cls(**_moss_cls_kwargs, enable_memory_snapshot=True)
+    class ComfyMossSnapshotWorker(ComfyMoss):
+        """EXPERIMENTAL (Phase 8): GPU memory snapshots on the subprocess-based
+        ComfyUI topology. Capture/restore, child liveness and post-restore
+        generation must all pass the smoke runbook before this is routed to.
+        First test this actual topology before trusting restore behaviour."""
+
+        @modal.enter(snap=True)
+        def startup(self):
+            # Initialization + warmup run in the snapshot-enabled lifecycle
+            # hook: captured after warmup, restored on demand.
+            super().startup()
+
+        @modal.exit()
+        def shutdown(self):
+            super().shutdown()
+
+        @modal.method()
+        def generate(self, payload: dict) -> dict:
+            return super().generate(payload)
+else:
+    ComfyMossSnapshotWorker = None
+
+
 @app.function(
     image=PROXY_IMAGE,
     min_containers=1,    # keep proxy warm — prevents cold-start redirect (303 CORS bug)
     secrets=[SECRET],    # AUTH_TOKEN for the shared-secret check
+    env=_MOSS_ENV,       # deploy-time configuration for /capabilities
 )
 @modal.asgi_app()
 def web_app():
@@ -195,11 +474,16 @@ def web_app():
             if token != expected:
                 raise HTTPException(status_code=401, detail="invalid auth token")
 
+    def _moss_target():
+        if MOSS_DEPLOYMENT["snapshot_mode"] == "gpu_experimental" and ComfyMossSnapshotWorker is not None:
+            return ComfyMossSnapshotWorker
+        return ComfyMossWorker
+
     @api.post("/generate")
     async def generate(req: Request):
         _check_auth(req)
         payload = await req.json()
-        target = ComfyMoss if payload.get("model") == "moss" else Comfy
+        target = _moss_target() if payload.get("model") == "moss" else Comfy
         call = target().generate.spawn(payload)
         return {"call_id": call.object_id}
 
@@ -215,4 +499,104 @@ def web_app():
             return {"status": "failed", "error": str(e)}
         return {"status": "completed", "result": result}
 
+    @api.get("/capabilities")
+    async def capabilities(req: Request):
+        """Validated preset list from deploy-time configuration. Served by the
+        CPU proxy — fetching capabilities must never start a GPU container."""
+        _check_auth(req)
+        sys.path.insert(0, "/root")
+        import moss_assets
+        import moss_config
+
+        try:
+            profile = moss_config.resolve_profile(os.environ)
+            return moss_config.capabilities(profile, model_manifest_id=moss_assets.manifest_id())
+        except moss_config.ProfileError as e:
+            raise HTTPException(status_code=503, detail=f"deployment configuration error: {e}")
+
     return api
+
+
+# --- Maintenance / benchmark entrypoints (CPU-only or explicit GPU) ------------
+
+@app.function(
+    image=MOSS_IMAGE,
+    volumes={"/moss-models": MOSS_MODELS_VOL, "/moss-bench": MOSS_BENCH_VOL},
+    timeout=7200,
+    secrets=[SECRET],
+)
+def moss_populate_models(keys: str = "") -> str:
+    """CPU-only maintenance: populate pinned candidate assets onto the
+    /moss-models volume and verify hashes. Never runs during a request.
+
+        modal run runpod/modal_app.py::moss_populate_models --keys adapter_rapid4,adapter_draft3
+    """
+    sys.path.insert(0, "/")
+    import moss_assets
+
+    wanted = {k.strip() for k in keys.split(",") if k.strip()} or None
+    populated = moss_assets.populate("/moss-models", wanted)
+    MOSS_MODELS_VOL.commit()
+    moss_assets.write_extra_model_paths("/moss-bench/extra_model_paths.yaml")
+    MOSS_BENCH_VOL.commit()
+    return "populated:\n" + "\n".join(populated)
+
+
+@app.function(
+    image=MOSS_IMAGE,
+    gpu=MOSS_GPU,
+    volumes=MOSS_VOLUMES | {"/moss-bench": MOSS_BENCH_VOL},
+    timeout=7200,
+    secrets=[SECRET],
+    env=_MOSS_ENV,
+    startup_timeout=1200,
+)
+def moss_benchmark_run(profiles: str = "baseline", presets: str = "Fast",
+                       fixtures: str = "", seeds: str = "101,202,303,404,505",
+                       max_jobs: int = None, max_minutes: int = None,
+                       dry_run: bool = False, cached_prompt: bool = False) -> dict:
+    """Authenticated benchmark entrypoint calling the SAME workflow builder as
+    production (in-process against handler). Artifacts land on the moss-bench
+    volume under <run-id>/.
+
+        modal run runpod/modal_app.py::moss_benchmark_run \
+            --profiles baseline,resident-highvram-int8 --presets Fast
+    """
+    sys.path.insert(0, "/")
+    import moss_benchmark
+
+    run_id = time.strftime("run-%Y%m%d-%H%M%S")
+    out_dir = f"/moss-bench/{run_id}"
+    summary = moss_benchmark.run_benchmark(
+        mode="internal",
+        profiles=[p.strip() for p in profiles.split(",") if p.strip()],
+        presets=[p.strip() for p in presets.split(",") if p.strip()],
+        fixture_ids=[f.strip() for f in fixtures.split(",") if f.strip()] or None,
+        seeds=[int(s) for s in seeds.split(",") if s.strip()],
+        out_dir=out_dir,
+        max_jobs=max_jobs,
+        max_minutes=max_minutes,
+        dry_run=dry_run,
+        cached_prompt=cached_prompt,
+    )
+    MOSS_BENCH_VOL.commit()
+    return {"run_id": run_id, "out_dir": out_dir, "summary": summary}
+
+
+@app.local_entrypoint()
+def moss_benchmark_main(
+    profiles: str = "baseline", presets: str = "Fast", fixtures: str = "",
+    seeds: str = "101,202,303,404,505", max_jobs: int = None, max_minutes: int = None,
+    dry_run: bool = False, cached_prompt: bool = False,
+):
+    result = moss_benchmark_run.remote(
+        profiles=profiles, presets=presets, fixtures=fixtures, seeds=seeds,
+        max_jobs=max_jobs, max_minutes=max_minutes, dry_run=dry_run,
+        cached_prompt=cached_prompt,
+    )
+    print(f"benchmark run {result['run_id']} written to volume moss-bench:{result['out_dir']}")
+    summary = result.get("summary") or {}
+    if summary.get("report"):
+        print(summary["report"])
+    else:
+        print(json.dumps(summary, indent=2, default=str))

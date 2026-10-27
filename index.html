@@ -1932,6 +1932,12 @@
             white-space: nowrap;
         }
 
+        /* Unadvertised candidate presets stay fully out of the layout until
+         /capabilities says the deployment supports them. */
+        .pill-group .pill-label[hidden] {
+            display: none;
+        }
+
         .pill-group input[type="radio"]:checked + .pill-label {
             background: var(--accent);
             color: var(--on-accent);
@@ -3476,6 +3482,16 @@
                             <label for="moss_preset_fast" class="pill-label">Fast</label>
                             <input type="radio" id="moss_preset_quality" name="moss_preset" value="Quality">
                             <label for="moss_preset_quality" class="pill-label">Quality</label>
+                            <!-- Candidate presets: hidden until GET /capabilities
+                                 advertises them for the deployed runtime profile. -->
+                            <input type="radio" id="moss_preset_rapid" name="moss_preset" value="Rapid" data-candidate disabled>
+                            <label for="moss_preset_rapid" class="pill-label" data-candidate hidden title="4-step distillation — up to 1024²">Rapid β</label>
+                            <input type="radio" id="moss_preset_draft3" name="moss_preset" value="Draft3" data-candidate disabled>
+                            <label for="moss_preset_draft3" class="pill-label" data-candidate hidden title="3-step preview quality — 1024² max">Draft β</label>
+                            <input type="radio" id="moss_preset_fastspectrum" name="moss_preset" value="FastSpectrum" data-candidate disabled>
+                            <label for="moss_preset_fastspectrum" class="pill-label" data-candidate hidden title="Fast with feature-forecasting acceleration">Fast+ β</label>
+                            <input type="radio" id="moss_preset_qualityspectrum" name="moss_preset" value="QualitySpectrum" data-candidate disabled>
+                            <label for="moss_preset_qualityspectrum" class="pill-label" data-candidate hidden title="Quality with feature-forecasting acceleration">Quality+ β</label>
                         </div>
                         <button id="btn-lora" type="button" class="btn btn-secondary lora-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="lora-panel" title="LoRAs — none active">
                             LoRA<span class="queue-badge" id="lora-badge" hidden aria-hidden="true">0</span>

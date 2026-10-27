@@ -104,4 +104,47 @@ describe('restoreMeta (gallery)', () => {
     restoreMeta({ model: 'ideogram', preset: 'Default' })
     expect(sets).toEqual([{ model: 'ideogram', seed: false }])
   })
+
+  it('candidate preset unavailable on this backend: keeps the saved recipe and warns', async () => {
+    const { restoreMeta } = await load()
+    const { showToast } = await import('../toast.js')
+    restoreMeta({
+      model: 'moss',
+      mossPreset: 'Rapid',   // no capabilities fetched → not advertised here
+      seed: 4,
+    })
+    // The saved recipe is NOT silently swapped.
+    expect(state.moss.preset).toBe('Rapid')
+    expect(localStorage.getItem('ideogram_moss_preset')).toBe('Rapid')
+    expect(showToast).toHaveBeenCalledWith(
+      expect.stringContaining('Rapid β'),
+      'error',
+      expect.any(Number),
+    )
+  })
+
+  it('available presets restore without an availability warning', async () => {
+    const { restoreMeta } = await load()
+    const { showToast } = await import('../toast.js')
+    restoreMeta({ model: 'moss', mossPreset: 'Quality', seed: 4 })
+    expect(state.moss.preset).toBe('Quality')
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it('generation metadata round-trips through meta without breaking restore', async () => {
+    const { restoreMeta } = await load()
+    restoreMeta({
+      model: 'moss',
+      mossPreset: 'Fast',
+      seed: 9,
+      generation: {
+        runtime_profile: 'baseline', preset_id: 'Fast', effective_steps: 25,
+        cfg: 2.5, sampler: 'er_sde', scheduler: 'simple',
+        negative_guidance_active: true, model_manifest_id: 'moss-models-2026-10-27a',
+        first_generation_in_worker: false,
+      },
+    })
+    expect(state.moss.preset).toBe('Fast')
+    expect(state.seed).toBe(9)
+  })
 })

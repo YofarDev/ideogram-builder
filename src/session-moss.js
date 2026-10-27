@@ -3,6 +3,8 @@
 
 import { state, MODEL_MOSS } from './state.js';
 import { emit } from './events.js';
+import { isAvailable, presetLabel } from './moss-presets.js';
+import { showToast } from './toast.js';
 
 /** Capture the MOSS config from the live DOM (only meaningful in moss mode). */
 export function captureMossConfig() {
@@ -55,6 +57,11 @@ export function restoreMoss(config) {
     localStorage.setItem('ideogram_moss_preset', config.mossPreset);
     const r = document.querySelector(`input[name="moss_preset"][value="${config.mossPreset}"]`);
     if (r) r.checked = true;
+    // Availability-aware restore: keep the saved selection but require an
+    // explicit supported choice before submission — never silently re-recipe.
+    if (!isAvailable(config.mossPreset)) {
+      showToast(`Preset “${presetLabel(config.mossPreset)}” was saved in this session but is not available on the current backend — select a supported preset before generating.`, 'error', 5000);
+    }
   }
   return true;
 }

@@ -1,8 +1,24 @@
 // modal.js — Modal backend caller. Submit + poll (mirrors runpod.js pattern).
 // POST /generate spawns the job → GET /status/{call_id} polls until complete.
-// Same { dataUrl, imageUrl } return shape as runpod.js.
+// Same { dataUrl, imageUrl } return shape as runpod.js, plus optional
+// { seed, metrics, generation, clientTotalMs } from the server result.
 
 let config = null;
+
+// Completion-detection schedule: an immediate first poll (a fast GPU result
+// should not wait for a timer), 250/500 ms next, then 1 s intervals through the
+// first ten seconds, backing off to 2 s for long jobs. Measured HTTP latency
+// sets the floor on detection lag — polling is transport, not inference.
+const POLL_SCHEDULE_MS = [0, 250, 500];
+const FAST_WINDOW_MS = 10_000;
+const FAST_INTERVAL_MS = 1000;
+const SLOW_INTERVAL_MS = 2000;
+const TIMEOUT_MS = 15 * 60 * 1000;
+
+function pollDelayMs(pollIndex, startTime) {
+    if (pollIndex < POLL_SCHEDULE_MS.length) return POLL_SCHEDULE_MS[pollIndex];
+    return (Date.now() - startTime < FAST_WINDOW_MS) ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS;
+}
 
 async function getConfig() {
     if (config) return config;
@@ -12,10 +28,30 @@ async function getConfig() {
     return config;
 }
 
+function abortableDelay(ms, signal) {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new DOMException('Aborted', 'AbortError'));
+            return;
+        }
+        const timer = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        const onAbort = () => {
+            clearTimeout(timer);           // release the timer when aborted
+            signal?.removeEventListener('abort', onAbort);
+            reject(new DOMException('Aborted', 'AbortError'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
+}
+
 /**
  * @param {object} snapshot - same shape runpod.js consumes
  * @param {object} [opts] - { onStatus?(elapsedSec), signal? }
- * @returns {Promise<{ dataUrl: string, imageUrl: string }>}
+ * @returns {Promise<{ dataUrl: string, imageUrl: string, seed?: number,
+ *   metrics?: object, generation?: object, clientTotalMs?: number }>}
  */
 export async function runJob(snapshot, { onStatus, signal } = {}) {
     const { endpoint_url, auth_token } = await getConfig();
@@ -69,12 +105,20 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
 
         const { call_id } = await submitResp.json();
         const result = await pollStatus(baseUrl, pollHeaders, call_id, signal, startTime);
+        const clientTotalMs = Date.now() - startTime;
 
         if (result.status === 'failed') {
             throw new Error(result.error || 'Generation failed');
         }
 
-        const images = result.result?.output?.images || result.result?.images || [];
+        const payload = result.result ?? {};
+        // "completed" can still carry a handler-level error (validation,
+        // unsupported preset/size, missing assets…).
+        if (payload.error) {
+            throw new Error(payload.error);
+        }
+
+        const images = payload.output?.images || payload.images || [];
         if (images.length === 0) {
             throw new Error('No images returned');
         }
@@ -84,19 +128,26 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
         const dataUrl = `data:${mime};base64,${imageData}`;
         const blob = await fetch(dataUrl).then(r => r.blob());
         const imageUrl = URL.createObjectURL(blob);
-        return { dataUrl, imageUrl };
+        return {
+            dataUrl,
+            imageUrl,
+            seed: payload.seed,
+            metrics: payload.metrics,
+            generation: payload.generation,
+            clientTotalMs,
+        };
     } finally {
         clearInterval(ticker);
     }
 }
 
 async function pollStatus(baseUrl, headers, callId, signal, startTime) {
-    const timeout = 15 * 60 * 1000;
-
-    while (Date.now() - startTime < timeout) {
+    let pollIndex = 0;
+    while (Date.now() - startTime < TIMEOUT_MS) {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        await new Promise(r => setTimeout(r, 3000));
+        await abortableDelay(pollDelayMs(pollIndex, startTime), signal);
+        pollIndex += 1;
 
         const resp = await fetch(`${baseUrl}/status/${callId}`, { headers, signal });
         if (!resp.ok) throw new Error(`Modal status check failed: ${resp.status}`);
@@ -105,4 +156,30 @@ async function pollStatus(baseUrl, headers, callId, signal, startTime) {
         if (result.status === 'completed' || result.status === 'failed') return result;
     }
     throw new Error('Generation timed out after 15 minutes');
+}
+
+/**
+ * Advertised presets from the deployment (GET /capabilities, served by the
+ * CPU proxy — never starts a GPU container). Returns null when unavailable
+ * (old backend, offline, auth failure) so callers keep the base presets.
+ */
+export async function fetchCapabilities() {
+    let endpoint_url, auth_token;
+    try {
+        ({ endpoint_url, auth_token } = await getConfig());
+    } catch {
+        return null;
+    }
+    if (!endpoint_url) return null;
+    const baseUrl = endpoint_url.replace(/\/generate\/?$/, '');
+    try {
+        const resp = await fetch(`${baseUrl}/capabilities`, {
+            headers: auth_token ? { 'Authorization': `Bearer ${auth_token}` } : {},
+        });
+        if (!resp.ok) return null;
+        const caps = await resp.json();
+        return Array.isArray(caps?.presets) ? caps : null;
+    } catch {
+        return null;
+    }
 }

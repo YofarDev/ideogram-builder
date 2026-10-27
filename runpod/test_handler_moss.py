@@ -157,7 +157,16 @@ def test_handler_rejects_non_multiple_of_16():
 
 def test_handler_rejects_unknown_moss_preset():
     result = run_handler(model="moss", import_json="x", preset="Bogus")
-    assert result["error"] == "Unknown MOSS preset 'Bogus'"
+    # With the moss helper modules present, the request gate is
+    # moss_config.validate_request_preset (enablement before unknown-name).
+    assert "Bogus" in result["error"]
+    assert "not enabled" in result["error"] or "Unknown MOSS preset" in result["error"]
+
+
+def test_handler_rejects_candidate_preset_on_baseline_profile():
+    result = run_handler(model="moss", import_json="x", preset="Rapid", width=1024, height=1024)
+    assert "not enabled" in result["error"]
+    assert "Fast, Quality, Turbo" in result["error"]
 
 
 def test_handler_rejects_unknown_model():
@@ -340,3 +349,227 @@ def test_ensure_loras_rejects_traversal(monkeypatch, tmp_path):
             [{"filename": "../escape.safetensors",
               "source_url": "https://example.com/x.safetensors",
               "strengths": {"positive": 1.0}}])
+
+
+# --- module-backed moss flow: metrics, metadata, seed --------------------------
+
+
+class FakeWS:
+    def __init__(self, messages):
+        self.messages = list(messages)
+        self.connected = True
+        self.closed = False
+
+    def connect(self, url, timeout=None):
+        pass
+
+    def recv(self):
+        if not self.messages:
+            raise AssertionError("websocket loop should have exited on completion")
+        message = self.messages.pop(0)
+        if isinstance(message, Exception):
+            raise message
+        return json.dumps(message)
+
+    def close(self):
+        self.closed = True
+
+
+DONE = {"type": "executing", "data": {"node": None, "prompt_id": "pid1"}}
+
+
+def metric_messages(prompt_id="pid1", sampler_ms=3.0):
+    return [
+        {"type": "execution_start", "data": {"prompt_id": prompt_id}},
+        {"type": "executing", "data": {"node": "10", "prompt_id": prompt_id}},
+        {"type": "executed", "data": {"node": "10", "prompt_id": prompt_id, "cumulative": sampler_ms}},
+        DONE,
+    ]
+
+
+HISTORY = {"pid1": {"outputs": {"12": {"images": [
+    {"filename": "moss_00001_.png", "subfolder": "", "type": "output"}]}}}}
+
+
+@pytest.fixture
+def moss_flow(monkeypatch, tmp_path):
+    """Fake ComfyUI server + asset roots so the full moss path runs locally."""
+    import moss_assets
+
+    baked = tmp_path / "comfy" / "models"
+    for rel in ("diffusion_models/moss_image_sft_int8_convrot.safetensors",
+                "text_encoders/qwen3.5_9b_w4a8_gptq.safetensors",
+                "vae/flux2-vae_small.safetensors",
+                "loras/moss/control/moss_sft_dmd8.safetensors"):
+        p = baked / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+    # Candidate adapters live on the benchmark volume once populated.
+    volume = tmp_path / "moss-models" / "loras" / "moss" / "control"
+    for name in ("moss_sft_4step_v2.0.safetensors", "moss_sft_3step_v1.0.safetensors"):
+        p = volume / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+    monkeypatch.setattr(moss_assets, "COMFY_MODELS_ROOT", str(baked))
+    monkeypatch.setattr(moss_assets, "MODELS_ROOT", str(tmp_path / "moss-models"))
+
+    monkeypatch.setattr(handler, "check_server", lambda *a, **k: True)
+    monkeypatch.setattr(handler, "queue_workflow", lambda wf, cid: {"prompt_id": "pid1"})
+    monkeypatch.setattr(handler, "get_history", lambda pid: HISTORY)
+    monkeypatch.setattr(handler, "get_image_data", lambda *a: b"PNGDATA")
+    monkeypatch.setattr(handler, "_get_object_info", lambda: None)
+    monkeypatch.delenv("BUCKET_ENDPOINT_URL", raising=False)
+    monkeypatch.setattr(handler, "_MOSS_JOBS_IN_WORKER", 0, raising=False)
+    return monkeypatch
+
+
+def _wire_ws(monkeypatch, messages):
+    import types as _types
+    fake_module = _types.SimpleNamespace(
+        WebSocket=lambda: FakeWS(messages),
+        WebSocketTimeoutException=type("T", (Exception,), {}),
+        WebSocketConnectionClosedException=type("C", (Exception,), {}),
+        enableTrace=lambda *_: None,
+    )
+    monkeypatch.setattr(handler, "websocket", fake_module)
+
+
+def test_moss_flow_returns_metrics_and_generation(moss_flow, monkeypatch):
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=42,
+                         width=1024, height=1024)
+    assert "error" not in result
+    assert result["seed"] == 42
+    assert result["images"][0]["type"] == "base64"
+
+    generation = result["generation"]
+    assert generation["preset_id"] == "Fast"
+    assert generation["runtime_profile"] == "baseline"
+    assert generation["effective_steps"] == 25
+    assert generation["cfg"] == 2.5
+    assert generation["negative_guidance_active"] is True
+    assert generation["first_generation_in_worker"] is True
+    assert generation["model_manifest_id"].startswith("moss-models-")
+
+    metrics = result["metrics"]
+    assert metrics["measurement_complete"] is True
+    # Real-clock intervals: presence and completeness are asserted here; exact
+    # timing maths are covered in test_comfy_metrics with a fake clock.
+    assert "sampler" in metrics["observed_node_wall_ms"]
+    assert metrics["comfy_queue_ms"] is not None
+    assert metrics["worker_instance_id"]
+    assert metrics["prompt_id"] == "pid1"
+
+    # Second job in the same worker process is no longer the first generation.
+    result2 = run_handler(model="moss", import_json="P", preset="Fast", seed=43,
+                          width=1024, height=1024)
+    assert result2["generation"]["first_generation_in_worker"] is False
+
+
+def test_moss_flow_turbo_records_negative_guidance_inactive(moss_flow, monkeypatch):
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Turbo", seed=1,
+                         width=1024, height=1024)
+    assert result["generation"]["negative_guidance_active"] is False
+    assert result["generation"]["adapter"] == "dmd8"
+
+
+def test_moss_flow_rapid_unsupported_size_is_actionable(moss_flow, monkeypatch):
+    monkeypatch.setenv("MOSS_RUNTIME_PROFILE", "resident-highvram-int8-adapters")
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Rapid",
+                         width=2048, height=2048)
+    # 4 MP is the last validated bucket (8 steps) — passes; 4096² must fail.
+    assert "error" not in result
+    assert result["generation"]["effective_steps"] == 8
+    result = run_handler(model="moss", import_json="P", preset="Rapid",
+                         width=4096, height=4096)
+    assert "above the validated area" in result["error"]
+
+
+def test_moss_flow_keeps_partial_metrics_on_execution_error(moss_flow, monkeypatch):
+    messages = [
+        {"type": "executing", "data": {"node": "10", "prompt_id": "pid1"}},
+        {"type": "execution_error",
+         "data": {"node_id": "10", "prompt_id": "pid1", "exception_message": "OOM"}},
+    ]
+    _wire_ws(monkeypatch, messages)
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=9,
+                         width=1024, height=1024)
+    # The run keeps whatever it produced plus the error, and the partial metrics
+    # say so — the timings are explicitly labelled incomplete.
+    assert any("OOM" in e for e in result.get("errors", []))
+    assert result["metrics"]["measurement_complete"] is False
+    assert "OOM" in result["metrics"]["measurement_note"]
+    assert result["generation"]["preset_id"] == "Fast"
+
+
+def test_moss_flow_fallback_legacy_builder_without_modules(moss_flow, monkeypatch):
+    """The Ideogram image ships no moss modules: legacy builder still works and
+    results stay free of new keys."""
+    monkeypatch.setattr(handler, "_load_moss_modules", lambda: None)
+    messages = [
+        {"type": "executing", "data": {"node": None, "prompt_id": "pid1"}},
+    ]
+    _wire_ws(monkeypatch, messages)
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=5,
+                         width=1024, height=1024)
+    assert result["seed"] == 5
+    assert result["images"][0]["type"] == "base64"
+    assert "metrics" not in result and "generation" not in result
+
+
+def test_moss_flow_metrics_disabled_by_env(moss_flow, monkeypatch):
+    monkeypatch.setenv("MOSS_METRICS", "off")
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=3,
+                         width=1024, height=1024)
+    assert "metrics" not in result
+    # The executed recipe is reproducibility metadata, not telemetry — it stays
+    # even when metrics collection is off.
+    assert result["generation"]["preset_id"] == "Fast"
+
+
+def test_moss_flow_reconnect_marks_metrics_incomplete(moss_flow, monkeypatch):
+    """A mid-run websocket drop marks open intervals unavailable — the numbers
+    that survived are labelled incomplete, not silently totalled."""
+    import types as _types
+    import websocket as real_ws
+
+    messages = [
+        {"type": "executing", "data": {"node": "10", "prompt_id": "pid1"}},
+        {"type": "executed", "data": {"node": "10", "prompt_id": "pid1"}},
+        DONE,
+    ]
+    opened = {"count": 0}
+
+    class ReconnectWS:
+        def __init__(self):
+            opened["count"] += 1
+            self.connected = True
+
+        def connect(self, url, timeout=None):
+            pass
+
+        def recv(self):
+            if opened["count"] == 1:
+                raise real_ws.WebSocketConnectionClosedException()
+            return json.dumps(messages.pop(0))
+
+        def close(self):
+            self.connected = False
+
+    fake = _types.SimpleNamespace(
+        WebSocket=ReconnectWS,
+        WebSocketTimeoutException=real_ws.WebSocketTimeoutException,
+        WebSocketConnectionClosedException=real_ws.WebSocketConnectionClosedException,
+    )
+    monkeypatch.setattr(handler, "websocket", fake)
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=8,
+                         width=1024, height=1024)
+    assert "error" not in result
+    assert result["metrics"]["measurement_complete"] is False
+    assert "reconnected" in result["metrics"]["measurement_note"]
+    # The sampler interval that completed before the drop is still reported.
+    assert result["metrics"]["observed_node_wall_ms"].get("sampler") is not None
+

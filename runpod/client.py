@@ -61,7 +61,10 @@ def main():
     parser.add_argument("--endpoint-id", required=True, help="RunPod endpoint ID")
     parser.add_argument("--api-key", required=True, help="RunPod API key")
     parser.add_argument("--model", choices=["ideogram", "moss"], default="ideogram", help="Model/endpoint to target (default: ideogram)")
-    parser.add_argument("--preset", default=None, help="Sampler preset (MOSS: Turbo|Fast|Quality, Ideogram: Quality|Default|Turbo)")
+    parser.add_argument("--preset", default=None,
+                        help="Sampler preset. Ideogram: Quality|Default|Turbo. MOSS: Fast|Quality|Turbo always; "
+                             "Rapid|Draft3|FastSpectrum|QualitySpectrum only when the deployment advertises "
+                             "them (Modal: GET /capabilities). Unsupported presets return an actionable error.")
     parser.add_argument("--negative", default=None, help="Negative prompt (MOSS only)")
     parser.add_argument("--width", type=int, default=1024, help="Image width (default: 1024)")
     parser.add_argument("--height", type=int, default=1024, help="Image height (default: 1024)")

@@ -3,6 +3,7 @@ import { emit, on } from './events.js';
 import { showToast } from './toast.js';
 import { logError } from './client-log.js';
 import { runJob } from './backend.js';
+import { ensurePresetUsable } from './moss-presets.js';
 
 let queue = [];
 let isRunning = false;
@@ -61,6 +62,7 @@ export function enqueue() {
         showToast('Create a prompt first — draw boxes and fill the settings, or load JSON.', 'error');
         return;
     }
+    if (!ensurePresetUsable(state.model)) return;
     queue.push(makeJob(jsonText));
     render();
     drain();
@@ -68,6 +70,7 @@ export function enqueue() {
 
 export function enqueueImportJson(importJson, { model } = {}) {
     if (!importJson || !importJson.trim()) return;
+    if (!ensurePresetUsable(model || state.model)) return;
     queue.push(makeJob(importJson, model));
     render();
     drain();
@@ -92,7 +95,7 @@ async function drain() {
         job.status = 'running';
         render();
         try {
-            const { dataUrl, imageUrl } = await runJob(job.snapshot, {
+            const { dataUrl, imageUrl, seed: serverSeed, generation } = await runJob(job.snapshot, {
                 onStatus: (elapsed) => {
                     job.elapsed = elapsed;
                     if (statusEl()) statusEl().textContent = `Generating... (${elapsed}s)`;
@@ -102,8 +105,11 @@ async function drain() {
             });
             job.status = 'done';
             job.thumbUrl = imageUrl;
+            // Reproducibility: the server-resolved seed (the submitted one can
+            // stay -1 after random generation) plus the recipe actually
+            // executed, when the backend reports one.
             const meta = {
-                seed: job.snapshot.seed,
+                seed: (serverSeed ?? null) !== null ? serverSeed : job.snapshot.seed,
                 preset: job.snapshot.preset,
                 workflow: job.snapshot.workflow,
                 turboStrength: job.snapshot.turboStrength,
@@ -116,8 +122,12 @@ async function drain() {
                 model: job.snapshot.model || 'ideogram',
                 negativePrompt: job.snapshot.negativePrompt ?? '',
                 promptFormat: job.snapshot.promptFormat || 'layout',
-                ...(job.snapshot.model === 'moss' ? { mossPreset: job.snapshot.preset } : {}),
+                ...(job.snapshot.model === 'moss' ? {
+                    mossPreset: job.snapshot.preset,
+                    ...(generation ? { generation } : {}),
+                } : {}),
             };
+            job.serverSeed = serverSeed;
             emit('image:ready', { imageUrl, dataUrl, importJson: job.snapshot.importJson, loras: job.snapshot.loras, source: 'generation', meta });
         } catch (err) {
             if (err.name === 'AbortError') {
@@ -171,7 +181,7 @@ function render() {
         return `
             <div class="queue-card queue-${job.status}" data-id="${job.id}"${failTitle}>
                 ${thumb}
-                <span class="queue-seed">seed ${job.snapshot.seed}</span>
+                <span class="queue-seed">seed ${job.serverSeed ?? job.snapshot.seed}</span>
                 <span class="queue-status">${statusText}</span>
                 <button class="queue-remove" data-id="${job.id}" aria-label="Remove job">&times;</button>
             </div>`;

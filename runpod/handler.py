@@ -14,6 +14,7 @@ import websocket
 import uuid
 import tempfile
 import socket
+import sys
 import traceback
 import logging
 
@@ -40,6 +41,7 @@ WORKFLOW_TEMPLATES = {
 }
 
 _TEMPLATES = {}
+_OBJECT_INFO = None
 
 LORAS_DIR = "/comfyui/models/loras"
 
@@ -49,13 +51,57 @@ SEED_MAX = 2**50  # max accepted by the Seed (rgthree) node in the Ideogram temp
 
 # MOSS-Image sampler presets, resolved server-side. Turbo β ships with the
 # DMD distillation LoRA (node 4 of the template); the others bypass it.
-# VERIFY: Turbo sampler/scheduler — the DMD card doesn't name a ComfyUI sampler,
-# tweak by eye with 3 seeds. VERIFY: Quality SLG end_percent (1.0 vs 0.5).
+# Legacy fallback only — images with the moss helper modules delegate to
+# moss_config.MOSS_PRESETS (validated profiles, candidate presets, size policy).
 MOSS_PRESETS = {
     "Turbo":   {"steps": 8,  "cfg": 1.0, "sampler": "euler",  "scheduler": "simple", "slg": None,        "dmd": True},
     "Fast":    {"steps": 25, "cfg": 2.5, "sampler": "er_sde", "scheduler": "simple", "slg": (0.0, 0.5), "dmd": False},
     "Quality": {"steps": 50, "cfg": 3.0, "sampler": "euler",  "scheduler": "simple", "slg": (0.0, 1.0), "dmd": False},
 }
+
+# --- MOSS helper modules (optional; Ideogram image ships without them) --------
+
+_MOSS_MODS = None
+_MOSS_MODS_CHECKED = False
+_MOSS_REQUEST_CACHE = {}
+_MOSS_JOBS_IN_WORKER = 0
+
+
+def _load_moss_modules():
+    """Lazily import the MOSS-only helpers. The Ideogram image has none of them
+    and must keep working — moss requests just fall back to the legacy builder."""
+    global _MOSS_MODS, _MOSS_MODS_CHECKED
+    if not _MOSS_MODS_CHECKED:
+        _MOSS_MODS_CHECKED = True
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import comfy_metrics  # noqa: F401
+            import moss_assets  # noqa: F401
+            import moss_config  # noqa: F401
+            import moss_workflow  # noqa: F401
+            _MOSS_MODS = (moss_config, moss_workflow, moss_assets, comfy_metrics)
+        except ImportError:
+            _MOSS_MODS = None
+    return _MOSS_MODS
+
+
+def _get_object_info():
+    """Cached /object_info schema, used to validate accelerator nodes before
+    queuing. Returns None on failure (validation then skips rather than blocks)."""
+    global _OBJECT_INFO
+    if _OBJECT_INFO is None:
+        try:
+            response = requests.get(f"http://{COMFY_HOST}/object_info", timeout=30)
+            response.raise_for_status()
+            _OBJECT_INFO = response.json()
+        except Exception as e:  # noqa: BLE001
+            print(f"worker-ideogram4 - /object_info fetch failed (skipping schema check): {e}")
+            return None
+    return _OBJECT_INFO
+
+
+def _worker_instance_id():
+    return os.environ.get("HOSTNAME") or os.uname().nodename
 
 
 def _load_template(key):
@@ -367,12 +413,23 @@ def handler(job):
     height = job_input.get("height", 1024)
     seed = job_input.get("seed")
     loras = job_input.get("loras") or []
+    moss_mods = _load_moss_modules() if model == "moss" else None
+    moss_request = None
     if model == "moss":
         # `workflow` is ignored for MOSS; the preset resolves server-side.
         preset = job_input.get("preset", "Fast")
-        if preset not in MOSS_PRESETS:
-            return {"error": f"Unknown MOSS preset '{preset}'"}
         negative_prompt = job_input.get("negative_prompt", "")
+        if moss_mods is not None:
+            moss_config = moss_mods[0]
+            try:
+                profile, preset_def, effective_steps = moss_config.validate_request_preset(preset, width, height)
+            except moss_config.PresetUnsupportedError as e:
+                return {"error": str(e)}
+            except moss_config.ProfileError as e:
+                return {"error": f"Deployment configuration error: {e}"}
+            moss_request = {"profile": profile, "preset": preset_def, "effective_steps": effective_steps}
+        elif preset not in MOSS_PRESETS:
+            return {"error": f"Unknown MOSS preset '{preset}'"}
     else:
         preset = job_input.get("preset", "Default")
         workflow_key = job_input.get("workflow", "turbo")
@@ -409,12 +466,60 @@ def handler(job):
     prompt_id = None
     output_data = []
     errors = []
+    moss_info = None
+    metrics_collector = None
 
     try:
         if model == "moss":
-            workflow = _build_workflow_moss(import_json, negative_prompt, width, height, preset, seed, resolved_loras)
-            used_seed = workflow["10"]["inputs"]["seed"]
-            print(f"worker-ideogram4 - Workflow: moss, preset: {preset}")
+            seed_used = _resolve_seed(seed)
+            if moss_mods is not None:
+                moss_config, moss_workflow, moss_assets, comfy_metrics = moss_mods
+                try:
+                    assets = moss_assets.resolve_profile_assets(moss_request["profile"])
+                    adapter_ref = None
+                    preset_def = moss_request["preset"]
+                    if preset_def["adapter"]:
+                        adapter_ref = moss_assets.resolve_adapter(preset_def["adapter"])[1]
+                    template = _load_template("moss")
+                    preset_with_steps = dict(preset_def)
+                    preset_with_steps["effective_steps"] = moss_request["effective_steps"]
+                    workflow, moss_info = moss_workflow.build_moss_workflow(
+                        template, preset_name=preset, preset=preset_with_steps,
+                        prompt=import_json, negative=negative_prompt, width=width, height=height,
+                        seed=seed_used, loras=resolved_loras, profile=moss_request["profile"],
+                        assets=assets, adapter_ref=adapter_ref)
+                except moss_assets.AssetError as e:
+                    # A pinned candidate asset is missing (e.g. benchmark model
+                    # not populated on the volume) — hard, readable failure,
+                    # never an in-request download.
+                    return {"error": str(e)}
+                # Custom accelerator nodes must exist before we queue — an
+                # absent Spectrum/TorchCompile node is a configuration error,
+                # not a ComfyUI-side surprise.
+                object_info = _get_object_info()
+                if object_info is not None:
+                    try:
+                        moss_workflow.validate_accelerator_nodes(workflow, object_info)
+                    except moss_workflow.GraphValidationError as e:
+                        return {"error": str(e)}
+                if comfy_metrics.metrics_enabled():
+                    global _MOSS_JOBS_IN_WORKER
+                    moss_info["first_generation_in_worker"] = _MOSS_JOBS_IN_WORKER == 0
+                    _MOSS_JOBS_IN_WORKER += 1
+                    moss_info["model_manifest_id"] = moss_assets.manifest_id()
+                    metrics_collector = comfy_metrics.MetricsCollector(
+                        prompt_id=None,  # set once queued
+                        request_id=job_id,
+                        worker_instance_id=_worker_instance_id(),
+                        runtime_profile=moss_request["profile"]["profile_id"],
+                        node_stage_map=moss_info["node_stage_map"],
+                    )
+                print(f"worker-ideogram4 - Workflow: moss, preset: {preset}, "
+                      f"profile: {moss_request['profile']['profile_id']}, steps: {moss_request['effective_steps']}")
+            else:
+                workflow = _build_workflow_moss(import_json, negative_prompt, width, height, preset, seed, resolved_loras)
+                print(f"worker-ideogram4 - Workflow: moss (legacy builder), preset: {preset}")
+            used_seed = seed_used
         else:
             workflow = build_workflow(workflow_key, import_json, width, height, preset, seed, resolved_loras, turbo_strength)
             used_seed = workflow["160"]["inputs"]["seed"]
@@ -429,6 +534,10 @@ def handler(job):
         if not prompt_id:
             raise ValueError(f"Missing 'prompt_id' in queue response: {queued}")
 
+        if metrics_collector is not None:
+            metrics_collector.prompt_id = prompt_id
+            metrics_collector.mark_queued()
+
         print(f"worker-ideogram4 - Queued workflow with ID: {prompt_id}")
 
         execution_done = False
@@ -437,6 +546,8 @@ def handler(job):
                 out = ws.recv()
                 if isinstance(out, str):
                     message = json.loads(out)
+                    if metrics_collector is not None:
+                        metrics_collector.on_ws_message(message)
                     if message.get("type") == "executing":
                         data = message.get("data", {})
                         if data.get("node") is None and data.get("prompt_id") == prompt_id:
@@ -451,6 +562,8 @@ def handler(job):
                 continue
             except websocket.WebSocketConnectionClosedException as e:
                 print(f"worker-ideogram4 - WebSocket disconnected, attempting reconnect...")
+                if metrics_collector is not None:
+                    metrics_collector.mark_reconnected()
                 try:
                     new_ws = websocket.WebSocket()
                     new_ws.connect(ws_url, timeout=10)
@@ -513,11 +626,39 @@ def handler(job):
             ws.close()
 
     if not output_data:
-        return {"error": "No images generated", "details": errors}
+        failure = {"error": "No images generated", "details": errors}
+        # Keep partial timings for failed jobs — they explain where it died.
+        if metrics_collector is not None:
+            try:
+                failure["metrics"] = metrics_collector.to_dict()
+                failure["metrics"]["measurement_complete"] = False
+            except Exception:  # noqa: BLE001
+                pass
+        return failure
 
     result = {"images": output_data, "seed": used_seed}
     if errors:
         result["errors"] = errors
+
+    # Optional telemetry + reproducibility metadata (schema v1). Additive keys:
+    # old clients reading only images/seed keep working unchanged. `generation`
+    # records the recipe actually executed; `metrics` is MOSS_METRICS-gated.
+    if moss_mods is not None and moss_info is not None:
+        moss_config, _mw, moss_assets, _cm = moss_mods
+        try:
+            result["generation"] = moss_config.generation_metadata(
+                moss_request["profile"], moss_request["preset"], moss_request["effective_steps"],
+                preset_id=preset,
+                model_manifest_id=moss_info.get("model_manifest_id"),
+                first_generation_in_worker=moss_info.get("first_generation_in_worker", False),
+            )
+        except Exception:  # noqa: BLE001 — metadata must never fail a result
+            traceback.print_exc()
+        if metrics_collector is not None:
+            try:
+                result["metrics"] = metrics_collector.to_dict()
+            except Exception:  # noqa: BLE001
+                pass
 
     return result
 

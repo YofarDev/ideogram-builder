@@ -34,6 +34,16 @@ function baseSnapshot(over = {}) {
   }
 }
 
+function completedBody(over = {}) {
+  return {
+    status: 'completed',
+    result: {
+      output: { images: [{ filename: 'out.png', data: 'AAAA' }] },
+      ...over,
+    },
+  }
+}
+
 beforeEach(() => {
   vi.resetModules()
 })
@@ -47,9 +57,7 @@ describe('modal runJob', () => {
     global.fetch = mockFetchSequence([
       { body: CONFIG_RESP },
       { body: { call_id: 'call-1' } },
-      { body: { status: 'completed', result: { output: { images: [
-        { filename: 'out.png', data: 'AAAA' }
-      ]}}} },
+      { body: completedBody() },
     ])
     global.URL.createObjectURL = vi.fn(() => 'blob:mock')
 
@@ -114,23 +122,78 @@ describe('modal runJob', () => {
     await expect(mod.runJob(baseSnapshot())).rejects.toThrow('No images returned')
   })
 
-  it('polls status every 3s until completed', async () => {
+  it('surfaces handler errors inside completed responses', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'c1' } },
+      { body: { status: 'completed', result: { error: "Preset 'Rapid' is not enabled on this deployment" } } },
+    ])
+    const mod = await importModule()
+    await expect(mod.runJob(baseSnapshot())).rejects.toThrow(/not enabled/)
+  })
+
+  it('polls immediately after the call id, then 250/500, then 1s', async () => {
     vi.useFakeTimers()
     try {
-      global.fetch = mockFetchSequence([
-        { body: CONFIG_RESP },
-        { body: { call_id: 'c1' } },
-        { body: { status: 'processing' } },
-        { body: { status: 'completed', result: { output: { images: [
-          { filename: 'out.png', data: 'BBBB' }
-        ]}}} },
-      ])
+      const statusTimestamps = []
+      let statusCount = 0
+      global.fetch = vi.fn(async (url) => {
+        if (url === '/api/config') return { ok: true, json: () => Promise.resolve(CONFIG_RESP) }
+        if (url.endsWith('/generate')) return { ok: true, json: () => Promise.resolve({ call_id: 'c1' }) }
+        if (url.includes('/status/')) {
+          statusCount += 1
+          statusTimestamps.push(statusCount)
+          const done = statusCount >= 3
+          return { ok: true, json: () => Promise.resolve(done ? completedBody() : { status: 'processing' }) }
+        }
+        if (typeof url === 'string' && url.startsWith('data:')) {
+          return { ok: true, blob: () => Promise.resolve(new Blob()) }
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      })
       global.URL.createObjectURL = vi.fn(() => 'blob:m')
       const mod = await importModule()
       const p = mod.runJob(baseSnapshot())
-      // Advance past two poll cycles (2 × 3000ms) to get past 'processing' to 'completed'
-      await vi.advanceTimersByTimeAsync(6000)
+      // Drain microtasks without advancing the clock: the FIRST status poll
+      // must already have happened — no mandatory 3s wait for fast results.
+      await vi.advanceTimersByTimeAsync(0)
+      expect(statusCount).toBe(1)                          // immediate first poll
+      await vi.advanceTimersByTimeAsync(250)               // +250 ms
+      expect(statusCount).toBe(2)
+      await vi.advanceTimersByTimeAsync(500)               // +750 ms total → completed
+      expect(statusCount).toBe(3)
       await p
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('backs off to 2s polling after the ten-second fast window', async () => {
+    vi.useFakeTimers()
+    try {
+      let statusCount = 0
+      global.fetch = vi.fn(async (url) => {
+        if (url === '/api/config') return { ok: true, json: () => Promise.resolve(CONFIG_RESP) }
+        if (url.endsWith('/generate')) return { ok: true, json: () => Promise.resolve({ call_id: 'c1' }) }
+        if (url.includes('/status/')) {
+          statusCount += 1
+          return { ok: true, json: () => Promise.resolve({ status: 'processing' }) }
+        }
+        throw new Error(`unexpected fetch ${url}`)
+      })
+      const mod = await importModule()
+      const p = mod.runJob(baseSnapshot())
+      p.catch(() => {})
+      await vi.advanceTimersByTimeAsync(11_000)
+      const callsAt11s = statusCount
+      // Fast window: immediate + 250 + 500 + 1s×~10 ≈ 13 calls; then 2s cadence.
+      expect(callsAt11s).toBeGreaterThanOrEqual(10)
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(statusCount - callsAt11s).toBe(1)
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(statusCount - callsAt11s).toBe(2)
+      // No completion within 15 s of clock here — the eager .catch above keeps
+      // the still-pending runJob from becoming an unhandled rejection.
     } finally {
       vi.useRealTimers()
     }
@@ -161,21 +224,101 @@ describe('modal runJob', () => {
         { body: CONFIG_RESP },
         { body: { call_id: 'c1' } },
         { body: { status: 'processing' } },
-        { body: { status: 'completed', result: { output: { images: [
-          { filename: 'o.png', data: 'CC' }
-        ]}}} },
+        { body: completedBody() },
       ])
       global.URL.createObjectURL = vi.fn(() => 'blob:m')
       const mod = await importModule()
       const statuses = []
       const p = mod.runJob(baseSnapshot(), { onStatus: (s) => statuses.push(s) })
-      // Advance past two poll cycles to get past 'processing' to 'completed'
-      await vi.advanceTimersByTimeAsync(6000)
+      await vi.advanceTimersByTimeAsync(1200)
       await p
       expect(statuses.length).toBeGreaterThan(0)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('rejects with AbortError when aborted mid-poll-wait and releases timers', async () => {
+    vi.useFakeTimers()
+    try {
+      global.fetch = mockFetchSequence([
+        { body: CONFIG_RESP },
+        { body: { call_id: 'c1' } },
+        { body: { status: 'processing' } },
+      ])
+      const mod = await importModule()
+      const controller = new AbortController()
+      const p = mod.runJob(baseSnapshot(), { signal: controller.signal })
+      p.catch(() => {})
+      await vi.advanceTimersByTimeAsync(1)
+      controller.abort()
+      await expect(p).rejects.toThrow(expect.objectContaining({ name: 'AbortError' }))
+      // Released timers: advancing the clock runs nothing further.
+      const fetchCalls = global.fetch.mock.calls.length
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(global.fetch.mock.calls.length).toBe(fetchCalls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects aborted fetch during poll', async () => {
+    vi.useFakeTimers()
+    try {
+      global.fetch = vi.fn(async (url, opts) => {
+        if (url === '/api/config') {
+          return { ok: true, json: () => Promise.resolve(CONFIG_RESP) }
+        }
+        if (url.endsWith('/generate')) {
+          return { ok: true, json: () => Promise.resolve({ call_id: 'c1' }) }
+        }
+        if (opts?.signal) {
+          const err = new Error('The operation was aborted')
+          err.name = 'AbortError'
+          throw err
+        }
+        return { ok: true, json: () => Promise.resolve({ status: 'processing' }) }
+      })
+      const mod = await importModule()
+      const controller = new AbortController()
+      const p = mod.runJob(baseSnapshot(), { signal: controller.signal })
+      p.catch(() => {})
+      await vi.advanceTimersByTimeAsync(1)
+      await expect(p).rejects.toThrow(expect.objectContaining({ name: 'AbortError' }))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects on status 401 auth errors', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'c1' } },
+      { ok: false, status: 401, text: 'unauthorized' },
+    ])
+    const mod = await importModule()
+    await expect(mod.runJob(baseSnapshot())).rejects.toThrow(/Modal status check failed: 401/)
+  })
+
+  it('passes server seed, metrics and generation metadata through', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'c1' } },
+      {
+        body: completedBody({
+          seed: 123456,
+          metrics: { schema_version: 1, worker_total_ms: 4200, measurement_complete: true },
+          generation: { runtime_profile: 'baseline', preset_id: 'Fast', effective_steps: 25 },
+        }),
+      },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:m')
+    const mod = await importModule()
+    const result = await mod.runJob(baseSnapshot())
+    expect(result.seed).toBe(123456)
+    expect(result.metrics.worker_total_ms).toBe(4200)
+    expect(result.generation.effective_steps).toBe(25)
+    expect(result.clientTotalMs).toBeGreaterThanOrEqual(0)
   })
 })
 
@@ -188,9 +331,7 @@ describe('modal runJob moss payload', () => {
     global.fetch = mockFetchSequence([
       { body: CONFIG_RESP },
       { body: { call_id: 'call-1' } },
-      { body: { status: 'completed', result: { output: { images: [
-        { filename: 'out.png', data: 'AAAA' }
-      ]}}} },
+      { body: completedBody() },
     ])
     global.URL.createObjectURL = vi.fn(() => 'blob:mock')
 
@@ -206,9 +347,7 @@ describe('modal runJob moss payload', () => {
     global.fetch = mockFetchSequence([
       { body: CONFIG_RESP },
       { body: { call_id: 'call-1' } },
-      { body: { status: 'completed', result: { output: { images: [
-        { filename: 'out.png', data: 'AAAA' }
-      ]}}} },
+      { body: completedBody() },
     ])
     global.URL.createObjectURL = vi.fn(() => 'blob:mock')
 
@@ -217,5 +356,48 @@ describe('modal runJob moss payload', () => {
     const body = JSON.parse(global.fetch.mock.calls[1][1].body)
     expect(body).not.toHaveProperty('model')
     expect(body).not.toHaveProperty('negative_prompt')
+  })
+})
+
+describe('modal fetchCapabilities', () => {
+  async function importModule() {
+    return await import('../modal.js')
+  }
+
+  it('returns the capabilities payload on success', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { schema_version: 1, presets: [{ id: 'Fast' }, { id: 'Rapid' }] } },
+    ])
+    const mod = await importModule()
+    const caps = await mod.fetchCapabilities()
+    expect(caps.presets.map(p => p.id)).toEqual(['Fast', 'Rapid'])
+    const capsCall = global.fetch.mock.calls[1]
+    expect(capsCall[0]).toBe('https://modal.example/capabilities')
+    expect(capsCall[1].headers.Authorization).toBe('Bearer tok-xyz')
+  })
+
+  it('returns null on HTTP failure', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { ok: false, status: 503, text: 'deployment configuration error' },
+    ])
+    const mod = await importModule()
+    expect(await mod.fetchCapabilities()).toBeNull()
+  })
+
+  it('returns null on network error', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { throw: new TypeError('fetch failed') },
+    ])
+    const mod = await importModule()
+    expect(await mod.fetchCapabilities()).toBeNull()
+  })
+
+  it('returns null when unconfigured', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    const mod = await importModule()
+    expect(await mod.fetchCapabilities()).toBeNull()
   })
 })

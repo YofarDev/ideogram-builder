@@ -1,0 +1,51 @@
+{
+  "lock_id": "moss-runtime-2026-10-27a",
+  "created": "2026-10-27",
+  "notes": [
+    "Resolved software revisions for the MOSS runtime. Baseline = what the current image actually builds (start from the existing ComfyUI pin to isolate runtime effects).",
+    "The candidate cu130+ wheel set is resolved and frozen during the Phase 2 candidate build (TORCH_SPEC/TORCH_INDEX build args in runpod/Dockerfile.moss); until then its fields are explicitly unresolved placeholders and must never be read as installed versions.",
+    "After a candidate image is built, run `python runtime_check.py --json` inside it and paste the result into candidate_runtime.observed so the lock records what was actually measured, not what the Dockerfile requested."
+  ],
+  "baseline_runtime": {
+    "base_image": "runpod/worker-comfyui:5.8.5-base",
+    "comfyui": {
+      "repo": "comfyanonymous/ComfyUI",
+      "revision": "7cebca52227c63b4180ceed448cbd7ad22903b6d",
+      "note": "MOSS-Image support present (merged >= e087d8f6). Pin kept for the first comparison rounds; a separately pinned v0.43.0 candidate is compared only after this baseline is sound."
+    },
+    "rgthree": {
+      "repo": "rgthree/rgthree-comfy",
+      "revision": "d7297b42f0fa78bec1c0411478f887423c249502",
+      "resolved": "2026-10-27",
+      "note": "Previously a floating 'main' clone; pinned by this lock."
+    },
+    "comfy_kitchen": { "revision": "resolved-by-pip-freeze-at-build", "pin": "VERIFY: record exact version from pip freeze during the candidate build" },
+    "torch": { "cuda_build": "VERIFY: capture with runtime_check inside the deployed container; research hypothesis says the base image carries cu126 which disables the comfy-kitchen CUDA backend" },
+    "comfyui_v043_candidate": {
+      "repo": "comfyanonymous/ComfyUI",
+      "tag": "v0.43.0",
+      "policy": "Tested as a separate pinned candidate AFTER the baseline comparison; never silently upgraded in place."
+    }
+  },
+  "optimization_nodes": {
+    "comfyui_spectrum_moss": {
+      "repo": "Rkkss/ComfyUI-Spectrum-MOSS",
+      "tag": "v0.8.1",
+      "revision": "d3f7e243ea2db6cc3ff26f42b935b167f938b599",
+      "resolved": "2026-10-27",
+      "license": "VERIFY: record the repo license file in the dependency manifest at install time",
+      "nodes": ["SpectrumMOSSImageManual", "SpectrumMOSSImageAdaptive"]
+    }
+  },
+  "candidate_runtime_cu130": {
+    "status": "unresolved",
+    "python": "3.12",
+    "torch": "UNRESOLVED: pin exact cu130+ wheel set (torch/torchvision/torchaudio) compatible with the pinned ComfyUI at candidate-build time",
+    "install_policy": "Matched torchvision/torchaudio versions; dependency consistency proven by `pip check`, import checks and a real GPU execution before the profile is served."
+  },
+  "observed": {
+    "purpose": "Filled by runtime_check.py --json inside the deployed/candidate container",
+    "captured_at": null,
+    "data": null
+  }
+}

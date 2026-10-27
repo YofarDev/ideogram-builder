@@ -276,3 +276,105 @@ describe('image:ready meta model fields', () => {
     expect(meta.preset).toBe('Quality')
   })
 })
+
+describe('server-resolved seed and generation metadata', () => {
+  // loadQueue() resets modules — grab the state instance the queue module sees.
+  async function loadQueueWithFreshState(mocks) {
+    const mod = await loadQueue(mocks)
+    const freshState = (await import('../state.js')).state
+    return { mod, freshState }
+  }
+
+  it('uses the server seed in saved meta when the backend returns one', async () => {
+    // The submitted seed can stay -1 ("random"); reproducibility requires the
+    // server-resolved seed in gallery metadata.
+    const emit = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({
+      emit,
+      runJob: vi.fn(async () => ({
+        dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:s',
+        seed: 777777, generation: { runtime_profile: 'baseline', preset_id: 'Fast', effective_steps: 25 },
+      })),
+    })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Fast' }
+    freshState.seed = -1
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    const { meta } = emit.mock.calls.find(c => c[0] === 'image:ready')[1]
+    expect(meta.seed).toBe(777777)
+    expect(meta.generation).toEqual({ runtime_profile: 'baseline', preset_id: 'Fast', effective_steps: 25 })
+    // Queue card shows the resolved seed too.
+    expect(document.querySelector('.queue-seed')?.textContent).toContain('777777')
+  })
+
+  it('keeps the submitted seed when the backend returns none (old backends)', async () => {
+    const emit = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({ emit, runJob: okRunJob() })
+    freshState.seed = 42
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    const { meta } = emit.mock.calls.find(c => c[0] === 'image:ready')[1]
+    expect(meta.seed).toBe(42)
+    expect(meta.generation).toBeUndefined()
+  })
+
+  it('generation metadata persists only for moss jobs', async () => {
+    const emit = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({
+      emit,
+      runJob: vi.fn(async () => ({
+        dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:s',
+        seed: 1, generation: { runtime_profile: 'baseline' },
+      })),
+    })
+    freshState.model = 'ideogram'
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    const { meta } = emit.mock.calls.find(c => c[0] === 'image:ready')[1]
+    expect(meta.generation).toBeUndefined()  // ideogram meta shape unchanged
+  })
+})
+
+describe('preset availability guard', () => {
+  async function loadQueueWithFreshState(mocks) {
+    const mod = await loadQueue(mocks)
+    const freshState = (await import('../state.js')).state
+    return { mod, freshState }
+  }
+
+  it('blocks enqueue when the selected moss preset is unavailable on this backend', async () => {
+    const showToast = vi.fn()
+    const runJob = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({ showToast, runJob })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Rapid' }  // no capabilities → unavailable
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid β'), expect.anything())
+    })
+    expect(runJob).not.toHaveBeenCalled()
+    expect(document.getElementById('queue-panel').children.length).toBe(0)
+  })
+
+  it('lets base presets enqueue without capabilities', async () => {
+    const runJob = vi.fn(async (_s, opts) => {
+      opts?.onStatus?.(1)
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:o' }
+    })
+    const { mod, freshState } = await loadQueueWithFreshState({ runJob })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Fast' }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(runJob).toHaveBeenCalledTimes(1)
+  })
+})

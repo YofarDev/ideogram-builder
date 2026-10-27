@@ -3,37 +3,66 @@ FROM runpod/worker-comfyui:5.8.5-base
 # ponytail: triton JIT needs cc + Python.h at runtime; base image ships neither.
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential python3-dev && rm -rf /var/lib/apt/lists/*
 
-# MOSS-Image support merged into ComfyUI master on Oct 16 2026 (>= e087d8f6);
-# pin a known-good commit so surprise upstream breakage can't creep in.
+# MOSS-Image support merged into ComfyUI master on Oct 16 2026 (>= e087d8f6).
+# Pin stays on the Phase-2 baseline so runtime changes are isolated; test the
+# v0.43.0 candidate as a separate build (see moss-runtime.lock.json), never in
+# place. Candidate accelerated runtime: pass TORCH_SPEC + TORCH_INDEX build
+# args (resolved cu130+ wheel set, see moss-runtime.lock.json) — default build
+# keeps the base image's torch untouched.
+ARG COMFY_REVISION=7cebca52227c63b4180ceed448cbd7ad22903b6d
+ARG TORCH_SPEC=""
+ARG TORCH_INDEX=""
 RUN rm -rf /comfyui && \
     git clone https://github.com/comfyanonymous/ComfyUI.git /comfyui && \
     cd /comfyui && \
-    git checkout 7cebca52227c63b4180ceed448cbd7ad22903b6d && \
+    git checkout ${COMFY_REVISION} && \
+    if [ -n "$TORCH_SPEC" ]; then pip install ${TORCH_SPEC} --index-url ${TORCH_INDEX:-https://download.pytorch.org/whl/cu130}; fi && \
     pip install -r requirements.txt
 
-# Only rgthree needed (Power Lora Loader). KJNodes is Ideogram-only.
+# rgthree pinned (was a floating main clone; see moss-runtime.lock.json).
+ARG RGTHREE_REVISION=d7297b42f0fa78bec1c0411478f887423c249502
 RUN git clone https://github.com/rgthree/rgthree-comfy.git /comfyui/custom_nodes/rgthree-comfy && \
     cd /comfyui/custom_nodes/rgthree-comfy && \
+    git checkout ${RGTHREE_REVISION} && \
     pip install -r requirements.txt
+
+# Spectrum feature-forecasting node, pinned v0.8.1 (Phase 5); disabled nodes
+# stay inert until a workflow references them.
+RUN git clone https://github.com/Rkkss/ComfyUI-Spectrum-MOSS.git /comfyui/custom_nodes/ComfyUI-Spectrum-MOSS && \
+    cd /comfyui/custom_nodes/ComfyUI-Spectrum-MOSS && \
+    git checkout d3f7e243ea2db6cc3ff26f42b935b167f938b599
 
 # VERIFY: int8_convrot DiT loads with plain UNETLoader on native ComfyUI (the
 # official template does this). If it errors, add BobJohnson24/ComfyUI-INT8-Fast
 # like the Ideogram image, or fall back to moss_image_sft_bf16.safetensors.
 # VERIFY: qwen3.5_9b_w4a8_gptq runs on RTX 3090/A5000 (needs a w4a8 kernel).
 # If not, fall back to text_encoders/qwen3.5_9b_int8_convrot.safetensors.
+# Revisions + hashes are pinned in runpod/moss-models.json (the manifest is the
+# source of truth; these RUN lines mirror its baseline entries).
 RUN mkdir -p /comfyui/models/diffusion_models /comfyui/models/text_encoders /comfyui/models/vae
-RUN wget -q -O /comfyui/models/diffusion_models/moss_image_sft_int8_convrot.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/diffusion_models/moss_image_sft_int8_convrot.safetensors
-RUN wget -q -O /comfyui/models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors
-RUN wget -q -O /comfyui/models/vae/flux2-vae_small.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/main/vae/flux2-vae_small.safetensors
+RUN wget -q -O /comfyui/models/diffusion_models/moss_image_sft_int8_convrot.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/530a4c94f92c35ef6818b1b035a983fe9dcf5f54/diffusion_models/moss_image_sft_int8_convrot.safetensors
+RUN wget -q -O /comfyui/models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/530a4c94f92c35ef6818b1b035a983fe9dcf5f54/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors
+RUN wget -q -O /comfyui/models/vae/flux2-vae_small.safetensors https://huggingface.co/Comfy-Org/MOSS-Image/resolve/530a4c94f92c35ef6818b1b035a983fe9dcf5f54/vae/flux2-vae_small.safetensors
 
-# Turbo β preset: community 8-step DMD distillation LoRA (lodestones).
+# Turbo β preset: community 8-step DMD distillation LoRA (lodestones), pinned.
+# Candidate adapters (Rapid β 4-step, Draft β 3-step) are NOT baked — they are
+# populated onto the /moss-models volume by the maintenance entrypoint.
 RUN mkdir -p /comfyui/models/loras/moss/control /comfyui/models/loras/user
 RUN wget -q -O /comfyui/models/loras/moss/control/moss_sft_dmd8.safetensors \
-    https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd/resolve/main/lora.safetensors
+    https://huggingface.co/lodestones/MOSS-Image-SFT-8-steps-dmd/resolve/f95df83b5e90ae91ea412434b3f9b7f1c8c6314f/lora.safetensors
 
 # Dockerfile lives in runpod/ but build context is repo root. Same shared
-# handler as the Ideogram image; only the MOSS template ships here.
+# handler as the Ideogram image; MOSS helpers must be importable from /.
 COPY runpod/handler.py /handler.py
 COPY runpod/workflow_template_moss.json /workflow_template_moss.json
+COPY runpod/moss_config.py /moss_config.py
+COPY runpod/moss_workflow.py /moss_workflow.py
+COPY runpod/moss_assets.py /moss_assets.py
+COPY runpod/comfy_metrics.py /comfy_metrics.py
+COPY runpod/moss_benchmark.py /moss_benchmark.py
+COPY runpod/runtime_check.py /runtime_check.py
+COPY runpod/moss-models.json /moss-models.json
+COPY runpod/moss-runtime.lock.json /moss-runtime.lock.json
+COPY runpod/benchmarks/moss/fixtures.json /benchmarks/moss/fixtures.json
 
 CMD ["/start.sh"]

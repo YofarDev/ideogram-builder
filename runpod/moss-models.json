@@ -1,0 +1,172 @@
+{
+  "manifest_id": "moss-models-2026-10-27a",
+  "created": "2026-10-27",
+  "notes": [
+    "Pinned MOSS model/adapter assets. sha256 values are the HuggingFace LFS oids at the listed revision, resolved on 2026-10-27 via /api/models/<repo>/tree.",
+    "container_path '/comfyui/models/...' assets are baked into the MOSS image (runpod/Dockerfile.moss). '/moss-models/...' assets are optional benchmark candidates populated onto the dedicated Modal volume by the maintenance entrypoint (runpod/moss_assets.py populate) — never downloaded during a user request.",
+    "workflow_ref is the filename the ComfyUI workflow uses (relative to a loras root for adapters, or the bare filename for DiT/encoder/VAE loaders)."
+  ],
+  "repositories": {
+    "comfy_org_moss": {
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "resolved": "2026-10-27",
+      "license": "apache-2.0"
+    },
+    "lodestones_dmd8": {
+      "repo": "lodestones/MOSS-Image-SFT-8-steps-dmd",
+      "revision": "f95df83b5e90ae91ea412434b3f9b7f1c8c6314f",
+      "resolved": "2026-10-27",
+      "license": "apache-2.0",
+      "note": "Previous image build followed the mutable 'main' branch; this revision is the pin."
+    },
+    "akhaliq_adapters": {
+      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
+      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
+      "resolved": "2026-10-27",
+      "license": "apache-2.0"
+    }
+  },
+  "assets": {
+    "dit_int8_convrot": {
+      "role": "diffusion_model",
+      "format": "int8_convrot",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "diffusion_models/moss_image_sft_int8_convrot.safetensors",
+      "filename": "moss_image_sft_int8_convrot.safetensors",
+      "workflow_ref": "moss_image_sft_int8_convrot.safetensors",
+      "sha256": "b4d1475bc7eeffd7b809e82ea13a1fba1fb85c4e18365af3813722faa5c0fe4f",
+      "size_bytes": 5413698958,
+      "container_path": "/comfyui/models/diffusion_models/moss_image_sft_int8_convrot.safetensors",
+      "license": "apache-2.0",
+      "notes": "Current baseline DiT (SFT, INT8 convrot)."
+    },
+    "dit_bf16": {
+      "role": "diffusion_model",
+      "format": "bf16",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "diffusion_models/moss_image_sft_bf16.safetensors",
+      "filename": "moss_image_sft_bf16.safetensors",
+      "workflow_ref": "moss_image_sft_bf16.safetensors",
+      "sha256": "f96738d8116d78b7316b57c663d8c98591ddafab7488f48e3099b7655e34ab6f",
+      "size_bytes": 10164655808,
+      "container_path": "/moss-models/diffusion_models/moss_image_sft_bf16.safetensors",
+      "license": "apache-2.0",
+      "notes": "Benchmark candidate; also the reference base for the akhaliq adapters."
+    },
+    "enc_w4a8": {
+      "role": "text_encoder",
+      "format": "w4a8",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "text_encoders/qwen3.5_9b_w4a8_gptq.safetensors",
+      "filename": "qwen3.5_9b_w4a8_gptq.safetensors",
+      "workflow_ref": "qwen3.5_9b_w4a8_gptq.safetensors",
+      "sha256": "4cc6a1543ad2061806da46f35f90cadb4801dcba246c44782cf42ec0feb6407c",
+      "size_bytes": 7343591088,
+      "container_path": "/comfyui/models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors",
+      "license": "apache-2.0",
+      "notes": "Current baseline encoder (requires a w4a8 kernel; comfy-kitchen CUDA path needs torch cu130+)."
+    },
+    "enc_int8_convrot": {
+      "role": "text_encoder",
+      "format": "int8_convrot",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+      "filename": "qwen3.5_9b_int8_convrot.safetensors",
+      "workflow_ref": "qwen3.5_9b_int8_convrot.safetensors",
+      "sha256": "32e3787472f708fa5f83624acbf5ef23f7fc89c439e05065ea57cfe5a97f025a",
+      "size_bytes": 9748121532,
+      "container_path": "/moss-models/text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+      "license": "apache-2.0",
+      "notes": "Benchmark candidate; also the encoder in the akhaliq documented configuration."
+    },
+    "enc_bf16": {
+      "role": "text_encoder",
+      "format": "bf16",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "text_encoders/qwen3.5_9b_bf16.safetensors",
+      "filename": "qwen3.5_9b_bf16.safetensors",
+      "workflow_ref": "qwen3.5_9b_bf16.safetensors",
+      "sha256": "7e6e9f08d598f829cb940e60ac0c698e1f1c27a47daffd7e598cd78c78b4cc53",
+      "size_bytes": 19306312328,
+      "container_path": "/moss-models/text_encoders/qwen3.5_9b_bf16.safetensors",
+      "license": "apache-2.0",
+      "notes": "Benchmark candidate."
+    },
+    "vae_small": {
+      "role": "vae",
+      "format": "bf16",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "vae/flux2-vae_small.safetensors",
+      "filename": "flux2-vae_small.safetensors",
+      "workflow_ref": "flux2-vae_small.safetensors",
+      "sha256": "d8d52ba036475f5fb07c8b435e176d3d97ebfa82f0d1a1c317f9cc1e25bd013b",
+      "size_bytes": 249521340,
+      "container_path": "/comfyui/models/vae/flux2-vae_small.safetensors",
+      "license": "apache-2.0",
+      "notes": "Fixed for the initial comparison rounds; the larger flux2-vae stays out of scope until a profile wins."
+    },
+    "adapter_dmd8": {
+      "role": "distillation_adapter",
+      "adapter": "dmd8",
+      "repo": "lodestones/MOSS-Image-SFT-8-steps-dmd",
+      "revision": "f95df83b5e90ae91ea412434b3f9b7f1c8c6314f",
+      "repo_path": "lora.safetensors",
+      "filename": "moss_sft_dmd8.safetensors",
+      "workflow_ref": "moss/control/moss_sft_dmd8.safetensors",
+      "sha256": "4abb14e39c1a59018907581e609f43616ec6810126144ec2b1d2e6f8969628fe",
+      "size_bytes": 1189176800,
+      "container_path": "/comfyui/models/loras/moss/control/moss_sft_dmd8.safetensors",
+      "license": "apache-2.0",
+      "notes": "Turbo β eight-step adapter. Model card recommends lora.safetensors at strength 1; lora_latest/dataspace variants are deprecated instructions and must not be substituted."
+    },
+    "adapter_rapid4": {
+      "role": "distillation_adapter",
+      "adapter": "rapid4",
+      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
+      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
+      "repo_path": "moss_image_sft_4step_v2.0.safetensors",
+      "filename": "moss_sft_4step_v2.0.safetensors",
+      "workflow_ref": "moss/control/moss_sft_4step_v2.0.safetensors",
+      "sha256": "154c7f1455c3bf9925945c2f1ea2e4f09d0d0c67256081384a094b2b585f913f",
+      "size_bytes": 1189176752,
+      "container_path": "/moss-models/loras/moss/control/moss_sft_4step_v2.0.safetensors",
+      "license": "apache-2.0",
+      "notes": "Rapid β four-step adapter, v2.0 Euler-native release (2026-10-18): LoraLoaderModelOnly strength 1, euler/simple, CFG 1. Same file as the repo-root lora.safetensors."
+    },
+    "adapter_rapid4_fp32": {
+      "role": "distillation_adapter",
+      "adapter": "rapid4",
+      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
+      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
+      "repo_path": "moss_image_sft_4step_v2.0_fp32.safetensors",
+      "filename": "moss_sft_4step_v2.0_fp32.safetensors",
+      "workflow_ref": "moss/control/moss_sft_4step_v2.0_fp32.safetensors",
+      "sha256": "58a56e143f36a50e605a77644066f687726b79e57e35ce7ad825e899b9f7b363",
+      "size_bytes": 20329281512,
+      "container_path": "/moss-models/loras/moss/control/moss_sft_4step_v2.0_fp32.safetensors",
+      "license": "apache-2.0",
+      "notes": "FP32 reference for fine-text precision checks against the merged/quantized variant; ~20 GB, populate on demand only."
+    },
+    "adapter_draft3": {
+      "role": "distillation_adapter",
+      "adapter": "draft3",
+      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
+      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
+      "repo_path": "moss_image_sft_3step_v1.0.safetensors",
+      "filename": "moss_sft_3step_v1.0.safetensors",
+      "workflow_ref": "moss/control/moss_sft_3step_v1.0.safetensors",
+      "sha256": "cde8e7e8cadab93c7081cca1892bc73aaced8bdb583c7dfb9903d2f4e66aa4b2",
+      "size_bytes": 1189176752,
+      "container_path": "/moss-models/loras/moss/control/moss_sft_3step_v1.0.safetensors",
+      "license": "apache-2.0",
+      "notes": "Draft β three-step adapter (separately trained; identical hash to lora_3step.safetensors). Never produce Draft3 by running the four-step LoRA for three steps."
+    }
+  }
+}

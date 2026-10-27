@@ -6,6 +6,8 @@ import { state, MODE_PHOTO, MODEL_MOSS } from './state.js';
 import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { ideogramGlobalsToMoss, mossGlobalsToIdeogram } from './prompt-convert.js';
+import { fetchCapabilities } from './modal.js';
+import { setCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage } from './moss-presets.js';
 
 const MOSS_INPUTS = ['moss-caption', 'moss-meta', 'moss-canvas', 'moss-negative'];
 
@@ -64,6 +66,35 @@ function seedGlobals({ model, seed }) {
   }
 }
 
+/**
+ * Reveal candidate preset pills the deployment actually advertises. The Modal
+ * /capabilities endpoint is served by the CPU proxy — fetching never starts a
+ * GPU container. Without capabilities (RunPod, offline, old backend) the
+ * original three presets stay alone in the UI.
+ */
+export async function applyPresetCapabilities() {
+  if ((localStorage.getItem('ideogram_backend') || 'runpod') !== 'modal') return;
+  const caps = await fetchCapabilities();
+  if (!caps) return;  // absent → base presets only, no error
+  setCapabilities(caps);
+  const available = availablePresets();
+  document.querySelectorAll('#moss-preset-toggle [data-candidate]').forEach((el) => {
+    if (el.tagName === 'INPUT') {
+      const show = available.includes(el.value);
+      el.disabled = !show;
+    } else {  // the pill label
+      const input = document.getElementById(el.getAttribute('for'));
+      const show = input ? available.includes(input.value) : false;
+      el.hidden = !show;
+    }
+  });
+  // A restored session/gallery preset may have become visible — or the saved
+  // one may still be unsupported; surface it once capabilities are known.
+  if (currentPresetUnavailable()) {
+    showToast(availabilityMessage(state.moss.preset), 'error', 5000);
+  }
+}
+
 export function initSettingsMoss() {
   MOSS_INPUTS.forEach((id) => {
     document.getElementById(id)?.addEventListener('input', () => emit('state:changed'));
@@ -74,7 +105,17 @@ export function initSettingsMoss() {
   });
   document.body.dataset.mossPrompt = state.moss.promptMode;
 
+  // Selecting any preset pill clears the unavailable-recipe warning state —
+  // the user made an explicit supported choice.
+  document.querySelectorAll('input[name="moss_preset"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      state.moss.preset = radio.value;
+      localStorage.setItem('ideogram_moss_preset', radio.value);
+    });
+  });
+
   on('model:changed', seedGlobals);
+  applyPresetCapabilities();
 
   on('state:loaded', ({ moss }) => {
     if (!moss) return;

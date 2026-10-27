@@ -5,6 +5,8 @@
 import { state } from './state.js';
 import { emit } from './events.js';
 import { restoreLorasFromMeta } from './lora.js';
+import { isAvailable, presetLabel } from './moss-presets.js';
+import { showToast } from './toast.js';
 
 export function restoreMeta(meta) {
     // Model first — the preset/negative/prompt-mode restores below depend on it
@@ -70,6 +72,11 @@ function restoreMossMeta(meta) {
         localStorage.setItem('ideogram_moss_preset', meta.mossPreset);
         const r = document.querySelector(`input[name="moss_preset"][value="${meta.mossPreset}"]`);
         if (r) r.checked = true;
+        // Availability-aware restore: keep the saved recipe selected, but make
+        // an unavailable candidate preset explicit — never silently swap it.
+        if (!isAvailable(meta.mossPreset)) {
+            showToast(`Preset “${presetLabel(meta.mossPreset)}” was saved with this image but is not available on the current backend — select a supported preset before generating.`, 'error', 5000);
+        }
     }
     if (meta.negativePrompt !== undefined && meta.negativePrompt !== null) {
         const neg = document.getElementById('moss-negative');

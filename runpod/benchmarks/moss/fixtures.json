@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "notes": [
+    "MOSS benchmark fixtures. boxes are editor coordinates (0-1000 x/y/w/h, top-left origin) exactly as the UI stores them; moss_benchmark compiles them with the same maths as src/prompt-moss.js buildMossLayout (abs_centralized yxyx, top-layer-first items).",
+    "expected_text drives OCR character-error-rate scoring; expected_regions (normalized boxes) drive layout IoU. Fields are evaluation expectations, never sent to the model.",
+    "dims are the recommended canvas; the runner may override per resolution bucket."
+  ],
+  "fixtures": [
+    {
+      "id": "poster_en_bold",
+      "category": "poster_english",
+      "dims": [1024, 1024],
+      "caption": "A bold flat-design conference poster on a deep navy background with clean geometric shapes.",
+      "meta": ["poster", "flat design"],
+      "canvas": "single",
+      "palette": ["#101C3D", "#F4F0E6"],
+      "boxes": [
+        {"mode": "text", "desc": "Huge white title centered in the upper third", "text": "DESIGN SUMMIT 2026", "box": [60, 60, 880, 180]},
+        {"mode": "text", "desc": "Small white date line below the title", "text": "OCT 27 · 09:00", "box": [240, 260, 520, 90]},
+        {"mode": "object", "desc": "Large flat coral circle motif in the lower half", "box": [280, 420, 440, 440], "colors": ["#FF6B57"]}
+      ],
+      "expected_text": ["DESIGN SUMMIT 2026", "OCT 27", "09:00"],
+      "expected_regions": [[60, 60, 940, 240], [240, 260, 760, 350]]
+    },
+    {
+      "id": "poster_zh_vertical",
+      "category": "poster_chinese",
+      "dims": [1024, 1024],
+      "caption": "A minimalist Chinese tea house poster, rice-paper background with a red seal stamp motif.",
+      "meta": ["poster"],
+      "canvas": "single",
+      "palette": ["#F5EFE3", "#B3312C"],
+      "boxes": [
+        {"mode": "text", "desc": "Large black Chinese title across the top", "text": "春茶上新", "box": [80, 70, 840, 170]},
+        {"mode": "text", "desc": "Smaller black Chinese subtitle centered", "text": "明前龙井限量发售", "box": [180, 270, 640, 100]},
+        {"mode": "object", "desc": "Red square seal stamp in the bottom right", "box": [700, 700, 200, 200], "colors": ["#B3312C"]}
+      ],
+      "expected_text": ["春茶上新", "明前龙井限量发售"],
+      "expected_regions": [[80, 70, 920, 240], [180, 270, 820, 370]]
+    },
+    {
+      "id": "menu_bilingual_cafe",
+      "category": "menu_bilingual",
+      "dims": [1024, 1536],
+      "caption": "A bilingual cafe menu board in cream and brown, tidy rows with prices.",
+      "meta": ["menu"],
+      "canvas": "single",
+      "palette": ["#F1E6D4", "#5B4232"],
+      "boxes": [
+        {"mode": "text", "desc": "Brown serif title at the top", "text": "CAFE 菜单", "box": [250, 50, 500, 120]},
+        {"mode": "text", "desc": "First menu line: latte with price", "text": "Latte 拿铁 ¥28", "box": [120, 240, 560, 80]},
+        {"mode": "text", "desc": "Second menu line: americano with price", "text": "Americano 美式 ¥24", "box": [120, 360, 640, 80]},
+        {"mode": "text", "desc": "Third menu line: matcha with price", "text": "Matcha 抹茶 ¥32", "box": [120, 480, 560, 80]}
+      ],
+      "expected_text": ["CAFE", "菜单", "Latte", "拿铁", "¥28", "Americano", "美式", "¥24", "Matcha", "抹茶", "¥32"],
+      "expected_regions": [[250, 50, 750, 170], [120, 240, 760, 560]]
+    },
+    {
+      "id": "small_numbers_gauge",
+      "category": "small_numbers",
+      "dims": [1024, 1024],
+      "caption": "A clean infographic card showing two percentage statistics with small labels.",
+      "meta": ["infographic"],
+      "canvas": "single",
+      "palette": ["#FFFFFF", "#1F6FEB"],
+      "boxes": [
+        {"mode": "text", "desc": "Huge blue percentage filling the left half", "text": "62%", "box": [80, 300, 360, 240]},
+        {"mode": "text", "desc": "Second percentage on the right half", "text": "38%", "box": [560, 300, 360, 240]},
+        {"mode": "text", "desc": "Tiny grey caption under the left number", "text": "APPROVAL", "box": [100, 580, 300, 60]},
+        {"mode": "text", "desc": "Tiny grey caption under the right number", "text": "REJECT", "box": [580, 580, 260, 60]}
+      ],
+      "expected_text": ["62%", "38%", "APPROVAL", "REJECT"],
+      "expected_regions": [[80, 300, 440, 540], [560, 300, 920, 540]]
+    },
+    {
+      "id": "dense_json_dashboard",
+      "category": "dense_layout",
+      "dims": [1536, 1024],
+      "caption": "A dark SaaS analytics dashboard mockup with header, KPI tiles and a line chart.",
+      "meta": ["dashboard", "ui"],
+      "canvas": "single",
+      "palette": ["#0F172A", "#38BDF8"],
+      "boxes": [
+        {"mode": "text", "desc": "Top-left product title in the header bar", "text": "PulseMetrics", "box": [40, 30, 320, 60]},
+        {"mode": "text", "desc": "KPI tile one, top row", "text": "MRR $48.2k", "box": [40, 140, 300, 90]},
+        {"mode": "text", "desc": "KPI tile two, top row", "text": "Active 12,407", "box": [380, 140, 340, 90]},
+        {"mode": "text", "desc": "KPI tile three, top row", "text": "Churn 1.8%", "box": [760, 140, 300, 90]},
+        {"mode": "object", "desc": "Wide light-blue line chart panel below the tiles", "box": [40, 300, 1100, 420], "colors": ["#38BDF8"]},
+        {"mode": "text", "desc": "Small footnote at the very bottom left", "text": "Updated 09:41", "box": [40, 760, 240, 50]}
+      ],
+      "expected_text": ["PulseMetrics", "MRR $48.2k", "Active 12,407", "Churn 1.8%", "Updated 09:41"],
+      "expected_regions": [[40, 30, 1480, 90], [40, 300, 1140, 720]]
+    },
+    {
+      "id": "multi_subject_street",
+      "category": "multi_subject",
+      "dims": [1152, 768],
+      "caption": "Two friends walking with umbrellas on a rainy neon street at night, cinematic.",
+      "meta": ["cinematic"],
+      "canvas": "single",
+      "palette": ["#0B1220", "#22D3EE"],
+      "boxes": [
+        {"mode": "character", "desc": "Left person in a yellow raincoat holding an umbrella", "box": [200, 250, 240, 480]},
+        {"mode": "character", "desc": "Right person in a red coat holding an umbrella", "box": [560, 250, 240, 480]},
+        {"mode": "object", "desc": "Neon storefront glow behind both figures", "box": [80, 80, 840, 200], "colors": ["#22D3EE"]}
+      ],
+      "expected_text": [],
+      "expected_regions": [[200, 250, 440, 730], [560, 250, 800, 730]]
+    },
+    {
+      "id": "hands_closeup_craft",
+      "category": "hands",
+      "dims": [1024, 1024],
+      "caption": "Close-up of a potter's hands shaping wet clay on a spinning wheel, warm side light.",
+      "meta": ["photograph"],
+      "canvas": "single",
+      "palette": ["#8D6E51", "#DFD7CB"],
+      "boxes": [
+        {"mode": "character", "desc": "Two detailed hands centered on the clay", "box": [280, 320, 440, 360]},
+        {"mode": "object", "desc": "The clay pot being formed", "box": [380, 380, 280, 280], "colors": ["#9C7B5B"]}
+      ],
+      "expected_text": [],
+      "expected_regions": [[280, 320, 720, 680]]
+    },
+    {
+      "id": "illustration_storybook",
+      "category": "illustration",
+      "dims": [1024, 1024],
+      "caption": "A children's storybook illustration of a fox reading under a lantern-lit tree, soft gouache.",
+      "meta": ["illustration", "gouache"],
+      "canvas": "single",
+      "palette": ["#F9E4B7", "#D97036"],
+      "boxes": [
+        {"mode": "object", "desc": "Big round tree on the right with warm lanterns", "box": [520, 100, 420, 560], "colors": ["#D97036"]},
+        {"mode": "character", "desc": "Small orange fox sitting on the left, holding a book", "box": [180, 520, 300, 320]},
+        {"mode": "text", "desc": "Handwritten-style title along the top", "text": "The Lantern Fox", "box": [150, 60, 560, 110]}
+      ],
+      "expected_text": ["The Lantern Fox"],
+      "expected_regions": [[520, 100, 940, 660], [180, 520, 480, 840]]
+    },
+    {
+      "id": "photo_natural_portrait",
+      "category": "photo_natural",
+      "dims": [768, 1152],
+      "caption": "Natural-window-light portrait of a smiling woman in a linen shirt, shallow depth of field, unretouched skin.",
+      "meta": ["photograph", "portrait"],
+      "canvas": "single",
+      "palette": ["#E8E2D9"],
+      "boxes": [
+        {"mode": "character", "desc": "Head and shoulders portrait centered slightly right", "box": [280, 120, 460, 760]},
+        {"mode": "object", "desc": "Soft window light from the left edge", "box": [0, 100, 200, 800], "colors": ["#F5F1E8"]}
+      ],
+      "expected_text": [],
+      "expected_regions": [[280, 120, 740, 880]]
+    },
+    {
+      "id": "photo_natural_landscape",
+      "category": "photo_natural",
+      "dims": [1536, 1024],
+      "caption": "Wide photograph of terraced rice fields at sunrise with mist in the valley, natural colors.",
+      "meta": ["photograph"],
+      "canvas": "single",
+      "palette": ["#7FA65A", "#EAD9A2"],
+      "boxes": [
+        {"mode": "object", "desc": "Terraced fields filling the lower two thirds", "box": [0, 380, 1000, 620], "colors": ["#7FA65A"]},
+        {"mode": "object", "desc": "Pale sunrise sky with mist band across the horizon", "box": [0, 0, 1000, 340], "colors": ["#EAD9A2"]}
+      ],
+      "expected_text": [],
+      "expected_regions": [[0, 380, 1000, 1000], [0, 0, 1000, 340]]
+    },
+    {
+      "id": "tiny_labels_panel",
+      "category": "tiny_text",
+      "dims": [1024, 1024],
+      "caption": "A technical equipment panel with small printed labels next to switches and ports.",
+      "meta": ["technical"],
+      "canvas": "single",
+      "palette": ["#24303C", "#C8D3DC"],
+      "boxes": [
+        {"mode": "text", "desc": "Small label top-left", "text": "PWR 12V", "box": [80, 80, 240, 60]},
+        {"mode": "text", "desc": "Small label top-right", "text": "LINK", "box": [700, 80, 180, 60]},
+        {"mode": "text", "desc": "Row of three tiny port labels", "text": "A1 A2 A3", "box": [320, 460, 360, 55]},
+        {"mode": "text", "desc": "Tiny serial number at the bottom", "text": "SN 26-4417-B", "box": [300, 880, 400, 50]}
+      ],
+      "expected_text": ["PWR 12V", "LINK", "A1 A2 A3", "SN 26-4417-B"],
+      "expected_regions": [[80, 80, 320, 140], [320, 460, 680, 515]]
+    },
+    {
+      "id": "long_prompt_stress",
+      "category": "long_prompt",
+      "dims": [1024, 1536],
+      "caption": "A tall artisan bakery storefront illustration at golden hour: hand-painted sign, chalkboard menu, crates of sourdough, a striped awning, bicycles leaning by the door, warm long shadows, gentle film grain, cohesive warm palette, storybook realism.",
+      "meta": ["illustration", "detailed"],
+      "canvas": "single",
+      "palette": ["#E9B872", "#6B4A2F"],
+      "boxes": [
+        {"mode": "text", "desc": "Painted shop sign across the lintel", "text": "Maison Levain", "box": [180, 140, 640, 120]},
+        {"mode": "text", "desc": "Chalkboard menu items, upper right wall", "text": "Baguette 2·Croissant 1.5", "box": [560, 330, 340, 160]},
+        {"mode": "object", "desc": "Wooden crates of bread stacked left of the door", "box": [100, 620, 300, 360], "colors": ["#8C6239"]},
+        {"mode": "object", "desc": "Red-and-white striped awning over the window", "box": [140, 300, 560, 140], "colors": ["#C0392B"]},
+        {"mode": "character", "desc": "Baker in apron visible through the open door", "box": [420, 560, 200, 420]}
+      ],
+      "expected_text": ["Maison Levain", "Baguette 2", "Croissant 1.5"],
+      "expected_regions": [[180, 140, 820, 260], [100, 620, 400, 980]]
+    }
+  ]
+}

@@ -7,8 +7,8 @@ Serverless endpoint that runs [Ideogram-4](https://ideogram.ai/) and [MOSS-Image
 | File | Purpose |
 |------|---------|
 | `Dockerfile` | Ideogram-4 image: ComfyUI (latest) + KJNodes + rgthree + Ideogram-4 model files |
-| `Dockerfile.moss` | MOSS-Image image: ComfyUI (pinned ≥ MOSS merge) + rgthree + MOSS model files |
-| `handler.py` | RunPod handler — accepts `model`, `import_json`, `width`, `height`, `preset`, `negative_prompt` → returns base64 or S3 images + `seed` |
+| `Dockerfile.moss` | MOSS-Image image: pinned ComfyUI + pinned rgthree + Spectrum v0.8.1 + MOSS model files + helper modules (optional cu130 candidate build via TORCH_SPEC/TORCH_INDEX args) |
+| `handler.py` | RunPod handler — accepts `model`, `import_json`, `width`, `height`, `preset`, `negative_prompt` → returns base64 or S3 images + `seed` (plus optional `metrics`/`generation` on MOSS) |
 | `workflow_template.json` | API-format ComfyUI workflow (stripped of UI-only nodes) |
 | `workflow_template_moss.json` | MOSS-Image API-format workflow (UNET/CLIP/VAE loaders + DMD LoRA + SLG + KSampler) |
 | `client.py` | CLI for sending requests to a deployed RunPod endpoint |
@@ -76,7 +76,12 @@ POST /run
 
 `model`, `negative_prompt` are MOSS-only (ignored for Ideogram). MOSS presets:
 `Turbo` (8-step DMD LoRA, experimental), `Fast` (25 steps, default), `Quality`
-(50 steps). MOSS `width`/`height` must be multiples of 16.
+(50 steps). Candidate presets — `Rapid` (4-step adapter; 4/6/8 steps by area
+bucket), `Draft3` (3-step preview, ≤1024²), `FastSpectrum`, `QualitySpectrum`
+(feature-forecasting) — are only served by deployments whose runtime profile
+enables them; unsupported names return an actionable error. On Modal,
+`GET /capabilities` lists what the current deployment serves without starting
+a GPU container. MOSS `width`/`height` must be multiples of 16.
 
 ### Response
 
@@ -96,6 +101,38 @@ POST /run
 ```
 
 `seed` is the seed actually used (randomised server-side when the request omits it).
+
+MOSS results on deployments with the helper modules also carry optional
+additive fields (schema v1): `metrics` (worker_total_ms, comfy_queue_ms,
+observed_node_wall_ms per stage, cached_node_ids, measurement_complete) and
+`generation` (runtime_profile, preset_id, effective_steps, cfg, sampler,
+scheduler, adapter, spectrum, compile_backend, memory_mode, model_manifest_id,
+first_generation_in_worker). Clients reading only `images`/`seed` are
+unaffected; old RunPod/Ideogram responses never gain these keys.
+
+## MOSS optimization tooling
+
+| File | Purpose |
+|------|---------|
+| `moss_config.py` | Named runtime profiles + preset definitions; env validation (`MOSS_RUNTIME_PROFILE`, `MOSS_MEMORY_MODE`, …). Undocumented override combinations are rejected at deploy/startup. |
+| `moss_workflow.py` | Pure graph construction: adapter slot → user LoRAs → SLG → Spectrum → TorchCompile → KSampler. Distillation adapters are exclusive by construction. |
+| `moss_assets.py` | Pinned asset manifest resolution (`moss-models.json`), hash checks, CPU-only volume population (`python moss_assets.py --list/--check`, or the Modal `moss_populate_models` function). |
+| `comfy_metrics.py` | Prompt-scoped wall-clock telemetry from ComfyUI websocket events (cached nodes never billed as measured; reconnects mark measurements incomplete). |
+| `moss_benchmark.py` | Reproducible benchmark runner: fixture × seed × (profile, preset) matrices, JSONL + Markdown artifacts, warmup/dry-run/stop guards. |
+| `benchmarks/moss/fixtures.json` | Versioned prompt fixtures (English/Chinese text, menus, small numbers, dense layouts, photos…) with OCR/IoU expectations. |
+| `runtime_check.py` | Runtime identity (torch CUDA build, comfy-kitchen backends, GPU capability) + readable enforcement of profile requirements (quantized formats need cu130+). |
+| `moss-runtime.lock.json` | Resolved software revisions, incl. previously floating rgthree pin and the unresolved-by-design cu130 candidate wheel set. |
+
+Typical flow (see docs/plans/2026-10-27-moss-optimization-rollout.md):
+
+```sh
+# 1. inspect the matrix without GPU work
+python runpod/moss_benchmark.py --dry-run --profiles baseline --presets Fast
+# 2. populate candidate assets (CPU maintenance, explicit keys)
+modal run runpod/modal_app.py::moss_populate_models --keys adapter_rapid4
+# 3. run a comparison on the GPU worker, artifacts land on the moss-bench volume
+modal run runpod/modal_app.py::moss_benchmark_main --profiles baseline,resident-highvram-int8 --presets Fast
+```
 
 ## CLI Usage
 
