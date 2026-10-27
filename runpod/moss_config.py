@@ -21,7 +21,7 @@ import os
 # Sampling semantics of the three shipped presets are frozen (they are the
 # compatibility contract with saved sessions and old RunPod endpoints).
 # Candidate presets are additive and initially only advertised by validated,
-# optimized profiles — see profiles_for_advertisement()/capabilities().
+# optimized profiles — see advertised_presets()/capabilities().
 
 BASE_PRESET_IDS = ("Fast", "Quality", "Turbo")
 CANDIDATE_PRESET_IDS = ("Rapid", "Draft3", "FastSpectrum", "QualitySpectrum")
@@ -81,6 +81,10 @@ MOSS_PRESETS = {
         "blurb": "Quality with feature forecasting acceleration",
     },
 }
+
+# Benchmark-only SLG control isolates the range change from Spectrum itself.
+BENCHMARK_PRESET_IDS = ("FastFullSLG",)
+MOSS_PRESETS["FastFullSLG"] = {**MOSS_PRESETS["Fast"], "slg": (0.0, 1.0), "label": "Fast full SLG control"}
 
 # Distillation adapters are mutually exclusive: the control-adapter slot hosts
 # exactly one adapter, and Rapid/Draft3 must never stack with Turbo's DMD8.
@@ -143,13 +147,11 @@ def steps_for_area(policy, width, height):
             return 6
         if pixels <= 4 * MP:
             return 8
-        limit = "4096×4096 (4 MP)"
-        steps_hint = "8 steps"
+        limit = "2048×2048 (4 MP)"
     elif policy == "draft3":
         if pixels <= 1 * MP:
             return 3
         limit = "1024×1024 (1 MP)"
-        steps_hint = "3 steps"
     else:
         return None
     raise PresetUnsupportedError(
@@ -182,18 +184,19 @@ def effective_preset(preset_name, width, height):
 
 MEMORY_MODES = ("auto", "highvram", "gpu_only")
 COMPILE_BACKENDS = ("off", "inductor", "cudagraphs")
-DIT_FORMATS = ("int8_convrot", "bf16")
+DIT_FORMATS = ("int8_convrot", "bf16", "rapid4_fp32")
 ENCODER_FORMATS = ("w4a8", "int8_convrot", "bf16")
 
 ASSET_BY_FORMAT = {
-    "dit": {"int8_convrot": "dit_int8_convrot", "bf16": "dit_bf16"},
+    "dit": {"int8_convrot": "dit_int8_convrot", "bf16": "dit_bf16", "rapid4_fp32": "dit_rapid4_fp32"},
     "encoder": {"w4a8": "enc_w4a8", "int8_convrot": "enc_int8_convrot", "bf16": "enc_bf16"},
 }
 
 
 def _profile(profile_id, *, description, status, memory_mode, dit_format,
              encoder_format, compile_backend="off", warmup=False,
-             requires_cuda13=None, enabled_presets=BASE_PRESET_IDS):
+             requires_cuda13=None, enabled_presets=BASE_PRESET_IDS,
+             merged_adapter=None):
     if memory_mode not in MEMORY_MODES:
         raise ProfileError(f"profile {profile_id}: bad memory_mode")
     if dit_format not in DIT_FORMATS or encoder_format not in ENCODER_FORMATS:
@@ -217,6 +220,10 @@ def _profile(profile_id, *, description, status, memory_mode, dit_format,
         "requires_cuda13": bool(requires_cuda13),
         "enabled_presets": tuple(enabled_presets),
         "vae_asset": "vae_small",
+        "merged_adapter": merged_adapter,
+        # Validation is per recipe and resolution, independently of whether a
+        # runtime profile has passed its infrastructure gate. Values are MP.
+        "validated_presets": {pid: None for pid in enabled_presets if pid in BASE_PRESET_IDS},
     }
 
 
@@ -229,6 +236,7 @@ RUNTIME_PROFILES = {
         description="Current production behaviour: INT8 DiT + W4A8 encoder, auto residency, no compile.",
         status="validated",
         memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
+        requires_cuda13=False,
     ),
     "resident-auto-int8": _profile(
         "resident-auto-int8",
@@ -289,6 +297,23 @@ RUNTIME_PROFILES = {
     ),
 }
 
+RUNTIME_PROFILES["bf16-adapters"] = _profile(
+    "bf16-adapters", description="Documented BF16 DiT / INT8 encoder adapter reference.",
+    status="candidate", memory_mode="highvram", dit_format="bf16",
+    encoder_format="int8_convrot", enabled_presets=BASE_PRESET_IDS + CANDIDATE_PRESET_IDS,
+)
+RUNTIME_PROFILES["rapid-fp32-reference"] = _profile(
+    "rapid-fp32-reference", description="Merged FP32 Rapid DiT; no separate distillation LoRA.",
+    status="candidate", memory_mode="highvram", dit_format="rapid4_fp32",
+    encoder_format="int8_convrot", enabled_presets=("Rapid",), merged_adapter="rapid4",
+)
+# Explicit identities make enabled warmup usable and reproducible for every
+# supported format/residency combination, without changing their numerics.
+for _pid, _base in list(RUNTIME_PROFILES.items()):
+    _warmed = copy.deepcopy(_base)
+    _warmed.update(profile_id=_pid + "-warm", warmup=True, status="candidate")
+    RUNTIME_PROFILES[_pid + "-warm"] = _warmed
+
 PROFILE_ENV_FIELDS = {
     "MOSS_MEMORY_MODE": "memory_mode",
     "MOSS_DIT_FORMAT": "dit_format",
@@ -302,9 +327,6 @@ PROFILE_ENV_CHOICES = {
     "MOSS_ENCODER_FORMAT": ENCODER_FORMATS,
     "MOSS_COMPILE_BACKEND": COMPILE_BACKENDS,
 }
-
-_VALIDATED_PRESET_UNIVERSE = BASE_PRESET_IDS  # never changes; candidates only via profile promotion
-
 
 def resolve_profile(env=None):
     """Resolve the effective runtime profile from environment variables.
@@ -345,12 +367,9 @@ def resolve_profile(env=None):
     # what keeps partial overrides from inventing undocumented combinations —
     # the returned profile is the declared one wholesale, so metadata always
     # records a canonical profile_id even when overrides were used to select it.
-    if profile["warmup"] != RUNTIME_PROFILES[profile_id]["warmup"]:
-        raise ProfileError(
-            f"MOSS_WARMUP would create an undocumented profile: '{profile_id}' + warmup={profile['warmup']}. "
-            f"Declare the warmed variant in RUNTIME_PROFILES instead."
-        )
-    match = _match_declared_profile(profile)
+    identity = profile_id.removesuffix("-warm") + ("-warm" if profile["warmup"] else "")
+    preferred = RUNTIME_PROFILES[identity]
+    match = _match_declared_profile(profile, preferred=preferred)
     if match is None:
         raise ProfileError(
             f"Environment overrides on '{profile_id}' produce an undocumented profile "
@@ -361,12 +380,14 @@ def resolve_profile(env=None):
     return copy.deepcopy(match)
 
 
-def _match_declared_profile(profile):
-    for declared in RUNTIME_PROFILES.values():
-        keys = ("memory_mode", "dit_format", "encoder_format", "compile_backend", "warmup", "enabled_presets")
-        if all(profile[k] == declared[k] for k in keys):
-            return declared
-    return None
+def _match_declared_profile(profile, preferred=None):
+    keys = ("memory_mode", "dit_format", "encoder_format", "compile_backend", "warmup", "enabled_presets", "merged_adapter")
+    matches = [p for p in RUNTIME_PROFILES.values() if all(profile[k] == p[k] for k in keys)]
+    if preferred is not None and preferred in matches:
+        return preferred
+    if len(matches) > 1:
+        raise ProfileError("Ambiguous runtime overrides; select an explicit MOSS_RUNTIME_PROFILE")
+    return matches[0] if matches else None
 
 
 def resolve_enabled_presets(env=None):
@@ -375,6 +396,8 @@ def resolve_enabled_presets(env=None):
     env = os.environ if env is None else env
     profile = resolve_profile(env)
     enabled = set(profile["enabled_presets"])
+    if env.get("MOSS_BENCHMARK_MODE") == "true" and "Fast" in enabled:
+        enabled.update(BENCHMARK_PRESET_IDS)
     raw = (env.get("MOSS_ENABLED_PRESETS") or "").strip()
     if raw:
         allowed = {p.strip() for p in raw.split(",") if p.strip()}
@@ -382,18 +405,22 @@ def resolve_enabled_presets(env=None):
         if unknown:
             raise ProfileError(f"MOSS_ENABLED_PRESETS names unknown presets: {', '.join(sorted(unknown))}")
         enabled &= allowed
-    return profile, tuple(p for p in (BASE_PRESET_IDS + CANDIDATE_PRESET_IDS) if p in enabled)
+    return profile, tuple(p for p in (BASE_PRESET_IDS + CANDIDATE_PRESET_IDS + BENCHMARK_PRESET_IDS) if p in enabled)
 
 
 def validate_request_preset(preset_name, width, height, env=None):
     """Full server-side gate for a generation request. Returns (profile, preset,
     effective_steps). Raises PresetUnsupportedError with an actionable message."""
+    env = os.environ if env is None else env
     profile, enabled = resolve_enabled_presets(env)
     if preset_name not in enabled:
         raise PresetUnsupportedError(
             f"Preset '{preset_name}' is not enabled on this deployment "
             f"(profile '{profile['profile_id']}'). Available: {', '.join(enabled)}"
         )
+    limit = profile.get("validated_presets", {}).get(preset_name)
+    if limit is not None and width * height > limit * MP and env.get("MOSS_BENCHMARK_MODE") != "true":
+        raise PresetUnsupportedError(f"Preset '{preset_name}' is validated only up to {limit} MP on this deployment")
     preset, steps = effective_preset(preset_name, width, height)
     return profile, preset, steps
 
@@ -402,17 +429,18 @@ def validate_request_preset(preset_name, width, height, env=None):
 # Capabilities (served by the Modal proxy; never starts a GPU container)
 # ---------------------------------------------------------------------------
 
-def advertised_presets(profile):
+def advertised_presets(profile, enabled=None):
     """Presets shown to clients: technical support ∩ validated status. Candidate
     presets only appear once their profile has been promoted (status flip)."""
-    if profile.get("status") != "validated":
-        return [p for p in BASE_PRESET_IDS if p in profile["enabled_presets"]]
-    return [p for p in profile["enabled_presets"] if p in MOSS_PRESETS]
+    allowed = set(profile["enabled_presets"] if enabled is None else enabled)
+    validated = profile.get("validated_presets", {})
+    return [p for p in profile["enabled_presets"] if p in allowed and p in validated
+            and (p in BASE_PRESET_IDS or profile.get("status") == "validated")]
 
 
-def capabilities(profile, model_manifest_id=None):
+def capabilities(profile, model_manifest_id=None, enabled=None):
     presets = []
-    for pid in advertised_presets(profile):
+    for pid in advertised_presets(profile, enabled):
         preset = MOSS_PRESETS[pid]
         entry = {
             "id": pid,
@@ -423,11 +451,13 @@ def capabilities(profile, model_manifest_id=None):
             "cfg": preset["cfg"],
             "sampler": preset["sampler"],
             "scheduler": preset["scheduler"],
+            "max_area_mp": profile["validated_presets"].get(pid),
         }
         if preset.get("steps_policy"):
             entry["steps_policy"] = preset["steps_policy"]
             if preset["steps_policy"] == "rapid":
-                entry["area_policy_mp"] = {"4": 1, "6": 2, "8": 4}
+                entry["area_policy_mp"] = {k: v for k, v in {"4": 1, "6": 2, "8": 4}.items()
+                                           if entry["max_area_mp"] is None or v <= entry["max_area_mp"]}
             else:
                 entry["max_area_mp"] = 1
         presets.append(entry)
@@ -468,6 +498,11 @@ def generation_metadata(profile, preset, effective_steps, *, preset_id="",
         "spectrum": bool(spectrum_enabled),
         "compile_backend": compile_backend,
         "memory_mode": profile["memory_mode"],
+        "dit_format": profile["dit_format"],
+        "encoder_format": profile["encoder_format"],
+        "warmup": profile["warmup"],
+        "slg": preset["slg"],
+        "merged_adapter": profile.get("merged_adapter"),
         "model_manifest_id": model_manifest_id,
         "first_generation_in_worker": bool(first_generation_in_worker),
     }

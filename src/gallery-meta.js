@@ -15,6 +15,13 @@ export function restoreMeta(meta) {
         emit('model:set', { model, seed: false });
     }
 
+    if (meta.backend) {
+        localStorage.setItem('ideogram_backend', meta.backend);
+        const be = document.querySelector(`input[name="backend"][value="${meta.backend}"]`);
+        if (be) be.checked = true;
+        emit('backend:changed', { backend: meta.backend });
+    }
+
     if (model === 'moss') {
         restoreMossMeta(meta);
     } else if (meta.preset) {
@@ -55,11 +62,6 @@ export function restoreMeta(meta) {
         state.photoArtMode = meta.photoArtMode;
         const modeRadio = document.getElementById(meta.photoArtMode === 1 ? 'mode_artstyle' : 'mode_photo');
         if (modeRadio) modeRadio.checked = true;
-    }
-    if (meta.backend) {
-        localStorage.setItem('ideogram_backend', meta.backend);
-        const be = document.querySelector(`input[name="backend"][value="${meta.backend}"]`);
-        if (be) be.checked = true;
     }
     if (meta.loras && meta.loras.length > 0) {
         restoreLorasFromMeta(meta.loras);

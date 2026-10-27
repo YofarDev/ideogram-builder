@@ -1,9 +1,9 @@
 {
-  "manifest_id": "moss-models-2026-10-27a",
+  "manifest_id": "moss-models-2026-10-27b",
   "created": "2026-10-27",
   "notes": [
     "Pinned MOSS model/adapter assets. sha256 values are the HuggingFace LFS oids at the listed revision, resolved on 2026-10-27 via /api/models/<repo>/tree.",
-    "container_path '/comfyui/models/...' assets are baked into the MOSS image (runpod/Dockerfile.moss). '/moss-models/...' assets are optional benchmark candidates populated onto the dedicated Modal volume by the maintenance entrypoint (runpod/moss_assets.py populate) — never downloaded during a user request.",
+    "container_path '/comfyui/models/...' assets are baked into the MOSS image (runpod/Dockerfile.moss). '/moss-models/...' assets are optional benchmark candidates populated onto the dedicated Modal volume by the maintenance entrypoint (runpod/moss_assets.py populate) \u2014 never downloaded during a user request.",
     "workflow_ref is the filename the ComfyUI workflow uses (relative to a loras root for adapters, or the bare filename for DiT/encoder/VAE loaders)."
   ],
   "repositories": {
@@ -124,7 +124,7 @@
       "size_bytes": 1189176800,
       "container_path": "/comfyui/models/loras/moss/control/moss_sft_dmd8.safetensors",
       "license": "apache-2.0",
-      "notes": "Turbo β eight-step adapter. Model card recommends lora.safetensors at strength 1; lora_latest/dataspace variants are deprecated instructions and must not be substituted."
+      "notes": "Turbo \u03b2 eight-step adapter. Model card recommends lora.safetensors at strength 1; lora_latest/dataspace variants are deprecated instructions and must not be substituted."
     },
     "adapter_rapid4": {
       "role": "distillation_adapter",
@@ -138,21 +138,7 @@
       "size_bytes": 1189176752,
       "container_path": "/moss-models/loras/moss/control/moss_sft_4step_v2.0.safetensors",
       "license": "apache-2.0",
-      "notes": "Rapid β four-step adapter, v2.0 Euler-native release (2026-10-18): LoraLoaderModelOnly strength 1, euler/simple, CFG 1. Same file as the repo-root lora.safetensors."
-    },
-    "adapter_rapid4_fp32": {
-      "role": "distillation_adapter",
-      "adapter": "rapid4",
-      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
-      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
-      "repo_path": "moss_image_sft_4step_v2.0_fp32.safetensors",
-      "filename": "moss_sft_4step_v2.0_fp32.safetensors",
-      "workflow_ref": "moss/control/moss_sft_4step_v2.0_fp32.safetensors",
-      "sha256": "58a56e143f36a50e605a77644066f687726b79e57e35ce7ad825e899b9f7b363",
-      "size_bytes": 20329281512,
-      "container_path": "/moss-models/loras/moss/control/moss_sft_4step_v2.0_fp32.safetensors",
-      "license": "apache-2.0",
-      "notes": "FP32 reference for fine-text precision checks against the merged/quantized variant; ~20 GB, populate on demand only."
+      "notes": "Rapid \u03b2 four-step adapter, v2.0 Euler-native release (2026-10-18): LoraLoaderModelOnly strength 1, euler/simple, CFG 1. Same file as the repo-root lora.safetensors."
     },
     "adapter_draft3": {
       "role": "distillation_adapter",
@@ -166,7 +152,21 @@
       "size_bytes": 1189176752,
       "container_path": "/moss-models/loras/moss/control/moss_sft_3step_v1.0.safetensors",
       "license": "apache-2.0",
-      "notes": "Draft β three-step adapter (separately trained; identical hash to lora_3step.safetensors). Never produce Draft3 by running the four-step LoRA for three steps."
+      "notes": "Draft \u03b2 three-step adapter (separately trained; identical hash to lora_3step.safetensors). Never produce Draft3 by running the four-step LoRA for three steps."
+    },
+    "dit_rapid4_fp32": {
+      "role": "diffusion_model",
+      "repo": "akhaliq/MOSS-Image-SFT-4-steps",
+      "revision": "2ded95c37a029360245926fe72e475e30039bbfb",
+      "repo_path": "moss_image_sft_4step_v2.0_fp32.safetensors",
+      "filename": "moss_sft_4step_v2.0_fp32.safetensors",
+      "workflow_ref": "moss_sft_4step_v2.0_fp32.safetensors",
+      "sha256": "58a56e143f36a50e605a77644066f687726b79e57e35ce7ad825e899b9f7b363",
+      "size_bytes": 20329281512,
+      "container_path": "/moss-models/diffusion_models/moss_sft_4step_v2.0_fp32.safetensors",
+      "license": "apache-2.0",
+      "notes": "Full merged FP32 Rapid diffusion checkpoint, loaded with UNETLoader; never load as a LoRA.",
+      "format": "rapid4_fp32"
     }
   }
 }

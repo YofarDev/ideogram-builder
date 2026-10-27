@@ -11,7 +11,7 @@ Base64 image bodies are stored under images/ and excluded from the JSONL.
 
 CLI (CPU side):
     python moss_benchmark.py --endpoint https://... --token ... \
-        --profiles baseline,resident-highvram-int8 --presets Fast \
+        --profiles baseline --presets Fast \
         --seeds 101,202,303,404,505 --out bench-out [--dry-run]
 
 Internal (inside the MOSS image, wired as a Modal entrypoint):
@@ -31,7 +31,7 @@ FIXTURES_PATH = RUNPOD_DIR / "benchmarks" / "moss" / "fixtures.json"
 
 DEFAULT_SEEDS = [101, 202, 303, 404, 505]
 CONSECUTIVE_ERROR_STOP = 3
-DEFAULT_REGRESSION_STOP_PCT = 50  # stop when warm median degrades this much vs best-so-far
+DEFAULT_REGRESSION_STOP_PCT = 50  # matched first-three vs latest-three warm medians
 
 
 # ---------------------------------------------------------------------------
@@ -41,17 +41,14 @@ DEFAULT_REGRESSION_STOP_PCT = 50  # stop when warm median degrades this much vs 
 def load_fixtures(path=None, ids=None, categories=None):
     data = json.loads(Path(path or FIXTURES_PATH).read_text())
     fixtures = data["fixtures"]
+    if ids and set(ids) - {f["id"] for f in fixtures}:
+        raise ValueError(f"Unknown fixture ids: {sorted(set(ids) - {f['id'] for f in fixtures})}")
     if ids:
         wanted = set(ids)
         fixtures = [f for f in fixtures if f["id"] in wanted]
     if categories:
         wanted = set(categories)
         fixtures = [f for f in fixtures if f["category"] in wanted]
-    known = {f["id"] for f in fixtures}
-    if ids:
-        missing = wanted - known
-        if missing:
-            raise ValueError(f"Unknown fixture ids: {', '.join(sorted(missing))}")
     return fixtures
 
 
@@ -101,23 +98,18 @@ def compile_fixture_layout(fixture, width, height):
 def build_jobs(fixtures, seeds, configs, cached_prompt=False):
     """One job per (config, fixture, seed). cached_prompt=True repeats the same
     fixture text across measured runs so text-encode caching engages after the
-    first run; the default rotates prompts (new-prompt case). Seeds always
+    first run; the default rotates prompts and varies JSON whitespace to bust
+    the encoder-node cache without changing the parsed layout. Seeds always
     vary so the complete image result is never cached."""
     jobs = []
     for config in configs:
-        for seed_index, seed in enumerate(seeds):
-            fixture = fixtures[seed_index % len(fixtures)] if cached_prompt else fixtures
-            chosen = [fixture] if cached_prompt else fixtures
-            for f in chosen:
-                width, height = f["dims"]
-                jobs.append({
-                    "config": config,
-                    "fixture_id": f["id"],
-                    "seed": seed,
-                    "width": width,
-                    "height": height,
-                    "case": "cached-prompt" if cached_prompt else "new-prompt",
-                })
+        order = ((f, seed) for f in fixtures for seed in seeds) if cached_prompt else ((f, seed) for seed in seeds for f in fixtures)
+        for f, seed in order:
+            width, height = f["dims"]
+            jobs.append({"config": config, "fixture_id": f["id"], "seed": seed,
+                         "width": width, "height": height,
+                         "case": "cached-prompt" if cached_prompt else "new-prompt",
+                         "prompt_variant": 0 if cached_prompt else seeds.index(seed) + 1})
     return jobs
 
 
@@ -129,13 +121,13 @@ def _payload(job):
     fixture = _fixture_by_id(job["fixture_id"])
     return {
         "model": "moss",
-        "import_json": compile_fixture_layout(fixture, job["width"], job["height"]),
+        "import_json": compile_fixture_layout(fixture, job["width"], job["height"]) + " " * job.get("prompt_variant", 0),
         "width": job["width"],
         "height": job["height"],
         "preset": job["config"]["preset"],
         "negative_prompt": "",
         "seed": job["seed"],
-        "loras": [],
+        "loras": job.get("loras", []),
     }
 
 
@@ -149,50 +141,10 @@ def _fixture_by_id(fixture_id):
     return _FIXTURES_BY_ID[fixture_id]
 
 
-def _dump_effective_workflows(configs, out_dir):
-    """Rebuild each config's effective graph deterministically (same builder the
-    worker uses) so artifacts carry the exact recipe, not a transcript."""
-    try:
-        import moss_assets
-        import moss_workflow
-        from moss_config import MOSS_PRESETS, RUNTIME_PROFILES
-
-        template = json.loads((RUNPOD_DIR / "workflow_template_moss.json").read_text())
-        for config in configs:
-            profile = RUNTIME_PROFILES[config["profile"]]
-            assets = moss_assets.resolve_profile_assets(profile)
-            preset = dict(MOSS_PRESETS[config["preset"]])
-            preset.setdefault("effective_steps", preset["steps"])
-            adapter_ref = None
-            if preset.get("adapter"):
-                adapter_ref = moss_assets.resolve_adapter(preset["adapter"])[1]
-            wf, _info = moss_workflow.build_moss_workflow(
-                template, preset_name=config["preset"], preset=preset, prompt="[benchmark]",
-                negative="", width=1024, height=1024, seed=0, loras=[], profile=profile,
-                assets=assets, adapter_ref=adapter_ref)
-            (Path(out_dir) / "workflows" / f"{config['profile']}-{config['preset']}.json").write_text(
-                json.dumps(wf, indent=1))
-    except Exception as e:  # noqa: BLE001 — artifacts are best-effort, never block a run
-        print(f"[benchmark] effective-workflow capture skipped: {e}")
-
-
-def _dump_runtime_manifest(profiles, out_dir):
-    """Runtime identity per profile when runtime_check can inspect this host;
-    on a CPU dev machine it records what it can and marks the rest unknown."""
-    try:
-        import runtime_check
-        for pid in profiles:
-            data = runtime_check.collect()
-            data["profile"] = pid
-            (Path(out_dir) / "runtime" / f"{pid}.json").write_text(json.dumps(data, indent=1, default=str))
-    except Exception as e:  # noqa: BLE001
-        print(f"[benchmark] runtime manifest capture skipped: {e}")
-
-
 def run_http(job, endpoint, token, timeout_s=900):
     import requests
 
-    base = endpoint.rstrip("/")
+    base = endpoint.rstrip("/").removesuffix("/generate")
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -218,12 +170,24 @@ def run_internal(job, timeout_s=None):
     sys.path.insert(0, str(RUNPOD_DIR))
     import handler  # noqa: import inside the GPU container only
 
+    from moss_config import resolve_profile
+    actual = resolve_profile()["profile_id"]
+    if actual != job["config"]["profile"]:
+        raise RuntimeError(f"Requested {job['config']['profile']}, running {actual}; use BenchmarkWorkers to change profiles")
     started = time.monotonic()
-    result = handler.handler({"input": _payload(job), "id": f"bench-{job['seed']}-{job['fixture_id']}"})
+    os.environ["MOSS_BENCHMARK_MODE"] = "true"
+    os.environ["MOSS_METRICS"] = "on"
+    os.environ["MOSS_BENCHMARK_DEADLINE"] = str(started + (timeout_s or 900))
+    from moss_memory import MemorySampler
+    with MemorySampler() as memory:
+        handler_started = time.monotonic()
+        result = handler.handler({"input": _payload(job), "id": f"bench-{job['seed']}-{job['fixture_id']}"})
+        handler_latency_ms = round((time.monotonic() - handler_started) * 1000, 1)
+    result.setdefault("benchmark", {})["memory"] = memory.result()
     return {
         "status": "failed" if result.get("error") else "completed",
         "result": result,
-        "latency_ms": round((time.monotonic() - started) * 1000, 1),
+        "latency_ms": handler_latency_ms,
     }
 
 
@@ -251,23 +215,42 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                   presets=("Fast",), fixture_ids=None, categories=None, seeds=None,
                   cached_prompt=False, out_dir="bench-out", warmup=True,
                   max_jobs=None, max_minutes=None, dry_run=False,
-                  regression_stop_pct=DEFAULT_REGRESSION_STOP_PCT, save_images=True):
+                  regression_stop_pct=DEFAULT_REGRESSION_STOP_PCT, save_images=True, runner=None, endpoints=None,
+                  loras=None, width=None, height=None):
     """Execute the matrix and write artifacts. Returns the summary dict."""
     import moss_config
 
-    seeds = list(seeds or DEFAULT_SEEDS)
+    if mode not in ("http", "internal"):
+        raise ValueError("mode must be http or internal")
+    if (width is None) != (height is None):
+        raise ValueError("Provide both width and height")
+    if width is not None and any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 or v % 16 for v in (width, height)):
+        raise ValueError("Dimensions must be positive integers divisible by 16")
+    seeds = list(DEFAULT_SEEDS if seeds is None else seeds)
+    if not seeds or len(seeds) != len(set(seeds)):
+        raise ValueError("Provide nonempty distinct seeds so image results cannot be cached")
     fixtures = load_fixtures(ids=fixture_ids, categories=categories)
     configs = [{"profile": p, "preset": s} for p in profiles for s in presets]
+    if not fixtures or not configs:
+        raise ValueError("Select at least one fixture, profile and preset")
+    for config in configs:
+        profile = moss_config.resolve_profile({"MOSS_RUNTIME_PROFILE": config["profile"]})
+        supported = profile["enabled_presets"] + (moss_config.BENCHMARK_PRESET_IDS if "Fast" in profile["enabled_presets"] else ())
+        if config["preset"] not in supported:
+            raise ValueError(f"{config['preset']} is unsupported by {config['profile']}")
+        for fixture in fixtures:
+            moss_config.effective_preset(config["preset"], *( (width, height) if width is not None else fixture["dims"] ))
     jobs = build_jobs(fixtures, seeds, configs, cached_prompt=cached_prompt)
+    for job in jobs:
+        job["loras"] = loras or []
+        if width is not None:
+            job.update(width=width, height=height)
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "images").mkdir(exist_ok=True)
     (out / "workflows").mkdir(exist_ok=True)
     (out / "runtime").mkdir(exist_ok=True)
-
-    _dump_effective_workflows(configs, out)
-    _dump_runtime_manifest(profiles, out)
 
     if dry_run:
         lines = [f"DRY RUN — {len(jobs)} jobs across {len(configs)} configs, {len(fixtures)} fixtures"]
@@ -289,25 +272,44 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
         print(report)
         return {"dry_run": True, "jobs": len(jobs), "report": report}
 
+    if mode == "http" and endpoints and set(profiles) - set(endpoints):
+        raise ValueError("Endpoint map must include every requested profile")
+    if mode == "http" and len(profiles) > 1 and not endpoints and runner is None:
+        raise ValueError("Multiple HTTP profiles require a profile-to-endpoint map of isolated deployments")
     results_path = out / "results.jsonl"
+    if results_path.exists():
+        raise ValueError("Output already contains results; use a fresh run directory")
     started = time.monotonic()
     executed = 0
     consecutive_errors = 0
-    best_warm_median = {}   # (profile, preset) -> best median sampler ms so far
-    warm_counts = {}        # (profile, preset) -> warm completed samples
+    warm_samples = {}
+    warmed = set()
     stop_reason = None
-    runner = run_http if mode == "http" else run_internal
+    execute = runner or (run_http if mode == "http" else run_internal)
 
-    # Per-config warmup: one unrecorded job so container/model caches exist.
-    if warmup:
-        warm_job = dict(jobs[0])
-        warm_job["seed"] = (warm_job["seed"] + 999_983) % (2 ** 31)  # never collides
-        print(f"[warmup] {warm_job['config']['profile']}/{warm_job['config']['preset']} "
-              f"{warm_job['fixture_id']} …")
-        try:
-            runner(warm_job, endpoint=endpoint, token=token) if mode == "http" else runner(warm_job)
-        except Exception as e:  # noqa: BLE001
-            print(f"[warmup] failed (continuing): {e}")
+    def run(job):
+        remaining = 900 if max_minutes is None else min(900, max_minutes * 60 - (time.monotonic() - started))
+        if remaining <= 0:
+            return {"status": "timeout", "error": "max_minutes reached"}
+        kwargs = {"timeout_s": remaining}
+        if mode == "http":
+            kwargs.update(endpoint=(endpoints or {}).get(job['config']['profile'], endpoint), token=token)
+        body = execute(job, **kwargs)
+        result = body.get("result") or {}
+        if result.get("error") or result.get("errors"):
+            body["status"] = "failed"
+            body["error"] = result.get("error") or str(result["errors"])
+        if body.get("status") == "completed":
+            actual = (result.get("generation") or {}).get("runtime_profile")
+            if actual != job['config']['profile']:
+                return {"status": "failed", "error": f"Profile mismatch: requested {job['config']['profile']}, executed {actual}"}
+            artifacts = result.get("benchmark") or {}
+            if artifacts.get("workflow"):
+                tag = f"{job['config']['profile']}-{job['config']['preset']}-{job['fixture_id']}-{job['seed']}"
+                (out / "workflows" / f"{tag}.json").write_text(json.dumps(artifacts['workflow'], indent=2))
+            if artifacts.get("runtime"):
+                (out / "runtime" / f"{job['config']['profile']}.json").write_text(json.dumps(artifacts['runtime'], indent=2))
+        return body
 
     for job in jobs:
         if max_jobs is not None and executed >= max_jobs:
@@ -317,10 +319,25 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             stop_reason = "max_minutes reached"
             break
 
+        warm_key = (job['config']['profile'], job['config']['preset'], job['fixture_id'], job['width'], job['height'])
+        if warmup and warm_key not in warmed:
+            warm_job = dict(job)
+            warm_job['seed'] = max(seeds) + 1
+            if not cached_prompt:
+                warm_job['prompt_variant'] = len(seeds) + 2
+            print(f"[warmup] {warm_key}")
+            try:
+                warm_body = run(warm_job)
+                if warm_body.get('status') != 'completed':
+                    raise RuntimeError(warm_body.get('error') or 'warmup failed')
+            except Exception as error:
+                stop_reason = f"warmup failed: {error}"
+                break
+            warmed.add(warm_key)
         tag = f"{job['config']['profile']}-{job['config']['preset']}-{job['fixture_id']}-{job['seed']}"
         print(f"[run] {tag} [{job['case']}] …")
         try:
-            body = runner(job, endpoint=endpoint, token=token) if mode == "http" else runner(job)
+            body = run(job)
         except Exception as e:  # noqa: BLE001
             body = {"status": "error", "error": str(e)}
 
@@ -339,7 +356,10 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             "error": error,
             "latency_ms": body.get("latency_ms"),
             "metrics": result.get("metrics"),
+            "cache_state": cache_state(result.get("metrics") or {}),
+            "memory": (result.get("benchmark") or {}).get("memory"),
             "generation": result.get("generation"),
+            "loras": job.get("loras", []),
             "seed_returned": result.get("seed"),
             "recorded_at": time.time(),
         }
@@ -362,32 +382,19 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                 stop_reason = "GPU OOM"
                 break
 
-        # Regression guard on warm sampler medians within this run: after 3+
-        # warm samples for a config, stop if the median clearly regressed.
-        if record["status"] == "completed" and not (record.get("generation") or {}).get("first_generation_in_worker"):
-            sampler_ms = (record.get("metrics") or {}).get("observed_node_wall_ms", {}).get("sampler")
-            if sampler_ms:
-                key = (record["profile"], record["preset"])
-                warm_counts[key] = warm_counts.get(key, 0) + 1
-                best = best_warm_median.get(key)
-                if best is None or sampler_ms < best:
-                    best_warm_median[key] = sampler_ms
-                    best = sampler_ms
-                if warm_counts[key] >= 3:
-                    recent = [
-                        (r.get("metrics") or {}).get("observed_node_wall_ms", {}).get("sampler")
-                        for r in _read_jsonl(results_path)
-                        if (r["profile"], r["preset"]) == key
-                        and r["status"] == "completed"
-                        and not (r.get("generation") or {}).get("first_generation_in_worker")
-                    ]
-                    recent = [v for v in recent if v]
-                    if recent:
-                        median = statistics.median(recent)
-                        if median > best * (1 + regression_stop_pct / 100):
-                            stop_reason = (f"regression: {key} median {median:.0f}ms vs best "
-                                           f"{best:.0f}ms (> {regression_stop_pct:.0f}%)")
-                            break
+        # Compare three-sample medians only within the same fixture, dimensions,
+        # cache state and worker, excluding cold, failed and incomplete samples.
+        if eligible(record) and not (record.get("generation") or {}).get("first_generation_in_worker"):
+            sampler = record["metrics"].get("observed_node_wall_ms", {}).get("sampler")
+            if sampler:
+                key = cohort(record)
+                samples = warm_samples.setdefault(key, [])
+                samples.append(sampler)
+                if len(samples) >= 6:
+                    reference, recent = statistics.median(samples[:3]), statistics.median(samples[-3:])
+                    if recent > reference * (1 + regression_stop_pct / 100):
+                        stop_reason = f"regression: {key} recent median {recent:.0f}ms vs reference {reference:.0f}ms"
+                        break
 
     summary = summarize(results_path)
     summary["stop_reason"] = stop_reason or "completed all jobs"
@@ -412,38 +419,55 @@ def _read_jsonl(path):
     return records
 
 
-def summarize(results_path):
-    """Median/mean/spread per (profile, preset, case), split by worker when the
-    scheduler hopped mid-run (worker ids recorded from server metrics)."""
-    records = _read_jsonl(results_path)
-    groups = {}
-    for r in records:
-        worker = (r.get("metrics") or {}).get("worker_instance_id") or "unknown"
-        groups.setdefault((r["profile"], r["preset"], r["case"], worker), []).append(r)
+def cache_state(metrics):
+    text = {node for node, stage in metrics.get("node_stage_map", {}).items() if stage.startswith("text_encode")}
+    if not text:
+        return "unknown"
+    cached = set(metrics.get("cached_node_ids", []))
+    if text <= cached:
+        return "cached"
+    observed = metrics.get("observed_node_wall_ms", {})
+    return "uncached" if any(stage.startswith("text_encode") for stage in observed) else "unknown"
 
+
+def eligible(record):
+    return record.get("status") == "completed" and not record.get("error") and (record.get("metrics") or {}).get("measurement_complete") is True
+
+
+def cohort(r):
+    return (r['profile'], r['preset'], r['fixture_id'], r['width'], r['height'], r['case'],
+            (r.get('metrics') or {}).get('worker_instance_id', 'unknown'),
+            bool((r.get('generation') or {}).get('first_generation_in_worker')),
+            r.get('cache_state', 'unknown'))
+
+
+def summarize(results_path):
+    """Comparable cohorts only. Failures/partial timings remain counted, excluded from medians."""
+    records = _read_jsonl(results_path)
+    groups, workers = {}, {}
+    for record in records:
+        groups.setdefault(cohort(record), []).append(record)
+        key = (record['profile'], record['preset'], record['case'])
+        workers.setdefault(key, set()).add((record.get('metrics') or {}).get('worker_instance_id', 'unknown'))
     rows = []
-    workers_per_config = {}
-    for (profile, preset, case, worker), rs in sorted(groups.items()):
-        key = (profile, preset, case)
-        workers_per_config.setdefault(key, set()).add(worker)
-        total = [r.get("metrics", {}).get("worker_total_ms") for r in rs if r.get("metrics")]
-        total = [v for v in total if v is not None]
-        sampler = [(r.get("metrics") or {}).get("observed_node_wall_ms", {}).get("sampler") for r in rs]
-        sampler = [v for v in sampler if v]
-        row = {
-            "profile": profile, "preset": preset, "case": case, "worker": worker,
-            "n": len(rs),
-            "completed": sum(1 for r in rs if r["status"] == "completed"),
-            "worker_total_ms_median": round(statistics.median(total), 1) if total else None,
-            "worker_total_ms_mean": round(statistics.fmean(total), 1) if total else None,
-            "sampler_ms_median": round(statistics.median(sampler), 1) if sampler else None,
-            "latency_ms_median": round(statistics.median([r["latency_ms"] for r in rs if r.get("latency_ms")]), 1)
-            if any(r.get("latency_ms") for r in rs) else None,
-            "first_gen_in_worker": sum(1 for r in rs if (r.get("generation") or {}).get("first_generation_in_worker")),
-        }
-        rows.append(row)
-    split_keys = [f"{k[0]}/{k[1]}/{k[2]}" for k, w in workers_per_config.items() if len(w) > 1]
-    return {"rows": rows, "worker_split_configs": sorted(set(split_keys)), "total_records": len(records)}
+    for key, rs in sorted(groups.items()):
+        profile, preset, fixture, width, height, case, worker, cold, cached = key
+        valid = [r for r in rs if eligible(r)]
+        def median(values):
+            values = [v for v in values if v is not None]
+            return round(statistics.median(values), 1) if values else None
+        total = [(r.get('metrics') or {}).get('worker_total_ms') for r in valid]
+        rows.append({
+            'profile': profile, 'preset': preset, 'fixture': fixture, 'width': width, 'height': height,
+            'case': case, 'worker': worker, 'cold': cold, 'cache_state': cached,
+            'n': len(rs), 'completed': sum(r.get('status') == 'completed' for r in rs),
+            'valid_timings': len(valid), 'first_gen_in_worker': sum(bool((r.get('generation') or {}).get('first_generation_in_worker')) for r in rs),
+            'worker_total_ms_median': median(total),
+            'worker_total_ms_mean': round(statistics.fmean(v for v in total if v is not None), 1) if any(v is not None for v in total) else None,
+            'sampler_ms_median': median([(r.get('metrics') or {}).get('observed_node_wall_ms', {}).get('sampler') for r in valid]),
+            'latency_ms_median': median([r.get('latency_ms') for r in valid]),
+        })
+    return {'rows': rows, 'worker_split_configs': sorted('/'.join(k) for k, w in workers.items() if len(w) > 1), 'total_records': len(records)}
 
 
 def render_summary(summary):
@@ -452,12 +476,12 @@ def render_summary(summary):
         lines.append(f"NOTE: multiple workers observed for {', '.join(summary['worker_split_configs'])} — "
                      f"compare rows per worker, not across them.")
         lines.append("")
-    header = "| profile | preset | case | worker | n | ok | worker_total med (ms) | sampler med (ms) | latency med (ms) | first-in-worker |"
-    lines += [header, "|---|---|---|---|---|---|---|---|---|---|"]
+    header = "| profile | preset | fixture / size | case / cache / cold | worker | n | ok / valid | worker_total med (ms) | sampler med (ms) | latency med (ms) | first-in-worker |"
+    lines += [header, "|---|---|---|---|---|---|---|---|---|---|---|"]
     for row in summary["rows"]:
         lines.append(
-            f"| {row['profile']} | {row['preset']} | {row['case']} | {row['worker']} | {row['n']} "
-            f"| {row['completed']} | {row['worker_total_ms_median']} | {row['sampler_ms_median']} "
+            f"| {row['profile']} | {row['preset']} | {row['fixture']} {row['width']}×{row['height']} | {row['case']} / {row['cache_state']} / {row['cold']} | {row['worker']} | {row['n']} "
+            f"| {row['completed']} / {row['valid_timings']} | {row['worker_total_ms_median']} | {row['sampler_ms_median']} "
             f"| {row['latency_ms_median']} | {row['first_gen_in_worker']} |")
     lines += ["", f"records: {summary['total_records']}; stop: {summary.get('stop_reason')}"]
     return "\n".join(lines)
@@ -467,9 +491,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="MOSS benchmark runner")
     parser.add_argument("--mode", choices=["http", "internal"], default="http")
     parser.add_argument("--endpoint", default=os.environ.get("MOSS_BENCH_ENDPOINT"))
+    parser.add_argument("--endpoints", help="JSON profile-to-endpoint map; separate deployments for HTTP comparisons")
     parser.add_argument("--token", default=os.environ.get("MOSS_BENCH_TOKEN"))
     parser.add_argument("--profiles", default="baseline")
     parser.add_argument("--presets", default="Fast")
+    parser.add_argument("--loras-json", default="[]", help="LoRA request array; same format as production")
+    parser.add_argument("--width", type=int)
+    parser.add_argument("--height", type=int)
     parser.add_argument("--fixtures", default="", help="Comma-separated fixture ids")
     parser.add_argument("--categories", default="", help="Comma-separated fixture categories")
     parser.add_argument("--seeds", default=",".join(map(str, DEFAULT_SEEDS)))
@@ -482,13 +510,15 @@ def main(argv=None):
     parser.add_argument("--regression-stop-pct", type=float, default=DEFAULT_REGRESSION_STOP_PCT)
     args = parser.parse_args(argv)
 
-    if args.mode == "http" and not args.endpoint:
+    if args.mode == "http" and not (args.endpoint or args.endpoints) and not args.dry_run:
         parser.error("--endpoint (or MOSS_BENCH_ENDPOINT) is required in http mode")
 
     run_benchmark(
         mode=args.mode,
         endpoint=args.endpoint,
+        endpoints=json.loads(args.endpoints) if args.endpoints else None,
         token=args.token,
+        loras=json.loads(args.loras_json), width=args.width, height=args.height,
         profiles=[p.strip() for p in args.profiles.split(",") if p.strip()],
         presets=[p.strip() for p in args.presets.split(",") if p.strip()],
         fixture_ids=[f.strip() for f in args.fixtures.split(",") if f.strip()] or None,

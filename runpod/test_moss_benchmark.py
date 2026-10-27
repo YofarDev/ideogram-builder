@@ -79,7 +79,7 @@ def _record(profile, preset, worker, sampler_ms, total_ms, status="completed", f
         "width": 1024, "height": 1024, "case": "new-prompt", "status": status,
         "error": None, "latency_ms": total_ms + 5,
         "metrics": {"worker_instance_id": worker, "worker_total_ms": total_ms,
-                    "observed_node_wall_ms": {"sampler": sampler_ms}},
+                    "observed_node_wall_ms": {"sampler": sampler_ms}, "measurement_complete": True},
         "generation": {"first_generation_in_worker": first},
         "seed_returned": 1, "recorded_at": 0,
     }
@@ -118,7 +118,7 @@ class FakeRunner:
         self.bodies = list(bodies)
         self.calls = []
 
-    def __call__(self, job, endpoint=None, token=None):
+    def __call__(self, job, endpoint=None, token=None, timeout_s=None):
         self.calls.append(job)
         body = self.bodies.pop(0)
         if isinstance(body, Exception):
@@ -136,9 +136,9 @@ def _ok_body(profile="baseline", sampler=1000, first=False):
             "metrics": {
                 "worker_instance_id": "w1", "worker_total_ms": sampler + 500,
                 "observed_node_wall_ms": {"sampler": sampler},
-                "prompt_id": "pid",
+                "prompt_id": "pid", "measurement_complete": True,
             },
-            "generation": {"first_generation_in_worker": first},
+            "generation": {"first_generation_in_worker": first, "runtime_profile": profile},
         },
     }
 
@@ -158,7 +158,8 @@ def test_run_benchmark_writes_artifacts_without_base64(tmp_path, monkeypatch):
     assert records[1]["metrics"]["observed_node_wall_ms"]["sampler"] == 1000.0
     assert (out / "images" / "out.png").exists() or any((out / "images").iterdir())
     assert (out / "summary.md").exists()
-    assert summary["rows"][0]["n"] == 3
+    assert sum(row["n"] for row in summary["rows"]) == 3
+    assert len(summary["rows"]) == 2  # cold and warm cohorts stay separate
 
 
 def test_run_benchmark_warmup_not_recorded(tmp_path, monkeypatch):

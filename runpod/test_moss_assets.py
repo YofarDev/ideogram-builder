@@ -184,5 +184,5 @@ def test_populate_default_selects_volume_candidates_only(fake_roots):
     default_keys = {k for k, e in manifest["assets"].items()
                     if e["container_path"].startswith("/moss-models")}
     assert default_keys == {"dit_bf16", "enc_int8_convrot", "enc_bf16",
-                            "adapter_rapid4", "adapter_rapid4_fp32", "adapter_draft3"}
+                            "adapter_rapid4", "dit_rapid4_fp32", "adapter_draft3"}
     assert "dit_int8_convrot" not in default_keys  # baseline is baked, never re-downloaded

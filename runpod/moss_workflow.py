@@ -155,14 +155,17 @@ def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
     Returns (workflow_dict, info_dict). info carries the recipe actually
     executed and the node->stage map for metrics.
     """
-    if preset["adapter"] and not adapter_ref:
+    merged = profile.get("merged_adapter")
+    if merged and merged != preset["adapter"]:
+        raise ValueError("The merged diffusion model only supports its matching preset")
+    if preset["adapter"] and not adapter_ref and not merged:
         raise ValueError(
             f"Preset '{preset_name}' needs a distillation adapter but no adapter asset was resolved"
         )
 
     wf = copy.deepcopy(template)
     configure_loaders(wf, profile, assets)
-    configure_adapter(wf, preset, adapter_ref)
+    configure_adapter(wf, {**preset, "adapter": None} if merged else preset, adapter_ref)
     populate_user_loras(wf, loras)
     configure_slg(wf, preset["slg"])
     configure_sampler(wf, seed=seed, steps=preset.get("effective_steps", preset["steps"]),

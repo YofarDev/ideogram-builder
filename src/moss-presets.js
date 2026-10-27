@@ -23,25 +23,22 @@ export const PRESET_INFO = {
     QualitySpectrum: { label: 'Quality+ β', blurb: 'Quality with feature-forecasting acceleration' },
 };
 
+let capabilitiesBackend = null;
 let capabilities = null;   // null = unknown/absent → base presets only
 
-export function setCapabilities(caps) {
+export function setCapabilities(caps, backend = localStorage.getItem("ideogram_backend") || "runpod") {
+    capabilitiesBackend = backend;
     capabilities = (caps && Array.isArray(caps.presets)) ? caps : null;
 }
 
 export function getCapabilities() {
-    return capabilities;
+    return capabilitiesBackend === (localStorage.getItem("ideogram_backend") || "runpod") ? capabilities : null;
 }
 
-/** Preset ids selectable right now (always includes the original three). */
+/** An advertised list is authoritative, including restricted base presets. */
 export function availablePresets() {
-    const ids = [...BASE_PRESETS];
-    if (capabilities) {
-        for (const entry of capabilities.presets) {
-            if (!ids.includes(entry.id)) ids.push(entry.id);
-        }
-    }
-    return ids;
+    const caps = getCapabilities();
+    return caps ? caps.presets.map(p => p.id).filter(id => Object.hasOwn(PRESET_INFO, id)) : [...BASE_PRESETS];
 }
 
 export function isAvailable(presetId) {
@@ -50,7 +47,7 @@ export function isAvailable(presetId) {
 
 export function describePreset(presetId) {
     const info = PRESET_INFO[presetId];
-    const remote = capabilities?.presets?.find(p => p.id === presetId);
+    const remote = getCapabilities()?.presets?.find(p => p.id === presetId);
     if (remote?.blurb) return remote.blurb;
     return info?.blurb || presetId;
 }

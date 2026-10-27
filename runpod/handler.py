@@ -396,6 +396,7 @@ def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
 
 
 def handler(job):
+    worker_started = time.monotonic()
     job_input = job["input"]
     job_id = job["id"]
 
@@ -413,6 +414,10 @@ def handler(job):
     height = job_input.get("height", 1024)
     seed = job_input.get("seed")
     loras = job_input.get("loras") or []
+    if isinstance(width, bool) or isinstance(height, bool) or not isinstance(width, int) or not isinstance(height, int):
+        return {"error": "'width' and 'height' must be integers"}
+    if width <= 0 or height <= 0:
+        return {"error": "'width' and 'height' must be positive integers"}
     moss_mods = _load_moss_modules() if model == "moss" else None
     moss_request = None
     if model == "moss":
@@ -437,10 +442,6 @@ def handler(job):
             return {"error": f"Unknown workflow '{workflow_key}'"}
     turbo_strength = job_input.get("turbo_strength", 0.8)
 
-    if not isinstance(width, int) or not isinstance(height, int):
-        return {"error": "'width' and 'height' must be integers"}
-    if width <= 0 or height <= 0:
-        return {"error": "'width' and 'height' must be positive integers"}
     if model == "moss" and (width % 16 != 0 or height % 16 != 0):
         return {"error": "'width' and 'height' must be multiples of 16 for MOSS-Image"}
 
@@ -478,7 +479,7 @@ def handler(job):
                     assets = moss_assets.resolve_profile_assets(moss_request["profile"])
                     adapter_ref = None
                     preset_def = moss_request["preset"]
-                    if preset_def["adapter"]:
+                    if preset_def["adapter"] and preset_def["adapter"] != moss_request["profile"].get("merged_adapter"):
                         adapter_ref = moss_assets.resolve_adapter(preset_def["adapter"])[1]
                     template = _load_template("moss")
                     preset_with_steps = dict(preset_def)
@@ -487,7 +488,8 @@ def handler(job):
                         template, preset_name=preset, preset=preset_with_steps,
                         prompt=import_json, negative=negative_prompt, width=width, height=height,
                         seed=seed_used, loras=resolved_loras, profile=moss_request["profile"],
-                        assets=assets, adapter_ref=adapter_ref)
+                        assets=assets, adapter_ref=adapter_ref,
+                        spectrum_debug=os.environ.get("MOSS_BENCHMARK_MODE") == "true")
                 except moss_assets.AssetError as e:
                     # A pinned candidate asset is missing (e.g. benchmark model
                     # not populated on the volume) — hard, readable failure,
@@ -502,17 +504,18 @@ def handler(job):
                         moss_workflow.validate_accelerator_nodes(workflow, object_info)
                     except moss_workflow.GraphValidationError as e:
                         return {"error": str(e)}
+                global _MOSS_JOBS_IN_WORKER
+                moss_info["first_generation_in_worker"] = _MOSS_JOBS_IN_WORKER == 0
+                _MOSS_JOBS_IN_WORKER += 1
+                moss_info["model_manifest_id"] = moss_assets.manifest_id()
                 if comfy_metrics.metrics_enabled():
-                    global _MOSS_JOBS_IN_WORKER
-                    moss_info["first_generation_in_worker"] = _MOSS_JOBS_IN_WORKER == 0
-                    _MOSS_JOBS_IN_WORKER += 1
-                    moss_info["model_manifest_id"] = moss_assets.manifest_id()
                     metrics_collector = comfy_metrics.MetricsCollector(
                         prompt_id=None,  # set once queued
                         request_id=job_id,
                         worker_instance_id=_worker_instance_id(),
                         runtime_profile=moss_request["profile"]["profile_id"],
                         node_stage_map=moss_info["node_stage_map"],
+                        worker_started=worker_started,
                     )
                 print(f"worker-ideogram4 - Workflow: moss, preset: {preset}, "
                       f"profile: {moss_request['profile']['profile_id']}, steps: {moss_request['effective_steps']}")
@@ -542,6 +545,9 @@ def handler(job):
 
         execution_done = False
         while True:
+            if os.environ.get("MOSS_BENCHMARK_MODE") == "true" and time.monotonic() > float(os.environ.get("MOSS_BENCHMARK_DEADLINE", "inf")):
+                requests.post(f"http://{COMFY_HOST}/interrupt", timeout=10).raise_for_status()
+                raise TimeoutError("benchmark execution deadline exceeded")
             try:
                 out = ws.recv()
                 if isinstance(out, str):
@@ -660,6 +666,8 @@ def handler(job):
             except Exception:  # noqa: BLE001
                 pass
 
+    if os.environ.get("MOSS_BENCHMARK_MODE") == "true" and moss_info is not None:
+        result["benchmark"] = {"workflow": workflow}
     return result
 
 

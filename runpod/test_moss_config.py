@@ -84,13 +84,15 @@ def test_unknown_profile_and_bad_values_rejected():
 
 
 def test_warmup_override_requires_declared_variant():
-    with pytest.raises(ProfileError, match="MOSS_WARMUP"):
-        resolve_profile({"MOSS_WARMUP": "true"})
+    warmed = resolve_profile({"MOSS_WARMUP": "true"})
+    assert warmed["profile_id"] == "baseline-warm"
+    assert warmed["warmup"] is True
     assert resolve_profile({"MOSS_WARMUP": "false"})["profile_id"] == "baseline"
 
 
 def test_quantized_profiles_require_cuda13_bf16_does_not():
-    assert resolve_profile({})["requires_cuda13"] is True
+    assert resolve_profile({})["requires_cuda13"] is False
+    assert resolve_profile({"MOSS_RUNTIME_PROFILE": "resident-auto-int8"})["requires_cuda13"] is True
     bf16 = resolve_profile({"MOSS_RUNTIME_PROFILE": "dit-bf16-highvram-w4a8"})
     assert bf16["requires_cuda13"] is True  # w4a8 encoder keeps the requirement
     from moss_config import RUNTIME_PROFILES
@@ -137,7 +139,7 @@ def test_rapid_area_policy():
     assert effective_preset("Rapid", 2048, 2048)[1] == 8         # 4 MP boundary
     with pytest.raises(PresetUnsupportedError) as exc:
         effective_preset("Rapid", 4096, 4096)
-    assert "4096×4096 (4 MP)" in str(exc.value)
+    assert "2048×2048 (4 MP)" in str(exc.value)
 
 
 def test_draft3_one_megapixel_limit():
@@ -174,6 +176,7 @@ def test_rapid_area_policy_published_in_capabilities_when_promoted():
     from moss_config import RUNTIME_PROFILES
     promoted = copy.deepcopy(RUNTIME_PROFILES["resident-highvram-int8-adapters"])
     promoted["status"] = "validated"
+    promoted["validated_presets"].update(Rapid=4, Draft3=1)
     caps = capabilities(promoted)
     by_id = {p["id"]: p for p in caps["presets"]}
     assert by_id["Rapid"]["area_policy_mp"] == {"4": 1, "6": 2, "8": 4}

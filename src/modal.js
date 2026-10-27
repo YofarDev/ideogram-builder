@@ -20,10 +20,12 @@ function pollDelayMs(pollIndex, startTime) {
     return (Date.now() - startTime < FAST_WINDOW_MS) ? FAST_INTERVAL_MS : SLOW_INTERVAL_MS;
 }
 
-async function getConfig() {
-    if (config) return config;
-    const resp = await fetch('/api/config');
+async function getConfig({ signal, refresh = false } = {}) {
+    if (config && !refresh) return config;
+    const resp = await fetch('/api/config', { signal });
+    if (!resp.ok) throw new Error(`Configuration unavailable (${resp.status})`);
     const data = await resp.json();
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     config = data.modal || {};
     return config;
 }
@@ -163,10 +165,10 @@ async function pollStatus(baseUrl, headers, callId, signal, startTime) {
  * CPU proxy — never starts a GPU container). Returns null when unavailable
  * (old backend, offline, auth failure) so callers keep the base presets.
  */
-export async function fetchCapabilities() {
+export async function fetchCapabilities({ signal, refresh = false } = {}) {
     let endpoint_url, auth_token;
     try {
-        ({ endpoint_url, auth_token } = await getConfig());
+        ({ endpoint_url, auth_token } = await getConfig({ signal, refresh }));
     } catch {
         return null;
     }
@@ -175,6 +177,7 @@ export async function fetchCapabilities() {
     try {
         const resp = await fetch(`${baseUrl}/capabilities`, {
             headers: auth_token ? { 'Authorization': `Bearer ${auth_token}` } : {},
+            signal,
         });
         if (!resp.ok) return null;
         const caps = await resp.json();

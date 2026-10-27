@@ -72,24 +72,31 @@ function seedGlobals({ model, seed }) {
  * GPU container. Without capabilities (RunPod, offline, old backend) the
  * original three presets stay alone in the UI.
  */
-export async function applyPresetCapabilities() {
-  if ((localStorage.getItem('ideogram_backend') || 'runpod') !== 'modal') return;
-  const caps = await fetchCapabilities();
-  if (!caps) return;  // absent → base presets only, no error
-  setCapabilities(caps);
+let capabilityRequest = 0;
+let capabilityAbort;
+
+function renderPresetCapabilities() {
   const available = availablePresets();
-  document.querySelectorAll('#moss-preset-toggle [data-candidate]').forEach((el) => {
-    if (el.tagName === 'INPUT') {
-      const show = available.includes(el.value);
-      el.disabled = !show;
-    } else {  // the pill label
-      const input = document.getElementById(el.getAttribute('for'));
-      const show = input ? available.includes(input.value) : false;
-      el.hidden = !show;
-    }
+  document.querySelectorAll('#moss-preset-toggle input[name="moss_preset"]').forEach(input => {
+    const show = available.includes(input.value);
+    input.disabled = !show;
+    const label = document.querySelector(`label[for="${input.id}"]`);
+    if (label) label.hidden = !show;
   });
-  // A restored session/gallery preset may have become visible — or the saved
-  // one may still be unsupported; surface it once capabilities are known.
+}
+
+export async function applyPresetCapabilities() {
+  const request = ++capabilityRequest;
+  capabilityAbort?.abort();
+  capabilityAbort = new AbortController();
+  const backend = localStorage.getItem('ideogram_backend') || 'runpod';
+  setCapabilities(null, backend);
+  renderPresetCapabilities();
+  if (backend !== 'modal') return;
+  const caps = await fetchCapabilities({ signal: capabilityAbort.signal, refresh: true });
+  if (request !== capabilityRequest || (localStorage.getItem('ideogram_backend') || 'runpod') !== backend) return;
+  setCapabilities(caps, backend);
+  renderPresetCapabilities();
   if (currentPresetUnavailable()) {
     showToast(availabilityMessage(state.moss.preset), 'error', 5000);
   }
@@ -115,6 +122,8 @@ export function initSettingsMoss() {
   });
 
   on('model:changed', seedGlobals);
+  on('backend:changed', applyPresetCapabilities);
+  on('config:changed', applyPresetCapabilities);
   applyPresetCapabilities();
 
   on('state:loaded', ({ moss }) => {

@@ -139,7 +139,7 @@ def required_asset_keys(profile, presets):
     for pid in presets:
         from moss_config import MOSS_PRESETS
         adapter = MOSS_PRESETS[pid].get("adapter")
-        if adapter:
+        if adapter and adapter != profile.get("merged_adapter"):
             keys.add(adapter_asset_key(adapter))
     return sorted(keys)
 
@@ -154,6 +154,23 @@ def assert_profile_assets(profile, presets, *, check_hash=False, path=None):
             missing.append(str(e))
     if missing:
         raise AssetError("\n".join(missing))
+
+
+def assert_loader_visibility(profile, enabled_presets, object_info):
+    """Confirm native loaders see resolved files, not merely the parent filesystem."""
+    assets = resolve_profile_assets(profile)
+    required = [("UNETLoader", "unet_name", assets["dit"]),
+                ("CLIPLoader", "clip_name", assets["encoder"]),
+                ("VAELoader", "vae_name", assets["vae"])]
+    from moss_config import MOSS_PRESETS
+    for pid in enabled_presets:
+        adapter = MOSS_PRESETS[pid]["adapter"]
+        if adapter and adapter != profile.get("merged_adapter"):
+            required.append(("LoraLoaderModelOnly", "lora_name", resolve_adapter(adapter)[1]))
+    for node, field, filename in required:
+        choices = object_info.get(node, {}).get("input", {}).get("required", {}).get(field, [[]])[0]
+        if filename not in choices:
+            raise AssetError(f"ComfyUI {node}.{field} cannot see '{filename}'; check --extra-model-paths-config before startup")
 
 
 # ---------------------------------------------------------------------------

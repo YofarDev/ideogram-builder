@@ -1,10 +1,10 @@
 {
-  "lock_id": "moss-runtime-2026-10-27a",
+  "lock_id": "moss-runtime-2026-10-27b",
   "created": "2026-10-27",
   "notes": [
     "Resolved software revisions for the MOSS runtime. Baseline = what the current image actually builds (start from the existing ComfyUI pin to isolate runtime effects).",
-    "The candidate cu130+ wheel set is resolved and frozen during the Phase 2 candidate build (TORCH_SPEC/TORCH_INDEX build args in runpod/Dockerfile.moss); until then its fields are explicitly unresolved placeholders and must never be read as installed versions.",
-    "After a candidate image is built, run `python runtime_check.py --json` inside it and paste the result into candidate_runtime.observed so the lock records what was actually measured, not what the Dockerfile requested."
+    "MOSS_RUNTIME_BUILD=cu130 selects the pinned candidate wheel set through Modal Docker build args; baseline leaves the base-image wheel set unchanged.",
+    "Capture /moss/runtime from the running ComfyUI process and retain the observed block as measured evidence; requested build versions are not observed versions."
   ],
   "baseline_runtime": {
     "base_image": "runpod/worker-comfyui:5.8.5-base",
@@ -19,8 +19,14 @@
       "resolved": "2026-10-27",
       "note": "Previously a floating 'main' clone; pinned by this lock."
     },
-    "comfy_kitchen": { "revision": "resolved-by-pip-freeze-at-build", "pin": "VERIFY: record exact version from pip freeze during the candidate build" },
-    "torch": { "cuda_build": "VERIFY: capture with runtime_check inside the deployed container; research hypothesis says the base image carries cu126 which disables the comfy-kitchen CUDA backend" },
+    "comfy_kitchen": {
+      "version": "0.2.40",
+      "source": "https://github.com/Comfy-Org/ComfyUI/blob/7cebca52227c63b4180ceed448cbd7ad22903b6d/requirements.txt",
+      "note": "Pinned by ComfyUI requirements; confirm installed version in worker artifact."
+    },
+    "torch": {
+      "cuda_build": "VERIFY: capture with runtime_check inside the deployed container; research hypothesis says the base image carries cu126 which disables the comfy-kitchen CUDA backend"
+    },
     "comfyui_v043_candidate": {
       "repo": "comfyanonymous/ComfyUI",
       "tag": "v0.43.0",
@@ -34,17 +40,23 @@
       "revision": "d3f7e243ea2db6cc3ff26f42b935b167f938b599",
       "resolved": "2026-10-27",
       "license": "VERIFY: record the repo license file in the dependency manifest at install time",
-      "nodes": ["SpectrumMOSSImageManual", "SpectrumMOSSImageAdaptive"]
+      "nodes": [
+        "SpectrumMOSSImageManual",
+        "SpectrumMOSSImageAdaptive"
+      ]
     }
   },
   "candidate_runtime_cu130": {
-    "status": "unresolved",
-    "python": "3.12",
-    "torch": "UNRESOLVED: pin exact cu130+ wheel set (torch/torchvision/torchaudio) compatible with the pinned ComfyUI at candidate-build time",
-    "install_policy": "Matched torchvision/torchaudio versions; dependency consistency proven by `pip check`, import checks and a real GPU execution before the profile is served."
+    "status": "pinned-unvalidated",
+    "torch": "2.11.0",
+    "torchvision": "0.26.0",
+    "torchaudio": "2.11.0",
+    "index": "https://download.pytorch.org/whl/cu130",
+    "source": "https://pytorch.org/get-started/previous-versions/",
+    "install_policy": "Matched official wheel set. pip check/import and real ComfyUI dispatch must pass before use; GPU execution and image quality remain unvalidated."
   },
   "observed": {
-    "purpose": "Filled by runtime_check.py --json inside the deployed/candidate container",
+    "purpose": "Filled from the actual ComfyUI /moss/runtime endpoint in a deployed/candidate container",
     "captured_at": null,
     "data": null
   }

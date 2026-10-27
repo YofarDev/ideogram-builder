@@ -34,8 +34,11 @@ def _git_revision(path):
         return None
 
 
-def collect():
+def collect(*, apply_comfy_policy=False, smoke=False):
     """Everything Phase 0 needs from inside the MOSS process environment."""
+    if apply_comfy_policy:
+        sys.path.insert(0, COMFY_DIR)
+        import comfy.quant_ops  # noqa: F401 — apply the real server backend policy
     info = {
         "python": sys.version.split()[0],
         "executable": sys.executable,
@@ -53,6 +56,7 @@ def collect():
         "gpu_capability": None,
         "driver_version": None,
         "cuda_device_count": 0,
+        "comfy_policy_applied": apply_comfy_policy,
     }
     try:
         import torch
@@ -72,7 +76,30 @@ def collect():
         info["comfy_kitchen_backends"] = dict(ck.list_backends())
     except Exception:
         pass
+    if smoke:
+        info["cuda_dispatch_probe"] = cuda_dispatch_probe()
     return info
+
+
+def cuda_dispatch_probe():
+    """Small real quantization/projection dispatch, forced to CUDA (no fallback).
+    This proves these representative ops execute, not that every model op does.
+    Called only inside ComfyUI after quant_ops has configured its registry.
+    """
+    try:
+        import torch
+        import comfy_kitchen as ck
+        with torch.inference_mode(), ck.use_backend("cuda"):
+            x = torch.ones((16, 256), device="cuda", dtype=torch.bfloat16)
+            weight = torch.ones((256, 256), device="cuda", dtype=torch.bfloat16)
+            q, scale = ck.quantize_int8_rowwise(weight)
+            output = ck.int8_linear(x, q, scale, out_dtype=torch.bfloat16, convrot=True)
+            torch.cuda.synchronize()
+            if not torch.isfinite(output).all().item():
+                raise RuntimeError("non-finite probe output")
+        return {"ok": True, "backend": "cuda", "ops": ["quantize_int8_rowwise", "int8_linear_convrot"]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 def report(info=None, indent=2):
@@ -88,7 +115,7 @@ def accelerated_backend_enabled(info=None):
     if not backends:
         return False, "comfy_kitchen backends unavailable or not importable"
     cuda_state = backends.get("cuda")
-    if cuda_state in (None, False, "disabled"):
+    if not isinstance(cuda_state, dict) or not cuda_state.get("available") or cuda_state.get("disabled", True):
         return False, f"cuda backend not enabled (state={cuda_state!r})"
     return True, f"cuda backend state={cuda_state!r}"
 
@@ -116,6 +143,11 @@ def enforce_profile_requirements(profile, info=None):
             f"below cu130, so the quantized DiT/encoder would silently fall back. "
             f"Rebuild with the pinned cu130+ wheel set or deploy the 'baseline' profile."
         )
+    ok, detail = accelerated_backend_enabled(info)
+    if not info.get("comfy_policy_applied") or not ok:
+        raise RuntimeError(f"Profile '{profile['profile_id']}' has no verified ComfyUI CUDA backend: {detail}")
+    if not (info.get("cuda_dispatch_probe") or {}).get("ok"):
+        raise RuntimeError(f"Profile '{profile['profile_id']}' CUDA dispatch probe failed: {info.get('cuda_dispatch_probe')}")
 
 
 def main(argv=None):

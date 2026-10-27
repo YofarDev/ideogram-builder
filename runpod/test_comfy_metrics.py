@@ -122,15 +122,16 @@ def test_execution_error_keeps_partial_metrics():
     assert "OOM" in metrics["measurement_note"]
 
 
-def test_open_intervals_leave_measurement_incomplete():
+def test_serial_completion_closes_last_interval_without_ui_event():
     collector, clock = make_collector()
     clock.t = 0.0
     collector.mark_queued()
     collector.on_ws_message({"type": "executing", "data": {"prompt_id": "pid1", "node": "10"}})
+    clock.advance(3)
     collector.on_ws_message({"type": "executing", "data": {"prompt_id": "pid1", "node": None}})
     metrics = collector.to_dict()
-    assert metrics["measurement_complete"] is False
-    assert metrics["observed_node_wall_ms"] == {}  # never fabricated
+    assert metrics["measurement_complete"] is True
+    assert metrics["observed_node_wall_ms"] == {"sampler": 3000.0}
 
 
 def test_queue_wait_unknown_when_execution_start_missing():

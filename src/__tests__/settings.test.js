@@ -232,3 +232,29 @@ describe('settings', () => {
     expect(xInput.value).toBe('0')
   })
 })
+
+it('backend radio changes refresh MOSS capabilities through the settings lifecycle', async () => {
+  const { resetAllListeners } = await import('../events.js');
+  const { initSettingsMoss } = await import('../settings-moss.js');
+  const { availablePresets } = await import('../moss-presets.js');
+  resetAllListeners();
+  state.moss = { preset: 'Fast', promptMode: 'layout' };
+  document.body.insertAdjacentHTML('beforeend', `<div id="moss-preset-toggle">
+    <input name="moss_preset" id="moss_fast" value="Fast"><label for="moss_fast">Fast</label>
+    <input name="moss_preset" id="moss_rapid" value="Rapid" disabled><label for="moss_rapid" hidden>Rapid</label>
+  </div>`);
+  global.fetch = vi.fn(async url => ({ ok:true, json:async () => url === '/api/config'
+    ? { modal:{ endpoint_url:'https://settings-test.invalid/generate' } }
+    : { presets:[{id:'Fast'},{id:'Rapid'}] } }));
+  (await import('../settings.js')).initSettings();
+  initSettingsMoss();
+  const modalRadio = document.querySelector('input[name="backend"][value="modal"]');
+  modalRadio.checked = true;
+  modalRadio.dispatchEvent(new Event('change'));
+  await vi.waitFor(() => expect(availablePresets()).toContain('Rapid'));
+  const runpodRadio = document.querySelector('input[name="backend"][value="runpod"]');
+  runpodRadio.checked = true;
+  runpodRadio.dispatchEvent(new Event('change'));
+  expect(availablePresets()).toEqual(['Fast','Quality','Turbo']);
+  expect(document.getElementById('moss_rapid').disabled).toBe(true);
+});

@@ -20,7 +20,8 @@ class MetricsCollector:
     """
 
     def __init__(self, *, prompt_id, request_id="unknown", worker_instance_id="unknown",
-                 runtime_profile="unknown", node_stage_map=None, clock=time.monotonic):
+                 runtime_profile="unknown", node_stage_map=None, clock=time.monotonic,
+                 worker_started=None):
         self._clock = clock
         self.prompt_id = prompt_id
         self.request_id = request_id
@@ -28,7 +29,8 @@ class MetricsCollector:
         self.runtime_profile = runtime_profile
         self.node_stage_map = dict(node_stage_map or {})
 
-        self._worker_start = clock()
+        self._worker_start = clock() if worker_started is None else worker_started
+        self._current_node = None
         self._queued_at = None          # POST /prompt completed
         self._execution_started_at = None
         self._node_starts = {}          # node_id -> start time
@@ -49,6 +51,9 @@ class MetricsCollector:
         """A websocket reconnect happened: intervals still open at the drop can
         no longer be trusted as continuous, so the measurement is incomplete."""
         self._reconnected = True
+        # Never charge an interval across the gap to the next node.
+        self._node_starts.clear()
+        self._current_node = None
 
     def on_ws_message(self, message):
         try:
@@ -63,14 +68,24 @@ class MetricsCollector:
                     self._execution_started_at = self._clock()
             elif mtype == "executing":
                 node = data.get("node")
+                # Core ComfyUI nodes do not emit `executed` unless they return
+                # UI output. This fixed MOSS graph is serial: the next node's
+                # start (or prompt completion) bounds the preceding estimate.
+                if node != self._current_node:
+                    self._close_node(self._current_node)
+                    self._current_node = None
                 if node is None:
                     if self._done_at is None:
                         self._done_at = self._clock()
                     return
-                self._node_starts[node] = self._clock()
+                if node not in self.cached_node_ids:
+                    self._node_starts.setdefault(node, self._clock())
+                    self._current_node = node
             elif mtype == "executed":
                 node = data.get("node")
                 self._close_node(node)
+                if self._current_node == node:
+                    self._current_node = None
             elif mtype == "execution_cached":
                 nodes = data.get("nodes") or []
                 for node in nodes:
@@ -79,6 +94,8 @@ class MetricsCollector:
                     # A cached node replays executing/executed without a real
                     # run — never bill it an interval.
                     self._node_starts.pop(node, None)
+                    if self._current_node == node:
+                        self._current_node = None
             elif mtype == "execution_error":
                 self._error = str(data.get("exception_message") or "execution_error")
                 self._close_node(data.get("node_id"))
@@ -96,13 +113,13 @@ class MetricsCollector:
         out = {}
         for node, (start, end) in self._node_intervals.items():
             stage = self.node_stage_map.get(node, f"node_{node}")
-            out[stage] = round((end - start) * 1000, 1)
+            out[stage] = round(out.get(stage, 0) + (end - start) * 1000, 1)
         return out
 
     def comfy_queue_ms(self):
         if self._queued_at is None or self._execution_started_at is None:
             return None
-        return round((self._execution_started_at - self._queued_at) * 1000, 1)
+        return max(0, round((self._execution_started_at - self._queued_at) * 1000, 1))
 
     def measurement_complete(self):
         """False when intervals stayed open (lost events), a reconnect occurred,
@@ -132,6 +149,7 @@ class MetricsCollector:
             "node_stage_map": dict(self.node_stage_map),
             "measurement_complete": self.measurement_complete(),
             "measurement_note": self._note(),
+            "measurement_basis": "serial_node_transition_wall_estimate",
         }
 
     def _note(self):
