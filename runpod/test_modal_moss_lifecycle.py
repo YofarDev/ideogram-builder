@@ -91,3 +91,25 @@ def test_model_paths_exist_before_popen_and_diagnostics_come_from_child(monkeypa
     assert events == ['paths','popen','http-ready','child-runtime','http-ready']
     assert userfile.read_text() == 'user-owned config'
     worker.shutdown()
+
+
+def test_docker_context_includes_every_copied_runtime_file():
+    import shlex
+    root = Path(__file__).resolve().parent.parent
+    ignored = modal.FilePatternMatcher.from_file(root/'.dockerignore')
+    for filename in ('Dockerfile','Dockerfile.moss'):
+        for line in (root/'runpod'/filename).read_text().splitlines():
+            if not line.startswith('COPY '):
+                continue
+            source = shlex.split(line)[1]
+            path = root/source
+            assert path.exists(), f'{filename}: missing COPY source {source}'
+            assert not ignored(Path(source)), f'{filename}: ignored COPY source {source}'
+            if path.is_dir():
+                files = [p for p in path.rglob('*') if p.is_file() and p.suffix != '.pyc']
+                assert files
+                for file in files:
+                    assert not ignored(file.relative_to(root)), f'Ignored runtime file: {file}'
+    for private in ('.git/config', '.config/llm-credentials.json', 'runpod/test_moss_config.py',
+                    'runpod/custom_nodes/moss_runtime/__pycache__/module.pyc', 'node_modules/module.js'):
+        assert ignored(Path(private)), f'Unnecessary/private context file included: {private}'
