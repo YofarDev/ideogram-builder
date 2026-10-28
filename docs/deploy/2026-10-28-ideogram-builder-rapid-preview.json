@@ -1,9 +1,9 @@
 {
-  "recorded_at": "2026-10-28T07:19:57+0100",
+  "recorded_at": "2026-10-28T09:19:47+01:00",
   "workspace": "yofarcorp",
   "app_name": "ideogram-builder-rapid-preview",
-  "source_revision": "ac57b80762e859ee5645667cf0f0387d006ee0e7",
-  "source_dirty": true,
+  "source_revision": "8595cd85d509514ff636ad370610f4eb0d1d5996",
+  "source_dirty": false,
   "build_selection": {
     "moss_image_id": "im-C6CYVuLZL3PDP7CmANZGPp",
     "ideogram_image_id": "im-jAh6cs2wwMnYugf5Zhz6Qs",
@@ -26,5 +26,11 @@
     "model_manifest_id": "moss-models-2026-10-27b",
     "comfyui": "7cebca52227c63b4180ceed448cbd7ad22903b6d",
     "rgthree": "d7297b42f0fa78bec1c0411478f887423c249502"
+  },
+  "deployment_tag": "git-8595cd8",
+  "endpoint": "https://yofarcorp--ideogram-builder-rapid-preview-web-app.us-east.modal.run/generate",
+  "post_deploy_smoke": {
+    "result": "passed",
+    "report": "output/benchmarks/rapid-8595cd8/smoke/smoke-report.json"
   }
 }

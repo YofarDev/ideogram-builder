@@ -376,7 +376,9 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             warm_job = dict(job)
             warm_job['seed'] = max(seeds) + 1
             if not cached_prompt:
-                warm_job['prompt_variant'] = len(seeds) + 2
+                # Measured variants span 1..(seeds * configs). Keep warmup
+                # inputs outside that entire range, including rotated blocks.
+                warm_job['prompt_variant'] = len(seeds) * len(configs) + 1
             print(f"[warmup] {warm_key}")
             try:
                 warm_body = run(warm_job)

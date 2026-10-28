@@ -176,6 +176,20 @@ def test_run_benchmark_warmup_not_recorded(tmp_path, monkeypatch):
     assert runner.calls[0]["seed"] != runner.calls[1]["seed"]
 
 
+def test_fresh_warmup_encoder_input_never_collides_with_measured_matrix(tmp_path):
+    runner = FakeRunner([_ok_body() for _ in range(12)])
+    run_benchmark(mode="internal", runner=runner,
+                  profiles=["baseline"], presets=["Fast", "Turbo", "Quality"],
+                  fixture_ids=["poster_en_bold"], seeds=[101, 202, 303],
+                  out_dir=str(tmp_path), save_images=False)
+    warm = [moss_benchmark._payload(j)["import_json"] for j in runner.calls if j["seed"] == 304]
+    measured = [moss_benchmark._payload(j)["import_json"] for j in runner.calls if j["seed"] != 304]
+    assert len(warm) == 3 and len(measured) == 9
+    assert len(set(measured)) == 9
+    assert set(warm).isdisjoint(measured)
+    assert all(json.loads(value) == json.loads(measured[0]) for value in warm + measured)
+
+
 def test_run_benchmark_stops_on_repeated_errors(tmp_path, monkeypatch):
     out = tmp_path / "out"
     runner = FakeRunner([{"status": "failed", "error": "boom"}] * 5)
