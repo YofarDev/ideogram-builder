@@ -1,8 +1,8 @@
 {
-  "recorded_at": "2026-10-28T07:11:55+0100",
+  "recorded_at": "2026-10-28T07:19:57+0100",
   "workspace": "yofarcorp",
   "app_name": "ideogram-builder-rapid-preview",
-  "source_revision": "c5b643a1e1a7b877ff54c523f5ebdafe1a1beac6",
+  "source_revision": "ac57b80762e859ee5645667cf0f0387d006ee0e7",
   "source_dirty": true,
   "build_selection": {
     "moss_image_id": "im-C6CYVuLZL3PDP7CmANZGPp",
@@ -10,14 +10,17 @@
     "runtime_build": "baseline",
     "rebuild_path": "unset MOSS_CACHED_IMAGE_ID/IDEOGRAM_CACHED_IMAGE_ID and deploy (full Dockerfile build; required for dependency/model changes)"
   },
-  "runtime_profile": "baseline",
-  "profile_status": "validated",
+  "runtime_profile": "rapid-auto-int8-cu128",
+  "profile_status": "candidate",
   "enabled_presets": [
     "Fast",
     "Quality",
-    "Turbo"
+    "Turbo",
+    "Rapid"
   ],
-  "experimental_presets": [],
+  "experimental_presets": [
+    "Rapid"
+  ],
   "pins": {
     "runtime_lock_id": "moss-runtime-2026-10-27b",
     "model_manifest_id": "moss-models-2026-10-27b",
