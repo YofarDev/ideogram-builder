@@ -146,6 +146,38 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
+  {
+    id: 'mil-moss-v1-400',
+    label: 'Cecile Milf (v1, 400 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/mil_moss_v1_000000400.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1_000000400.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'mil-moss-v1-800',
+    label: 'Cecile Milf (v1, 800 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/mil_moss_v1_000000800.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1_000000800.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'mil-moss-v1-1200',
+    label: 'Cecile Milf (v1, 1200 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/mil_moss_v1_000001200.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1_000001200.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'mil-moss-v1-1600',
+    label: 'Cecile Milf (v1, 1600 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/mil_moss_v1_000001600.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1_000001600.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
 ];
 
 /** User-added entries: [{ id, label, filename, source_url, model, strengths }] */
