@@ -11,7 +11,7 @@ The user reviewed the image comparison and explicitly approved permanent availab
 - Existing Fast/Quality/Turbo recipes, INT8 DiT/W4A8 encoder, auto residency, compilation off and CUDA 12.8 runtime are retained.
 - Cached immutable base images: MOSS `im-C6CYVuLZL3PDP7CmANZGPp`; Ideogram `im-jAh6cs2wwMnYugf5Zhz6Qs`. Only source overlays are rebuilt.
 
-Implementation tests: **186 Python**, **393 frontend**, all passed. Live deployment and smoke evidence are recorded after deployment below.
+Implementation tests: **186 Python**, **397 frontend**, all passed. Production deployment and live smoke passed; evidence is recorded below.
 
 ## CUDA performance assessment
 
@@ -36,3 +36,14 @@ modal deploy runpod/modal_app.py --env main
 ```
 
 The production URL stays the same; baseline capabilities hide Rapid. The old preview URL is retained locally as a reference. The historical credential field `preview_rollback_endpoint_url` names the production URL; after promotion, reverting that URL alone is not a runtime rollback.
+
+## Deployed and verified
+
+- Runtime source `c9a3e85`, tag `git-c9a3e85`, deployed successfully to production using source overlays (74.4 s). [Deployment manifest](2026-10-28-ideogram-builder-production.json).
+- Production capabilities advertise Fast/Quality/Turbo/**Rapid**; Rapid is `validated`, 4 steps/CFG 1/euler, max 1 MP, without experimental opt-in.
+- Live smoke passed oversize rejection and Turbo→Rapid→Turbo→Rapid on worker `modal-01f83fb97057-2`, retaining `dmd8`/`rapid4` correctly. [Smoke report](rapid-production-artifacts/smoke-report.json).
+- Real GUI generation passed at 1024², seed 20261028. Its saved metadata confirms `preset_id=Rapid`, four steps, `rapid4`, CUDA 12.8 profile and no compilation. [Saved generation metadata](rapid-production-artifacts/gui-generation.meta.json).
+- Gallery restoration retained Rapid, seed, dimensions and prompt. GUI testing exposed premature “unavailable” warnings during capability refresh; frontend fixes now defer those warnings while Modal availability is unknown and avoid refreshing an unchanged backend. New regression cases and clean-start GUI verification passed. These frontend changes are served locally and do not change the deployed GPU runtime.
+- Local credentials select the production URL, retain the preview URL under `rapid_preview_endpoint_url`, and were backed up before updating. The old credential field `preview_rollback_endpoint_url` is historical; use the explicit baseline deployment above for a runtime rollback.
+
+![Permanent Rapid selected after restoring the verified production image](rapid-production-artifacts/gui-release.jpg)

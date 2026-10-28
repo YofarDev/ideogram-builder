@@ -5,7 +5,7 @@
 import { state } from './state.js';
 import { emit } from './events.js';
 import { restoreLorasFromMeta } from './lora.js';
-import { isAvailable, presetLabel } from './moss-presets.js';
+import { capabilitiesPending, isAvailable, presetLabel } from './moss-presets.js';
 import { showToast } from './toast.js';
 
 export function restoreMeta(meta) {
@@ -16,10 +16,13 @@ export function restoreMeta(meta) {
     }
 
     if (meta.backend) {
+        const previousBackend = localStorage.getItem('ideogram_backend') || 'runpod';
         localStorage.setItem('ideogram_backend', meta.backend);
         const be = document.querySelector(`input[name="backend"][value="${meta.backend}"]`);
         if (be) be.checked = true;
-        emit('backend:changed', { backend: meta.backend });
+        if (previousBackend !== meta.backend) {
+            emit('backend:changed', { backend: meta.backend });
+        }
     }
 
     if (model === 'moss') {
@@ -76,7 +79,9 @@ function restoreMossMeta(meta) {
         if (r) r.checked = true;
         // Availability-aware restore: keep the saved recipe selected, but make
         // an unavailable candidate preset explicit — never silently swap it.
-        if (!isAvailable(meta.mossPreset)) {
+        // A Modal backend change starts an asynchronous capability refresh.
+        // Its completion reports unavailable recipes; unknown is not rejection.
+        if (!capabilitiesPending() && !isAvailable(meta.mossPreset)) {
             showToast(`Preset “${presetLabel(meta.mossPreset)}” was saved with this image but is not available on the current backend — select a supported preset before generating.`, 'error', 5000);
         }
     }

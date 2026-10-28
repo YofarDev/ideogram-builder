@@ -57,6 +57,12 @@ export function getCapabilities() {
     return capabilitiesBackend === (localStorage.getItem("ideogram_backend") || "runpod") ? capabilities : null;
 }
 
+/** Modal availability remains unknown until its capability request finishes. */
+export function capabilitiesPending() {
+    return (localStorage.getItem('ideogram_backend') || 'runpod') === 'modal'
+        && getCapabilities() === null;
+}
+
 /** An advertised list is authoritative, including restricted base presets. */
 export function availablePresets() {
     const caps = getCapabilities();

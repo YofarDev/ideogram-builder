@@ -1,5 +1,7 @@
 # Rapid preview — measured comparison
 
+**Subsequent release decision:** the user visually accepted these results and requested permanent availability. [Rapid is now deployed to production](../2026-10-28-rapid-production.md) on the same CUDA 12.8 runtime. The numerical quality scores below remain screening evidence; no missing metric has been reclassified as measured.
+
 Deployed source: `3047de1ec8c417e5b34621d1927c797643f567df` (`git-3047de1`). Branch: `feat/rapid-four-step-gui`. Preview app: `yofarcorp/ideogram-builder-rapid-preview`.
 
 **108/108 measured images completed**, plus 36 separately recorded warmups. Rapid beat Turbo in 34/34 comparable steady pairs, with median paired saving **2.329 s (41.3%)**. It beat Fast in 34/34 pairs, saving **21.195 s (85.6%)**.

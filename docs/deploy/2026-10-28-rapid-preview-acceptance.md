@@ -1,4 +1,6 @@
-# Rapid β preview — Milestone A acceptance report
+# Rapid β preview — historical Milestone A acceptance report
+
+**Release update:** the user subsequently approved permanent Rapid. It is now deployed to production without experimental opt-in; see [the production release report](2026-10-28-rapid-production.md). The preview and benchmark status below describe their recorded point in time.
 
 Date: 2026-10-28. Plan: [2026-10-28-moss-rapid-four-step-gui.md](../plans/2026-10-28-moss-rapid-four-step-gui.md).
 

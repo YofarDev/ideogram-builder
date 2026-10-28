@@ -1,0 +1,47 @@
+{
+  "recorded_at": "2026-10-28T10:30:44+01:00",
+  "workspace": "yofarcorp",
+  "app_name": "ideogram-builder",
+  "app_id": "ap-ciHsfDOJgGhqVEI9nxp0AQ",
+  "deployed_runtime_source_revision": "c9a3e850258b434c60af4e39428e931d2a4e9244",
+  "deployment_tag": "git-c9a3e85",
+  "endpoint": "https://yofarcorp--ideogram-builder-web-app.us-east.modal.run/generate",
+  "runtime_profile": "rapid-auto-int8-cu128",
+  "runtime_build": "baseline",
+  "observed_runtime_reference": "rapid-benchmark-2026-10-28/runtime.json",
+  "cuda_upgraded": false,
+  "experimental_presets": [],
+  "validated_presets": {
+    "Fast": null,
+    "Quality": null,
+    "Turbo": null,
+    "Rapid": 1
+  },
+  "base_images": {
+    "moss": "im-C6CYVuLZL3PDP7CmANZGPp",
+    "ideogram": "im-jAh6cs2wwMnYugf5Zhz6Qs"
+  },
+  "acceptance_basis": "User visual acceptance of the image comparison and explicit permanent-release instruction; formal CER/IoU/usability thresholds were not claimed measured.",
+  "production_smoke": "rapid-production-artifacts/smoke-report.json",
+  "gui_verification": {
+    "result": "passed",
+    "image": "output/img_20261028_102531.png",
+    "sha256": "a31b38003b676e3a5f7a676defc866b8363d9180d8b3bf17ca3f638980c87d46",
+    "width": 1024,
+    "height": 1024,
+    "seed": 20261028,
+    "preset_id": "Rapid",
+    "steps": 4,
+    "adapter": "rapid4",
+    "restored_from_gallery": true,
+    "false_availability_warning": false,
+    "screenshot": "rapid-production-artifacts/gui-release.jpg"
+  },
+  "tests": {
+    "python": 186,
+    "frontend": 397
+  },
+  "local_endpoint": "production; previous preview retained as rapid_preview_endpoint_url",
+  "rollback_profile": "baseline",
+  "gui_followup": "Frontend-only fixes after runtime deployment defer unknown Modal availability during session/gallery restore and avoid unnecessary same-backend refresh; served directly by local GUI server."
+}

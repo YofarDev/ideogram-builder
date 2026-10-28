@@ -39,6 +39,8 @@ beforeEach(async () => {
   state.seed = -1
   localStorage.clear()
   resetAllListeners()
+  const { setCapabilities } = await import('../moss-presets.js')
+  setCapabilities(null, 'runpod')
 })
 
 async function load() {
@@ -121,6 +123,35 @@ describe('restoreMeta (gallery)', () => {
       'error',
       expect.any(Number),
     )
+  })
+
+  it('restoring Rapid on the same Modal backend preserves known capabilities', async () => {
+    const { restoreMeta } = await load()
+    const { setCapabilities, getCapabilities } = await import('../moss-presets.js')
+    const { on } = await import('../events.js')
+    const { showToast } = await import('../toast.js')
+    localStorage.setItem('ideogram_backend', 'modal')
+    const caps = { presets: [{ id: 'Rapid', validation_status: 'validated', max_area_mp: 1 }] }
+    setCapabilities(caps, 'modal')
+    const backendChanged = vi.fn(() => setCapabilities(null, 'modal'))
+    on('backend:changed', backendChanged)
+    restoreMeta({ model: 'moss', backend: 'modal', mossPreset: 'Rapid' })
+    expect(backendChanged).not.toHaveBeenCalled()
+    expect(getCapabilities()).toBe(caps)
+    expect(state.moss.preset).toBe('Rapid')
+    expect(showToast).not.toHaveBeenCalled()
+  })
+
+  it('waits for Modal capabilities when restoring onto a different backend', async () => {
+    const { restoreMeta } = await load()
+    const { showToast } = await import('../toast.js')
+    const { on } = await import('../events.js')
+    const backendChanged = vi.fn()
+    on('backend:changed', backendChanged)
+    restoreMeta({ model: 'moss', backend: 'modal', mossPreset: 'Rapid' })
+    expect(backendChanged).toHaveBeenCalledWith({ backend: 'modal' })
+    expect(state.moss.preset).toBe('Rapid')
+    expect(showToast).not.toHaveBeenCalled()
   })
 
   it('available presets restore without an availability warning', async () => {
