@@ -17,6 +17,11 @@ beforeEach(() => {
 })
 
 describe('initPalette', () => {
+  it('shows the add-color control in a fresh workspace before any prompt is loaded', async () => {
+    const { initPalette } = await import('../palette.js')
+    initPalette()
+    expect(document.querySelector('#global-colors button[aria-label="Add color"]')).not.toBeNull()
+  })
   it('adds global color via + button', async () => {
     const { initPalette } = await import('../palette.js')
     initPalette()

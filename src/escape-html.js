@@ -5,3 +5,7 @@ export function escapeHtml(str) {
   d.textContent = str ?? '';
   return d.innerHTML;
 }
+
+export function escapeAttribute(value) {
+  return escapeHtml(String(value ?? '')).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}

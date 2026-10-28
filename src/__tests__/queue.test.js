@@ -33,6 +33,16 @@ const okRunJob = () => vi.fn(async (snap, opts) => {
 })
 
 describe('queue', () => {
+  it('does not submit a generation when draft preparation fails', async () => {
+    const runJob = vi.fn()
+    const showToast = vi.fn()
+    const emit = vi.fn((event, request) => { if (event === 'prompt:prepare') request.ok = false })
+    const mod = await loadQueue({ emit, runJob, showToast })
+    mod.enqueue()
+    expect(runJob).not.toHaveBeenCalled()
+    expect(document.getElementById('queue-panel').children).toHaveLength(0)
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('draft could not be applied'), 'error')
+  })
   it('enqueue rejects empty JSON with toast and adds no row', async () => {
     document.getElementById('json-output').value = ''
     const showToast = vi.fn()
@@ -46,7 +56,7 @@ describe('queue', () => {
     const mod = await loadQueue({ runJob: okRunJob() })
     mod.enqueue()
     expect(document.getElementById('queue-panel').children.length).toBe(1)
-    expect(document.getElementById('btn-generate-image').textContent).toContain('+1 queued')
+    expect(document.getElementById('btn-generate-image').textContent).toContain('+1 pending')
     await vi.waitFor(() => {
       expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
     })
@@ -153,7 +163,7 @@ describe('queue', () => {
     await vi.waitFor(() => {
       expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
     })
-    expect(emit).toHaveBeenNthCalledWith(2, 'image:ready', {
+    expect(emit).toHaveBeenCalledWith('image:ready', {
       imageUrl: 'blob:success',
       dataUrl: 'data:image/png;base64,ZZ',
       importJson: '{"high_level_description":"test"}',

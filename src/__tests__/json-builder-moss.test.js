@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { state, MODEL_IDEOGRAM, MODEL_MOSS, MODE_ARTSTYLE } from '../state.js'
 import { generateJSON, initJsonBuilder } from '../json-builder.js'
-import { resetAllListeners, on } from '../events.js'
+import { resetAllListeners, on, emit } from '../events.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
 const DOM_HTML = `
   <textarea id="json-output"></textarea>
   <span id="json-format-chip"></span>
+  <div id="prompt-draft-notice" hidden></div><button id="btn-use-editor-prompt"></button>
   <textarea id="moss-caption">A fox in snow</textarea>
   <input id="moss-meta" value="poster, illustration">
   <select id="moss-canvas"><option value="">—</option><option value="single" selected>single</option></select>
@@ -90,11 +91,117 @@ function applyViaLoadButton(raw) {
   btn.dispatchEvent(new Event('click'))
 }
 
+describe('prompt keyboard and clipboard actions', () => {
+  it('preserves manual drafts through editor changes and can return to the latest generated prompt', async () => {
+    await wireApp()
+    generateJSON()
+    const output = document.getElementById('json-output')
+    output.value = '{"unfinished":'
+    output.dispatchEvent(new Event('input'))
+    document.getElementById('high_level_description').value = 'New editor scene'
+    emit('state:changed')
+    expect(output.value).toBe('{"unfinished":')
+    expect(document.getElementById('prompt-draft-notice').hidden).toBe(false)
+    expect(document.getElementById('json-format-chip').textContent).toBe('Draft · not applied')
+    const chipText = document.getElementById('json-format-chip').firstChild
+    output.value += '1'
+    output.dispatchEvent(new Event('input'))
+    expect(document.getElementById('json-format-chip').firstChild).toBe(chipText)
+    document.getElementById('btn-use-editor-prompt').click()
+    expect(JSON.parse(output.value).high_level_description).toBe('New editor scene')
+    expect(document.getElementById('prompt-draft-notice').hidden).toBe(true)
+    expect(document.activeElement).toBe(output)
+  })
+
+  it('restores a draft separately from the prompt applied to the editor', async () => {
+    await wireApp()
+    document.getElementById('high_level_description').value = 'Original editor scene'
+    generateJSON()
+    const output = document.getElementById('json-output')
+    const draft = '  {"high_level_description":"Unapplied scene"}  '
+    output.value = draft
+    output.dispatchEvent(new Event('input'))
+    const session = await import('../session.js')
+    const snapshot = session.captureSnapshot()
+    expect(snapshot.draft).toBe(draft)
+    expect(JSON.parse(snapshot.editorContent).high_level_description).toBe('Original editor scene')
+    session.writeSession(snapshot)
+    document.body.innerHTML = DOM_HTML
+    resetAllListeners()
+    await wireApp()
+    const loaded = vi.fn()
+    on('state:loaded', loaded)
+    session.restore()
+    expect(loaded).toHaveBeenCalledWith({ json: expect.objectContaining({ high_level_description: 'Original editor scene' }) })
+    expect(document.getElementById('json-output').value).toBe(draft)
+    expect(document.getElementById('prompt-draft-notice').hidden).toBe(false)
+  })
+
+  it('applies a draft on Cmd/Ctrl+Enter and prepares its model before generation', async () => {
+    await wireApp()
+    generateJSON()
+    const output = document.getElementById('json-output')
+    output.value = MOSS_LAYOUT
+    output.dispatchEvent(new Event('input'))
+    const request = { ok: true }
+    emit('prompt:prepare', request)
+    expect(request.ok).toBe(true)
+    expect(state.model).toBe('moss')
+    expect(document.getElementById('prompt-draft-notice').hidden).toBe(true)
+    output.value = 'A manually edited caption'
+    output.dispatchEvent(new Event('input'))
+    output.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
+    expect(document.getElementById('moss-caption').value).toBe('A manually edited caption')
+    expect(document.getElementById('prompt-draft-notice').hidden).toBe(true)
+  })
+  it('applies the current textarea on keyboard activation, including after a pointer apply', async () => {
+    await wireApp()
+    const loaded = vi.fn()
+    on('state:loaded', loaded)
+    applyViaLoadButton('{"high_level_description":"First prompt"}')
+    document.getElementById('json-output').value = '{"high_level_description":"Keyboard prompt"}'
+    document.getElementById('btn-load-json').click()
+    expect(loaded).toHaveBeenLastCalledWith({ json: { high_level_description: 'Keyboard prompt' } })
+  })
+
+  it('selects the prompt for manual copying when clipboard access fails', async () => {
+    await wireApp()
+    const { showToast } = await import('../toast.js')
+    const output = document.getElementById('json-output')
+    output.value = 'Prompt to keep'
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } })
+    try {
+      document.getElementById('btn-copy-json').click()
+      await vi.waitFor(() => expect(document.activeElement).toBe(output))
+      expect(output.selectionStart).toBe(0)
+      expect(output.selectionEnd).toBe(output.value.length)
+      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Clipboard blocked'), 'warning')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
 const MOSS_LAYOUT = JSON.stringify({
   summary: { caption: 'A fox in snow' },
   items: [{ label: 'object', caption: 'd', bbox: [-512, -512, 0, 0] }],
   bbox_coord_space: 'abs_centralized',
   bbox_format: 'yxyx',
+})
+
+describe('abandoned pointer interactions', () => {
+  it('uses the current textarea when applying with the keyboard after an abandoned pointer press', async () => {
+    await wireApp()
+    const loaded = vi.fn()
+    on('state:loaded', loaded)
+    const output = document.getElementById('json-output')
+    output.value = '{"high_level_description":"Old pointer value"}'
+    const button = document.getElementById('btn-load-json')
+    button.dispatchEvent(new Event('pointerdown'))
+    output.value = '{"high_level_description":"Current keyboard value"}'
+    button.click()
+    expect(loaded).toHaveBeenLastCalledWith({ json: { high_level_description: 'Current keyboard value' } })
+  })
 })
 
 describe('generateJSON dispatch', () => {
@@ -245,5 +352,29 @@ describe('model switch integration', () => {
     expect(showToast).not.toHaveBeenCalledWith(expect.stringContaining('Converted Ideogram fields to MOSS'), expect.anything())
     // the pasted payload wins over any seeding
     expect(document.getElementById('moss-caption').value).toBe('A fox in snow')
+  })
+})
+
+describe('collection model routing integration', () => {
+  it('loads Ideogram collection JSON while MOSS is active through the real model/apply handlers', async () => {
+    await wireApp()
+    emit('model:set', { model: 'moss', seed: false })
+    const collections = await import('../collections.js')
+    collections.createCollection('Model routing')
+    const collection = collections.addItem('{"high_level_description":"Ideogram saved prompt"}')
+    collections.loadItemToEditor(collection.items.at(-1).id)
+    expect(state.model).toBe('ideogram')
+    expect(document.getElementById('json-format-chip').textContent).toBe('Ideogram JSON')
+  })
+
+  it('loads a plain caption collection item from an Ideogram workspace', async () => {
+    await wireApp()
+    const collections = await import('../collections.js')
+    collections.createCollection('Captions')
+    const collection = collections.addItem('A saved fox caption')
+    collections.loadItemToEditor(collection.items.at(-1).id)
+    expect(state.model).toBe('moss')
+    expect(state.moss.promptMode).toBe('caption')
+    expect(document.getElementById('moss-caption').value).toBe('A saved fox caption')
   })
 })

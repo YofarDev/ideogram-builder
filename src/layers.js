@@ -1,247 +1,52 @@
-// layers.js — Photoshop-style layer panel for box navigation
-
+// Keep layer rows alive across prompt edits so focus and drag state survive.
 import { state } from './state.js';
 import { on, emit } from './events.js';
-
-let dragSrcId = null;
+import { buildRow, updateRow } from './layer-row.js';
 
 export function initLayers() {
   const list = document.getElementById('layers-list');
-
-  on('box:selected', ({ id }) => updateActive(id));
-  on('state:changed', () => renderLayers());
-  on('state:loaded', () => renderLayers());
-  on('canvas:reset', () => renderLayers());
-
-  const overlay = document.getElementById('canvas-overlay');
-  if (overlay) overlay.addEventListener('load', () => renderLayers());
-
-  const addBtn = document.getElementById('btn-add-layer');
-  if (addBtn) addBtn.addEventListener('click', () => emit('box:create'));
-
+  on('box:selected', ({ id }) => {
+    renderLayers();
+    list.querySelectorAll('.layer-row').forEach(row => {
+      row.classList.toggle('active', row.dataset.id === id);
+      row.querySelector('.layer-select').setAttribute('aria-pressed', String(row.dataset.id === id));
+    });
+  });
+  for (const event of ['state:changed', 'state:loaded', 'canvas:reset']) on(event, renderLayers);
+  document.getElementById('canvas-overlay')?.addEventListener('load', () => {
+    list.querySelectorAll('.layer-row').forEach(row => { delete row.dataset.thumbnailKey; });
+    renderLayers();
+  });
+  document.getElementById('btn-add-layer')?.addEventListener('click', () => emit('box:create'));
   renderLayers();
 }
 
-// Update the active highlight in place. Deliberately does NOT call renderLayers:
-// a full rebuild (innerHTML = '') would destroy the draggable row mid-interaction
-// and cancel the native drag. Falls back to a full render only when the row count
-// is stale (boxes added/removed out-of-band), so the list stays correct.
-function updateActive(id) {
-  const list = document.getElementById('layers-list');
-  if (!list) return;
-  const rows = list.querySelectorAll('.layer-row');
-  if (rows.length !== state.boxes.length) {
-    renderLayers();
-    return;
-  }
-  rows.forEach((r) => r.classList.toggle('active', r.dataset.id === id));
+function moveLayer(source, target) {
+  if (source === target) return;
+  const from = state.boxes.findIndex(box => box.id === source);
+  const to = state.boxes.findIndex(box => box.id === target);
+  if (from < 0 || to < 0) return;
+  const [moved] = state.boxes.splice(from, 1);
+  state.boxes.splice(to, 0, moved);
+  emit('layers:reordered');
+  emit('state:changed');
 }
 
 function renderLayers() {
   const list = document.getElementById('layers-list');
   const count = document.getElementById('layer-count');
-  list.innerHTML = '';
   if (count) count.textContent = state.boxes.length;
-
-  if (state.boxes.length === 0) {
-    list.innerHTML = '<div class="layers-empty">No layers yet — draw on canvas</div>';
+  if (!state.boxes.length) {
+    if (!list.querySelector('.layers-empty')) list.innerHTML = '<div class="layers-empty">No layers yet — draw on canvas</div>';
     return;
   }
-
-  // Render top-to-bottom (last box = top layer = first in list)
-  const boxes = [...state.boxes].reverse();
-  boxes.forEach((box) => {
-    const row = buildRow(box);
-    list.appendChild(row);
+  list.querySelector('.layers-empty')?.remove();
+  const existing = new Map([...list.querySelectorAll('.layer-row')].map(row => [row.dataset.id, row]));
+  [...state.boxes].reverse().forEach((box, index) => {
+    const row = existing.get(box.id) || buildRow(box, moveLayer);
+    existing.delete(box.id);
+    updateRow(row, box);
+    if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
   });
+  existing.forEach(row => row.remove());
 }
-
-function buildRow(box) {
-  const row = document.createElement('div');
-  row.className = 'layer-row' + (box.id === state.selectedBoxId ? ' active' : '');
-  row.dataset.id = box.id;
-  if (!box.visible) row.classList.add('hidden-layer');
-
-  row.draggable = true;
-
-  // Drag handle
-  const grip = document.createElement('span');
-  grip.className = 'layer-grip';
-  grip.innerHTML = '⠿';
-  grip.setAttribute('aria-hidden', 'true');
-  row.appendChild(grip);
-
-  // Mini thumbnail
-  const thumb = buildThumbnail(box);
-  row.appendChild(thumb);
-
-  // Name + badge
-  const info = document.createElement('div');
-  info.className = 'layer-info';
-
-  const dot = document.createElement('span');
-  dot.className = 'layer-color-dot';
-  dot.style.background = box.color || 'var(--accent)';
-  info.appendChild(dot);
-
-  const name = document.createElement('span');
-  name.className = 'layer-name';
-  name.textContent = box.text || box.desc || box.id.replace('box_', 'Box ');
-  info.appendChild(name);
-
-  const badge = document.createElement('span');
-  badge.className = 'layer-badge';
-  badge.textContent = box.mode === 'text' ? 'TXT' : box.mode === 'character' ? 'CHR' : 'OBJ';
-  info.appendChild(badge);
-
-  row.appendChild(info);
-
-  // Action buttons
-  const actions = document.createElement('div');
-  actions.className = 'layer-actions';
-
-  const eyeBtn = document.createElement('button');
-  eyeBtn.className = 'layer-btn layer-eye' + (box.visible ? '' : ' off');
-  eyeBtn.innerHTML = box.visible ? '👁' : '👁‍🗨';
-  eyeBtn.title = box.visible ? 'Hide layer' : 'Show layer';
-  eyeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    box.visible = !box.visible;
-    emit('box:visibility', { id: box.id, visible: box.visible });
-    renderLayers();
-  });
-  actions.appendChild(eyeBtn);
-
-  const lockBtn = document.createElement('button');
-  lockBtn.className = 'layer-btn layer-lock' + (box.locked ? ' on' : '');
-  lockBtn.innerHTML = box.locked ? '🔒' : '🔓';
-  lockBtn.title = box.locked ? 'Unlock layer' : 'Lock layer';
-  lockBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    box.locked = !box.locked;
-    emit('box:lock', { id: box.id, locked: box.locked });
-    renderLayers();
-  });
-  actions.appendChild(lockBtn);
-
-  row.appendChild(actions);
-
-  // Click to select. NOTE: must be `click`, not `pointerdown` — selecting
-  // triggers a full re-render via `box:selected`, which would destroy this row
-  // synchronously during pointerdown and cancel the native drag before it starts.
-  // `click` only fires when the user does NOT drag, so reordering stays intact.
-  row.addEventListener('click', (e) => {
-    if (e.target.closest('.layer-btn')) return;
-    emit('box:select', { id: box.id });
-  });
-
-  // Drag & drop reorder
-  row.addEventListener('dragstart', (e) => {
-    dragSrcId = box.id;
-    row.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', box.id);
-  });
-
-  row.addEventListener('dragend', () => {
-    row.classList.remove('dragging');
-    dragSrcId = null;
-    document.querySelectorAll('.layer-row').forEach(r => r.classList.remove('drag-over'));
-  });
-
-  row.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    row.classList.add('drag-over');
-  });
-
-  row.addEventListener('dragleave', () => {
-    row.classList.remove('drag-over');
-  });
-
-  row.addEventListener('drop', (e) => {
-    e.preventDefault();
-    row.classList.remove('drag-over');
-    if (!dragSrcId || dragSrcId === box.id) return;
-
-    const srcIdx = state.boxes.findIndex(b => b.id === dragSrcId);
-    const dstIdx = state.boxes.findIndex(b => b.id === box.id);
-    if (srcIdx === -1 || dstIdx === -1) return;
-
-    const [moved] = state.boxes.splice(srcIdx, 1);
-    state.boxes.splice(dstIdx, 0, moved);
-
-    emit('layers:reordered');
-    emit('state:changed');
-    renderLayers();
-  });
-
-  return row;
-}
-
-function buildThumbnail(box) {
-  const thumb = document.createElement('div');
-  thumb.className = 'layer-thumb';
-
-  // Try to show cropped image from overlay
-  const overlay = document.getElementById('canvas-overlay');
-  const hasImage = overlay?.src && overlay.classList.contains('visible') && overlay.complete && overlay.naturalWidth > 0;
-
-  if (hasImage) {
-    const dataUrl = cropToCanvasRegion(overlay, box);
-    if (dataUrl) {
-      thumb.style.backgroundImage = `url(${dataUrl})`;
-      thumb.style.backgroundSize = 'cover';
-      thumb.style.backgroundPosition = 'center';
-      return thumb;
-    }
-  }
-
-  // Fallback: position indicator
-  const left = ((box.x / 1000) * 100);
-  const top = ((box.y / 1000) * 100);
-  const width = Math.max(4, (box.w / 1000) * 100);
-  const height = Math.max(4, (box.h / 1000) * 100);
-
-  const inner = document.createElement('div');
-  inner.className = 'layer-thumb-inner';
-  inner.style.left = left + '%';
-  inner.style.top = top + '%';
-  inner.style.width = width + '%';
-  inner.style.height = height + '%';
-
-  const color = box.color || box.colors?.[0] || 'var(--accent)';
-  inner.style.borderColor = color;
-  inner.style.background = color + '18';
-
-  thumb.appendChild(inner);
-  return thumb;
-}
-
-function cropToCanvasRegion(img, box) {
-  try {
-    const cw = state.canvas.width;
-    const ch = state.canvas.height;
-
-    const sx = (box.x / 1000) * cw;
-    const sy = (box.y / 1000) * ch;
-    const sw = (box.w / 1000) * cw;
-    const sh = (box.h / 1000) * ch;
-
-    if (sw < 2 || sh < 2) return null;
-
-    const canvas = document.createElement('canvas');
-    const size = 72;
-    canvas.width = size;
-    canvas.height = Math.max(1, size * (sh / sw));
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-
-    return canvas.toDataURL();
-  } catch {
-    return null;
-  }
-}
-
-

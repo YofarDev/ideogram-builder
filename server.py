@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+from gallery_thumbnails import gallery_thumbnail
 
 CREDENTIALS_PATH = Path.home() / ".config" / "llm-credentials.json"
 OUTPUT_DIR = Path(__file__).parent / "output"
@@ -161,7 +162,8 @@ class Handler(SimpleHTTPRequestHandler):
     def end_headers(self):
         # Dev server: never serve stale JS/CSS after edits (forces the browser
         # to revalidate on every request).
-        self.send_header("Cache-Control", "no-store, must-revalidate")
+        cache = "private, max-age=3600" if getattr(self, "_thumbnail_cacheable", False) else "no-store, must-revalidate"
+        self.send_header("Cache-Control", cache)
         super().end_headers()
 
     def _send_json(self, status, data, close=False):
@@ -720,7 +722,23 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_json(200, {"suggestions": suggestions})
 
     def do_GET(self):
-        if self.path == "/api/config":
+        if self.path.startswith("/api/thumbnail?"):
+            name = parse_qs(urlparse(self.path).query).get("name", [""])[0]
+            try:
+                preview = gallery_thumbnail(OUTPUT_DIR, name)
+            except (ValueError, OSError):
+                self._send_json(404, {"error": "image preview unavailable"})
+                return
+            except ImportError:
+                self._send_json(503, {"error": "Pillow is required for image previews"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/webp")
+            self.send_header("Content-Length", str(len(preview)))
+            self._thumbnail_cacheable = True
+            self.end_headers()
+            self.wfile.write(preview)
+        elif self.path == "/api/config":
             try:
                 creds = json.loads(CREDENTIALS_PATH.read_text())
                 config = {}
@@ -924,7 +942,7 @@ class Handler(SimpleHTTPRequestHandler):
             header, b64 = data_url.split(",", 1)
             ext = "png" if "image/png" in header else "jpg"
             OUTPUT_DIR.mkdir(exist_ok=True)
-            stem = f"img_{datetime.now():%Y%m%d_%H%M%S}"
+            stem = f"img_{datetime.now():%Y%m%d_%H%M%S_%f}"
             lora_suffix = body.get("loraSuffix", "")
             # ponytail: sanitize to alphanumerics/+/_/- to stay filesystem-safe
             lora_suffix = re.sub(r"[^A-Za-z0-9+_\-]", "", lora_suffix)

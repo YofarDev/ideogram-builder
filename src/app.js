@@ -85,6 +85,7 @@ document.querySelectorAll('.card-toggle').forEach((btn) => {
 const queueBtn = document.getElementById('btn-queue');
 const queuePanel = document.getElementById('queue-panel');
 function setQueueOpen(open) {
+  if (!open && queuePanel.contains(document.activeElement)) queueBtn.focus();
   queuePanel.hidden = !open;
   queueBtn.setAttribute('aria-expanded', String(open));
 }

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { state } from '../state.js'
-import { emit, on } from '../events.js'
+import { emit, on, resetAllListeners } from '../events.js'
 
 const DOM_HTML = `
   <div id="layers-list"></div>
@@ -21,6 +21,7 @@ const DOM_HTML = `
 `
 
 beforeEach(async () => {
+  resetAllListeners()
   document.body.innerHTML = DOM_HTML
   state.boxes = []
   state.selectedBoxId = null
@@ -44,11 +45,73 @@ function addBox(id, overrides = {}) {
   state.boxes.push(box)
   const el = document.createElement('div')
   el.id = id
+  Object.assign(el.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` })
   document.getElementById('canvas-wrapper').appendChild(el)
   return box
 }
 
 describe('layers', () => {
+  it('keeps the same rows and keyboard focus through prompt edits and toggles', () => {
+    addBox('box_0', { desc: 'Cat' })
+    emit('state:changed')
+    const row = document.querySelector('.layer-row')
+    const button = row.querySelector('.layer-lock')
+    button.focus()
+    button.click()
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    expect(button.getAttribute('aria-label')).toBe('Unlock layer: Cat')
+    emit('state:changed')
+    expect(document.querySelector('.layer-row')).toBe(row)
+    expect(document.activeElement).toBe(button)
+  })
+
+  it('supports keyboard selection and reordering while retaining focus', () => {
+    addBox('box_0', { desc: 'Cat' })
+    addBox('box_1', { desc: 'Dog' })
+    emit('state:changed')
+    const select = vi.fn()
+    on('box:select', select)
+    const top = document.querySelector('.layer-select')
+    top.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(select).toHaveBeenLastCalledWith({ id: 'box_0' })
+    const cat = document.activeElement
+    expect(cat.getAttribute('aria-label')).toBe('Select layer: Cat')
+    cat.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }))
+    expect(state.boxes.map(box => box.id)).toEqual(['box_1', 'box_0'])
+    expect(document.querySelector('.layer-select')).toBe(cat)
+    expect(document.activeElement).toBe(cat)
+  })
+
+  it('reuses image crops on unrelated edits and refreshes only changed geometry', () => {
+    const overlay = document.getElementById('canvas-overlay')
+    overlay.src = '/image.png'
+    overlay.classList.add('visible')
+    Object.defineProperties(overlay, { complete: { value: true }, naturalWidth: { value: 2000 }, naturalHeight: { value: 1000 } })
+    const drawImage = vi.fn()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage })
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,AA')
+    try {
+      addBox('box_0')
+      addBox('box_1')
+      emit('state:changed')
+      expect(drawImage).toHaveBeenCalledTimes(2)
+      for (let i = 0; i < 10; i++) emit('state:changed')
+      expect(drawImage).toHaveBeenCalledTimes(2)
+      state.boxes[0].x = 100
+      document.getElementById('box_0').style.left = '100px'
+      emit('state:changed')
+      expect(drawImage).toHaveBeenCalledTimes(3)
+      // Output dimensions stay bounded even for extremely tall boxes.
+      state.boxes[0].w = 2
+      state.boxes[0].h = 1000
+      emit('box:selected', { id: 'box_0' })
+      expect(drawImage.mock.calls.at(-1).slice(-2)).toEqual([72, 56])
+      overlay.dispatchEvent(new Event('load'))
+      expect(drawImage).toHaveBeenCalledTimes(6)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
   it('shows empty message when no boxes', () => {
     const list = document.getElementById('layers-list')
     expect(list.textContent).toContain('No layers yet')

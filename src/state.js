@@ -24,6 +24,8 @@ export const state = {
   seed: -1,
   ui: { previewMode: false },
   imageDataUrl: null,
+  referenceImageUrl: null,
+  imageRevision: 0,
 };
 
 export function getBox(id) {

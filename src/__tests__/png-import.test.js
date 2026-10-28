@@ -95,3 +95,56 @@ describe('prompt detection across workflow nodes (D3)', () => {
     expect(found).toBeNull()
   })
 })
+
+describe('image import lifecycle', () => {
+  async function setup() {
+    const { resetAllListeners, on } = await import('../events.js')
+    resetAllListeners()
+    document.body.innerHTML = '<span id="dim-display"></span><select id="aspect-ratio"><option value="640x480">4:3</option></select><textarea id="json-output">old prompt</textarea>'
+    vi.stubGlobal('Image', class {
+      width = 640; height = 480
+      set src(value) { queueMicrotask(() => this.onload()) }
+    })
+    vi.stubGlobal('FileReader', class {
+      readAsDataURL(file) { this.result = `data:image/png;base64,${file.name}`; queueMicrotask(() => this.onload()) }
+    })
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:import')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const ready = vi.fn()
+    const applied = vi.fn(({ raw }) => { document.getElementById('json-output').value = `applied:${raw}` })
+    on('image:ready', ready)
+    on('prompt:apply', applied)
+    on('canvas:rebuild', () => { document.getElementById('json-output').value = '' })
+    const { importImage } = await import('../png-import.js')
+    return { importImage, ready, applied }
+  }
+
+  it('waits for metadata and applies its model before saving the image', async () => {
+    const { importImage, ready, applied } = await setup()
+    let finishMetadata
+    const pending = importImage({ type: 'image/png', name: 'first', arrayBuffer: () => new Promise(resolve => { finishMetadata = resolve }) })
+    await Promise.resolve()
+    expect(ready).not.toHaveBeenCalled()
+    const prompt = JSON.stringify({ high_level_description: 'Imported scene' })
+    finishMetadata(makePngBuffer([makeTextChunk('prompt', JSON.stringify({ node: { inputs: { text: prompt } } }))]))
+    await pending
+    expect(applied).toHaveBeenCalledWith({ raw: JSON.stringify(JSON.parse(prompt), null, 2), quiet: true })
+    expect(ready.mock.calls[0][0].importJson).toContain('applied:')
+    expect(ready.mock.calls[0][0].imageUrl).toBe('data:image/png;base64,first')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:import')
+    vi.unstubAllGlobals(); vi.restoreAllMocks()
+  })
+
+  it('ignores an older import that finishes after a newer image', async () => {
+    const { importImage, ready } = await setup()
+    let finishOld
+    const old = importImage({ type: 'image/png', name: 'old', arrayBuffer: () => new Promise(resolve => { finishOld = resolve }) })
+    await importImage({ type: 'image/jpeg', name: 'new' })
+    finishOld(makePngBuffer([]))
+    await old
+    expect(ready).toHaveBeenCalledTimes(1)
+    expect(ready.mock.calls[0][0].dataUrl).toContain('new')
+    expect(ready.mock.calls[0][0].importJson).toBe('')
+    vi.unstubAllGlobals(); vi.restoreAllMocks()
+  })
+})

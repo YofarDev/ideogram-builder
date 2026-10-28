@@ -5,6 +5,7 @@ import { state, syncBoxesFromDOM } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
 import { buildMossLayout, parseMoss } from './prompt-moss.js';
+import { publishPrompt } from './prompt-draft.js';
 
 let droppedToastShown = false;
 
@@ -21,12 +22,9 @@ function setPromptMode(mode) {
 
 export function generateMoss() {
   syncBoxesFromDOM();
-  const output = document.getElementById('json-output');
-  const chip = document.getElementById('json-format-chip');
 
   if (state.moss.promptMode === 'caption') {
-    output.value = document.getElementById('moss-caption').value;
-    if (chip) chip.textContent = chip.title = 'MOSS caption';
+    publishPrompt(document.getElementById('moss-caption').value, 'MOSS caption');
     return;
   }
 
@@ -41,8 +39,7 @@ export function generateMoss() {
     width: state.canvas.width,
     height: state.canvas.height,
   });
-  output.value = JSON.stringify(layout, null, 2);
-  if (chip) chip.textContent = chip.title = `MOSS layout · ${state.canvas.width}×${state.canvas.height}`;
+  publishPrompt(JSON.stringify(layout, null, 2), `MOSS layout · ${state.canvas.width}×${state.canvas.height}`);
   if (dropped > 0 && !droppedToastShown) {
     showToast(`Dropped ${dropped} zero-size box${dropped > 1 ? 'es' : ''} from the MOSS layout.`, 'warning');
     droppedToastShown = true;

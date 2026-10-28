@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { state } from '../state.js'
-import { emit } from '../events.js'
+import { emit, resetAllListeners } from '../events.js'
 import { BUILTIN_LORAS } from '../lora-library.js'
 
 const DOM_HTML = `
@@ -18,6 +18,7 @@ const DOM_HTML = `
 let loraModule
 
 beforeEach(async () => {
+  resetAllListeners()
   document.body.innerHTML = DOM_HTML
   state.loras = []
   state.model = 'ideogram'
@@ -178,5 +179,32 @@ describe('per-model library', () => {
     expect(state.loras[0].strengths.positive).toBe(0.7)
     const card = document.querySelector('.lora-card[data-id="user-1"]')
     expect(card.classList.contains('active')).toBe(true)
+  })
+})
+
+describe('saved LoRA stack restoration', () => {
+  it('restores the session stack and tolerates missing strength metadata', () => {
+    const entry = BUILTIN_LORAS.find(item => item.model === 'ideogram')
+    emit('workspace:restore', { loras: [{ filename: entry.filename }] })
+    expect(state.loras).toHaveLength(1)
+    expect(state.loras[0].filename).toBe(entry.filename)
+    expect(Number.isFinite(state.loras[0].strengths.positive)).toBe(true)
+  })
+
+  it('clears an old stack when gallery metadata explicitly contains no LoRAs', async () => {
+    const entry = BUILTIN_LORAS.find(item => item.model === 'ideogram')
+    loraModule.restoreLorasFromMeta([{ filename: entry.filename }])
+    expect(state.loras).toHaveLength(1)
+    const { restoreMeta } = await import('../gallery-meta.js')
+    restoreMeta({ model: 'ideogram', loras: [] })
+    expect(state.loras).toEqual([])
+  })
+
+  it('never restores an adapter from a different model by filename', async () => {
+    const entry = BUILTIN_LORAS.find(item => item.model === 'ideogram')
+    state.model = 'moss'
+    loraModule.restoreLorasFromMeta([{ filename: entry.filename, strengths: { positive: 1 } }])
+    expect(state.loras).toEqual([])
+    expect(document.querySelector('.toast-warning')?.textContent).toContain('unavailable for this model')
   })
 })

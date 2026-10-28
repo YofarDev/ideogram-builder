@@ -2,6 +2,8 @@
 import { on, emit } from './events.js';
 import { detectPromptFormat } from './prompt-convert.js';
 import { captureMossConfig, restoreMoss } from './session-moss.js';
+import { captureWorkspace, restoreWorkspace } from './session-workspace.js';
+import { capturePromptDraft } from './prompt-draft.js';
 
 const STORAGE_KEY = 'ideogram_session';
 export const VERSION = 1;
@@ -38,10 +40,13 @@ export function captureSnapshot() {
   const activeTab = document.querySelector('.tab-btn.active');
 
   const seedRaw = parseInt(el('seed-input')?.value, 10);
+  const draft = capturePromptDraft();
 
   return {
     version: VERSION,
     content: jsonText || null,
+    ...(draft ? { draft: draft.text, editorContent: draft.editorContent } : {}),
+    workspace: captureWorkspace(),
     config: {
       size: activeSize?.dataset.size || '1',
       steps: stepsRadio?.dataset.preset || 'Default',
@@ -104,12 +109,13 @@ function applySelectWhenReady(id, value) {
   if (!value) return;
   const sel = document.getElementById(id);
   if (!sel) return;
-  if (sel.querySelector(`option[value="${value}"]`)) {
+  const hasOption = () => [...sel.options].some(option => option.value === value);
+  if (hasOption()) {
     sel.value = value;
     return;
   }
   const observer = new MutationObserver(() => {
-    if (sel.querySelector(`option[value="${value}"]`)) {
+    if (hasOption()) {
       sel.value = value;
       observer.disconnect();
     }
@@ -133,7 +139,7 @@ export function restore() {
   applyDimensions(config);
 
   // 2. Content → state:loaded rebuilds boxes/fields/palette/layers
-  applyContent(blob.content);
+  applyContent(typeof blob.editorContent === 'string' ? blob.editorContent : blob.content);
 
   // 3. Remaining config — dispatch change/input so settings.js handlers sync
   //    state.* (mode→photoArtMode, steps→preset, seed→seed). Only the mode
@@ -148,7 +154,7 @@ export function restore() {
     el('seed-input').value = config.seed;
     el('seed-input').dispatchEvent(new Event('input', { bubbles: true }));
   }
-  const stepsRadio = document.querySelector(`input[name="steps"][data-preset="${config.steps}"]`);
+  const stepsRadio = [...document.querySelectorAll('input[name="steps"]')].find(radio => radio.dataset.preset === config.steps);
   if (stepsRadio) {
     stepsRadio.checked = true;
     stepsRadio.dispatchEvent(new Event('change', { bubbles: true }));
@@ -158,9 +164,12 @@ export function restore() {
   applySelectWhenReady('recaption-model', config.recaptionModel);
 
   // 4. UI — reuse existing handlers via synthetic clicks
-  const tabBtn = document.querySelector(`.tab-btn[data-tab="${ui.tab || 'editor'}"]`);
+  const restoredWorkspace = restoreWorkspace(blob.workspace);
+  if (restoredWorkspace) emit('state:changed');
+  const tabBtn = [...document.querySelectorAll('.tab-btn')].find(button => button.dataset.tab === (ui.tab || 'editor'));
   if (tabBtn) tabBtn.click();
   if (ui.preview) el('btn-preview')?.click();
+  if (typeof blob.draft === 'string') emit('prompt:draft-restore', { text: blob.draft });
 }
 
 /** Clear saved prompt content (called on canvas:reset). Keeps config + ui. */
@@ -168,6 +177,9 @@ export function wipeContent() {
   const blob = loadSession();
   if (!blob) return;
   blob.content = null;
+  delete blob.workspace;
+  delete blob.draft;
+  delete blob.editorContent;
   writeSession(blob);
 }
 
@@ -181,10 +193,13 @@ export function initSession() {
     writeSession(captureSnapshot());
   };
 
-  on('state:changed', () => {
+  const schedule = () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(flush, SAVE_DEBOUNCE_MS);
-  });
+  };
+  for (const event of ['state:changed', 'box:visibility', 'box:lock', 'box:selected', 'tab:changed', 'preview:changed', 'image:ready', 'image:saved', 'overlay:changed', 'prompt:draft-changed', 'loras:changed']) on(event, schedule);
+  document.addEventListener('input', schedule);
+  document.addEventListener('change', schedule);
 
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => {

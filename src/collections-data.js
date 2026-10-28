@@ -1,7 +1,9 @@
 // collections-data.js — Data layer: module state, localStorage CRUD, no DOM rendering.
 
 import { emit } from './events.js';
-import { detectPromptFormat } from './prompt-convert.js';
+import { normalizeCollections, inferModel } from './collections-records.js';
+export { parsePrompt, inferModel, detectModel, labelFor } from './collections-records.js';
+import { showToast } from './toast.js';
 
 const LS_COLLECTIONS = 'ideogram_collections';
 const LS_ACTIVE = 'ideogram_active_collection';
@@ -16,15 +18,28 @@ function uid() {
 }
 
 function load() {
-  try { collections = JSON.parse(localStorage.getItem(LS_COLLECTIONS)) || []; }
-  catch { collections = []; }
-  activeId = localStorage.getItem(LS_ACTIVE) || null;
+  let data;
+  try {
+    data = JSON.parse(localStorage.getItem(LS_COLLECTIONS)) || [];
+    collections = normalizeCollections(data, uid);
+    activeId = localStorage.getItem(LS_ACTIVE) || null;
+  } catch {
+    collections = [];
+    activeId = null;
+    showToast('Saved collections could not be read. Import a collection backup to recover your prompts.', 'error', 6000);
+  }
+  if (data && !Array.isArray(data)) showToast('Saved collection data has an invalid format. Import a collection backup to recover your prompts.', 'error', 6000);
   if (!collections.find(c => c.id === activeId)) activeId = collections[0]?.id ?? null;
 }
 
 function save() {
   localStorage.setItem(LS_COLLECTIONS, JSON.stringify(collections));
-  if (activeId) localStorage.setItem(LS_ACTIVE, activeId);
+  // The collection write is authoritative; a failed selection preference must
+  // not make an otherwise successful import appear to have failed.
+  try {
+    if (activeId) localStorage.setItem(LS_ACTIVE, activeId);
+    else localStorage.removeItem(LS_ACTIVE);
+  } catch { /* restored selection can fall back to the first collection */ }
 }
 
 load();
@@ -39,24 +54,6 @@ export function getEditingId() { return editingId; }
 export function getAll() { return collections; }
 export function getActive() { return collections.find(c => c.id === activeId) || null; }
 
-export function parsePrompt(importJson) {
-  try { return JSON.parse(importJson) || {}; }
-  catch { return {}; }
-}
-
-/** Model for a prompt: explicit value wins; otherwise inferred from format
- * (plain captions can only be MOSS — Ideogram prompts are always JSON). */
-export function inferModel(importJson, model) {
-  if (model) return model;
-  const format = detectPromptFormat(importJson);
-  return format === 'ideogram' ? 'ideogram' : 'moss';
-}
-
-/** Model for a stored item — legacy items (no model) infer from their JSON. */
-export function detectModel(item) {
-  return item.model || inferModel(item.importJson);
-}
-
 export function extractTokens(importJson) {
   if (!importJson) return [];
   const seen = new Set();
@@ -68,35 +65,51 @@ export function extractTokens(importJson) {
   return out;
 }
 
-export function resolveTokens(itemId, importJson) {
+function tokenValues(itemId, importJson) {
   const tokens = extractTokens(importJson);
-  if (!tokens.length) return importJson;
   const card = document.querySelector(`.coll-card[data-card="${itemId}"]`);
-  if (!card) return importJson;
-  let out = importJson;
-  tokens.forEach(t => {
-    const inp = card.querySelector(`input[data-token="${t}"]`);
-    const val = inp ? inp.value : '';
-    out = out.replace(new RegExp(`\\{\\{\\s*${t}\\s*\\}\\}`, 'g'), val);
-  });
-  return out;
+  const item = getActive()?.items.find(item => item.id === itemId);
+  return Object.fromEntries(tokens.map(token => {
+    const input = card?.querySelector(`input[data-token="${token}"]`);
+    return [token, input ? input.value : item?.tokenValues?.[token] ?? ''];
+  }));
 }
 
-export function labelFor(importJson) {
-  const p = parsePrompt(importJson);
-  if (p.high_level_description) return p.high_level_description;
-  const el = p.compositional_deconstruction?.elements?.[0];
-  if (el?.desc) return el.desc;
-  if (p.compositional_deconstruction?.background) return p.compositional_deconstruction.background;
-  return (importJson || '').slice(0, 60);
+export function missingTokens(itemId, importJson) {
+  return Object.entries(tokenValues(itemId, importJson)).filter(([, value]) => !value.trim()).map(([token]) => token);
 }
 
-export function createCollection(name) {
-  const c = { id: uid(), name: (name || 'Untitled').slice(0, 60), items: [], createdAt: Date.now() };
-  collections.unshift(c);
+export function resolveTokens(itemId, importJson) {
+  if (!extractTokens(importJson).length) return importJson;
+  const values = tokenValues(itemId, importJson);
+  const replace = text => text.replace(/{{\s*([\w-]+)\s*}}/g, (_, token) => values[token] ?? '');
+  const walk = value => typeof value === 'string' ? replace(value)
+    : Array.isArray(value) ? value.map(walk)
+    : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, child]) => [replace(key), walk(child)])) : value;
+  try { return JSON.stringify(walk(JSON.parse(importJson))); }
+  catch { return replace(importJson); }
+}
+
+export function setTokenValue(itemId, token, value) {
+  const item = getActive()?.items.find(item => item.id === itemId);
+  if (!item || !extractTokens(item.importJson).includes(token)) return;
+  item.tokenValues = { ...item.tokenValues, [token]: value };
+  save();
+}
+
+export function createCollection(name, items = []) {
+  const previous = { collections, activeId, expandedId, editingId };
+  const c = { id: uid(), name: (name || 'Untitled').slice(0, 60), items, createdAt: Date.now() };
+  collections = [c, ...collections];
   activeId = c.id;
   expandedId = null;
-  save();
+  editingId = null;
+  try { save(); }
+  catch {
+    ({ collections, activeId, expandedId, editingId } = previous);
+    showToast('Collection could not be saved. Browser storage may be full or unavailable. Export a backup before freeing space, then try again.', 'error', 7000);
+    return null;
+  }
   emit('collection:data-changed');
   return c;
 }
@@ -152,7 +165,7 @@ export function duplicateItem(itemId) {
   if (!c) return;
   const i = c.items.findIndex(it => it.id === itemId);
   if (i === -1) return;
-  c.items.splice(i + 1, 0, { id: uid(), importJson: c.items[i].importJson, imageUrl: c.items[i].imageUrl, model: c.items[i].model });
+  c.items.splice(i + 1, 0, { ...c.items[i], id: uid(), tokenValues: { ...c.items[i].tokenValues } });
   save();
   emit('collection:data-changed');
 }

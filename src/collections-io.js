@@ -1,9 +1,7 @@
-// collections-io.js — Collection file export/import. Split from collections.js
-// (LOC limit). Uses createCollection so module bindings are never assigned.
-
-import { emit } from './events.js';
+// Collection file transport: validate completely, then add in one saved change.
 import { showToast } from './toast.js';
-import { createCollection, save, uid, inferModel } from './collections-data.js';
+import { createCollection, uid } from './collections-data.js';
+import { parseCollectionFile } from './collections-records.js';
 
 export function exportActive(getActive) {
   const c = getActive();
@@ -11,7 +9,12 @@ export function exportActive(getActive) {
   const payload = {
     name: c.name,
     exportedAt: new Date().toISOString(),
-    items: c.items.map(i => ({ importJson: i.importJson, model: i.model })),
+    items: c.items.map(item => ({
+      importJson: item.importJson,
+      model: item.model,
+      ...(item.tokenValues ? { tokenValues: { ...item.tokenValues } } : {}),
+      ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+    })),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -21,24 +24,43 @@ export function exportActive(getActive) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Allow the browser to start the download before releasing its object URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function importCollection(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      const items = Array.isArray(data.items)
-        ? data.items.filter(i => i.importJson).map(i => ({ id: uid(), importJson: i.importJson, model: inferModel(i.importJson, i.model) }))
-        : [];
-      if (!items.length) { showToast('No prompts found in file.', 'error'); return; }
-      const c = createCollection((data.name || 'Imported').slice(0, 60));
-      c.items = items;
-      save();
-      emit('collection:data-changed');
-      showToast(`Imported "${c.name}" (${items.length}).`, 'success');
-    } catch { showToast('Could not read that file.', 'error'); }
-  };
-  reader.readAsText(file);
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    const fail = message => { showToast(message, 'error', 6000); resolve(null); };
+    reader.onload = () => {
+      let data;
+      try { data = parseCollectionFile(reader.result, uid); }
+      catch (error) { fail(error.message); return; }
+      const collection = createCollection(data.name, data.items);
+      if (collection) showToast(`Imported “${collection.name}” (${collection.items.length} prompt${collection.items.length === 1 ? '' : 's'}).`, 'success');
+      resolve(collection);
+    };
+    reader.onerror = () => fail('This file could not be read. Check that it is available on this device, then try again.');
+    reader.onabort = () => fail('Import was canceled. Your existing collections are unchanged.');
+    try { reader.readAsText(file); }
+    catch { fail('Choose a readable collection JSON file, then try again.'); }
+  });
+}
+
+export function bindCollectionFiles(getActive) {
+  document.getElementById('btn-collection-export')?.addEventListener('click', () => exportActive(getActive));
+  const importInput = document.getElementById('collection-import-input');
+  document.getElementById('btn-collection-import')?.addEventListener('click', () => importInput?.click());
+  importInput?.addEventListener('change', async () => {
+    const file = importInput.files[0];
+    if (!file) return;
+    const trigger = document.getElementById('btn-collection-import');
+    if (trigger) { trigger.disabled = true; trigger.setAttribute('aria-busy', 'true'); }
+    try { await importCollection(file); }
+    finally {
+      importInput.value = '';
+      if (trigger) { trigger.disabled = false; trigger.removeAttribute('aria-busy'); }
+    }
+  });
+
 }

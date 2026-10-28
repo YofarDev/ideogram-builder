@@ -1,194 +1,161 @@
 import { on, emit } from './events.js';
-import { escapeHtml } from './escape-html.js';
 import { state } from './state.js';
-import { detectPromptFormat } from './prompt-convert.js';
 import { restoreMeta } from './gallery-meta.js';
+import { buildGalleryCard, describeItem } from './gallery-cards.js';
+import { initTabs, switchTab } from './tabs.js';
+import { showToast } from './toast.js';
+
+const PAGE_SIZE = 48;
+let items = [];
+let visibleCount = PAGE_SIZE;
+let requestId = 0;
+let controller;
 
 export function initGallery() {
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  items = [];
+  visibleCount = PAGE_SIZE;
+  on('tab:changed', ({ tab }) => { if (tab === 'gallery') refreshGallery(); });
+  initTabs();
+  if (document.getElementById('tab-gallery')?.classList.contains('active')) refreshGallery();
+
+  for (const id of ['gallery-search', 'gallery-model-filter']) {
+    const field = document.getElementById(id);
+    field?.addEventListener(id === 'gallery-search' ? 'input' : 'change', () => {
+      visibleCount = PAGE_SIZE;
+      renderGallery();
     });
-    // Sync layout class with the initially active tab
-    const activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) {
-        const tab = activeTab.dataset.tab;
-        const mc = document.querySelector('.main-content');
-        mc.classList.toggle('gallery-active', tab === 'gallery');
-        mc.classList.toggle('vision-active', tab === 'vision');
-        mc.classList.toggle('prompt-active', tab === 'prompt');
-        mc.classList.toggle('json2caption-active', tab === 'json2caption');
-        mc.classList.toggle('collections-active', tab === 'collections');
-    }
+  }
+  document.getElementById('gallery-clear-filters')?.addEventListener('click', () => {
+    document.getElementById('gallery-search').value = '';
+    document.getElementById('gallery-model-filter').value = 'all';
+    visibleCount = PAGE_SIZE;
     renderGallery();
+    document.getElementById('gallery-search').focus();
+  });
+  document.getElementById('gallery-refresh')?.addEventListener('click', refreshGallery);
+  document.getElementById('gallery-show-more')?.addEventListener('click', () => {
+    const index = visibleCount;
+    visibleCount += PAGE_SIZE;
+    renderGallery();
+    document.querySelectorAll('.gallery-card-open')[index]?.focus();
+  });
+  document.getElementById('btn-open-output')?.addEventListener('click', () => fetch('/api/open-output'));
 
-    const btnOpen = document.getElementById('btn-open-output');
-    if (btnOpen) {
-        btnOpen.addEventListener('click', () => {
-            fetch('/api/open-output');
-        });
-    }
-
-    let lastSaveTime = 0;
-    let lastSaveDataUrl = '';
-
-    // ponytail: disk is the source of truth — just save the image+prompt there, gallery lists the folder
-    on('image:ready', ({ dataUrl, importJson, loras, skipSave, meta }) => {
-        if (skipSave || !dataUrl) return;
-        const now = Date.now();
-        if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
-        lastSaveTime = now;
-        lastSaveDataUrl = dataUrl;
-        saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value, loras, meta);
-    });
+  let lastSaveTime = 0;
+  let lastSaveDataUrl = '';
+  on('image:ready', async ({ dataUrl, importJson, loras, skipSave, meta }) => {
+    if (skipSave || !dataUrl) return;
+    const now = Date.now();
+    if (dataUrl === lastSaveDataUrl && now - lastSaveTime < 3000) return;
+    lastSaveTime = now;
+    lastSaveDataUrl = dataUrl;
+    const saved = await saveToDisk(dataUrl, importJson ?? document.getElementById('json-output').value, loras, meta);
+    if (!saved) lastSaveDataUrl = '';
+    if (saved && document.getElementById('tab-gallery')?.classList.contains('active')) refreshGallery();
+  });
 }
 
-// Tabs reached through a grouped top-level button (Assist → its sub-tabs)
-const ASSIST_TABS = ['prompt', 'vision', 'json2caption'];
-
-function switchTab(tab) {
-    // The Assist top button remembers the last sub-tab, so it reopens there and
-    // stays highlighted while any of its sub-tabs is active.
-    const group = document.querySelector('.tab-btn[data-tab-group="assist"]');
-    if (group && ASSIST_TABS.includes(tab)) group.dataset.tab = tab;
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        const isActive = b.dataset.tab === tab;
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-selected', isActive);
-    });
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
-    const mc = document.querySelector('.main-content');
-    mc.classList.toggle('gallery-active', tab === 'gallery');
-    mc.classList.toggle('vision-active', tab === 'vision');
-    mc.classList.toggle('prompt-active', tab === 'prompt');
-    mc.classList.toggle('json2caption-active', tab === 'json2caption');
-    mc.classList.toggle('collections-active', tab === 'collections');
-    if (tab === 'gallery') renderGallery();
+async function refreshGallery() {
+  const current = ++requestId;
+  controller?.abort();
+  controller = new AbortController();
+  const grid = document.getElementById('gallery-grid');
+  const refresh = document.getElementById('gallery-refresh');
+  grid.setAttribute('aria-busy', 'true');
+  if (refresh) refresh.disabled = true;
+  setStatus('Loading images…');
+  document.getElementById('gallery-empty').hidden = true;
+  try {
+    const response = await fetch('/api/list-output', { signal: controller.signal });
+    if (!response.ok) throw new Error('Gallery request failed');
+    const data = await response.json();
+    if (!Array.isArray(data)) throw new Error('Invalid gallery response');
+    if (current !== requestId) return;
+    items = data.map(item => ({ ...item, ...describeItem(item) }));
+    grid.setAttribute('aria-busy', 'false');
+    renderGallery();
+  } catch (error) {
+    if (current === requestId && error.name !== 'AbortError') {
+      setStatus('Could not load images. Check the local server, then choose Refresh.', true);
+    }
+  } finally {
+    if (current === requestId) {
+      grid.setAttribute('aria-busy', 'false');
+      if (refresh) refresh.disabled = false;
+    }
+  }
 }
 
-async function renderGallery() {
-    const grid = document.getElementById('gallery-grid');
-    const empty = document.getElementById('gallery-empty');
-    grid.innerHTML = '';
+function setStatus(message, error = false) {
+  const status = document.getElementById('gallery-status');
+  if (!status) return;
+  status.textContent = message;
+  status.classList.toggle('has-error', error);
+}
 
-    let items = [];
-    try {
-        const res = await fetch('/api/list-output');
-        items = await res.json();
-    } catch {}
-
-    if (items.length === 0) {
-        empty.style.display = 'block';
-        return;
-    }
-    empty.style.display = 'none';
-
-    const frag = document.createDocumentFragment();
-    items.forEach(item => {
-        const date = new Date(item.mtime * 1000);
-        const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-        let desc = '';
-        let isVision = false;
-        try {
-            const j = JSON.parse(item.prompt_json);
-            isVision = j._source === 'vision';
-            desc = j.high_level_description || item.prompt_json.slice(0, 80);
-        } catch {
-            desc = item.prompt_json?.slice(0, 80) || 'No prompt';
-        }
-
-        const card = document.createElement('div');
-        card.className = 'gallery-card' + (isVision ? ' vision-sourced' : '');
-
-        card.innerHTML = `
-            <img src="/output/${item.img}" alt="" loading="lazy" decoding="async">
-            <div class="gallery-card-info">
-                <div class="gallery-card-actions">
-                    <button class="gallery-card-btn add-collection" title="Add prompt to collection" aria-label="Add prompt to collection"><span aria-hidden="true">+</span></button>
-                    <button class="gallery-card-btn download" title="Download image" aria-label="Download image"><span aria-hidden="true">&darr;</span></button>
-                    <button class="gallery-card-btn delete" title="Delete" aria-label="Delete"><span aria-hidden="true">&times;</span></button>
-                </div>
-                <div class="gallery-card-date">${dateStr}</div>
-                <span class="gallery-card-model">${item.meta?.model === 'moss' ? 'MOSS' : 'Ideogram'}</span>
-                <div class="gallery-card-prompt">${escapeHtml(desc)}</div>
-            </div>
-        `;
-
-        card.querySelector('.gallery-card-btn.download').addEventListener('click', (e) => {
-            e.stopPropagation();
-            downloadImage(item);
-        });
-
-        card.querySelector('.gallery-card-btn.add-collection').addEventListener('click', (e) => {
-            e.stopPropagation();
-            emit('collection:add', { importJson: item.prompt_json || '', imageUrl: `/output/${item.img}`, model: item.meta?.model || 'ideogram' });
-        });
-
-        card.querySelector('.gallery-card-btn.delete').addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await deleteItem(item.id);
-        });
-
-        card.addEventListener('click', () => loadItem(item));
-
-        frag.appendChild(card);
-    });
-    grid.appendChild(frag);
+function renderGallery() {
+  const loading = document.getElementById('gallery-grid').getAttribute('aria-busy') === 'true';
+  const query = document.getElementById('gallery-search')?.value.trim().toLocaleLowerCase() || '';
+  const model = document.getElementById('gallery-model-filter')?.value || 'all';
+  const filtered = items.filter(item => (model === 'all' || item.model === model)
+    && `${item.description} ${item.prompt_json} ${item.img}`.toLocaleLowerCase().includes(query));
+  const fragment = document.createDocumentFragment();
+  filtered.slice(0, visibleCount).forEach(item => fragment.appendChild(buildGalleryCard(item, { load: loadItem, remove: deleteItem })));
+  document.getElementById('gallery-grid').replaceChildren(fragment);
+  const filteredView = query !== '' || model !== 'all';
+  const shown = Math.min(filtered.length, visibleCount);
+  if (!loading) setStatus(filteredView || shown < items.length ? `${shown} of ${items.length} images` : `${items.length} image${items.length === 1 ? '' : 's'}`);
+  const empty = document.getElementById('gallery-empty');
+  empty.hidden = loading || filtered.length !== 0;
+  empty.textContent = items.length ? 'No images match your search. Try another prompt or model.' : 'No images yet. Generate an image in the editor to start your gallery.';
+  const clear = document.getElementById('gallery-clear-filters');
+  if (clear) clear.hidden = !filteredView;
+  const more = document.getElementById('gallery-show-more');
+  if (more) more.hidden = shown >= filtered.length;
 }
 
 async function deleteItem(id) {
-    try {
-        await fetch('/api/delete-output', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: id }),
-        });
-    } catch {}
+  if (!confirm('Delete this image and its saved prompt? This cannot be undone.')) return;
+  try {
+    const response = await fetch('/api/delete-output', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: id }),
+    });
+    if (!response.ok || !(await response.json()).ok) throw new Error('Delete failed');
+    items = items.filter(item => item.id !== id);
     renderGallery();
+  } catch {
+    showToast('Image could not be deleted. Check the local server and try again.', 'error');
+  }
 }
 
 function loadItem(item) {
-    emit('image:ready', { imageUrl: `/output/${item.img}`, skipSave: true });
-
-    if (item.prompt_json) {
-        document.getElementById('json-output').value = item.prompt_json;
-        const format = detectPromptFormat(item.prompt_json);
-        if (format === 'moss' || format === 'moss-draft') {
-            // MOSS layout — same path as pasting it (model switch + parsed boxes)
-            emit('prompt:apply', { raw: item.prompt_json });
-        } else {
-            try {
-                const json = JSON.parse(item.prompt_json);
-                emit('state:loaded', { json });
-            } catch {}
-        }
-    }
-
-    if (item.meta && Object.keys(item.meta).length > 0) {
-        restoreMeta(item.meta);
-    }
-
-    switchTab('editor');
-    emit('canvas:relayout');
-}
-
-function downloadImage(item) {
-    const a = document.createElement('a');
-    a.href = `/output/${item.img}`;
-    a.download = item.img;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // Restore model/dimensions before applying the prompt; attach the image last
+  // so a model or canvas reset cannot erase the preview.
+  if (item.meta && Object.keys(item.meta).length) restoreMeta(item.meta);
+  if (item.prompt_json) {
+    document.getElementById('json-output').value = item.prompt_json;
+    emit('prompt:apply', { raw: item.prompt_json, quiet: true });
+  }
+  emit('image:ready', { imageUrl: `/output/${encodeURIComponent(item.img)}`, skipSave: true });
+  switchTab('editor');
+  document.querySelector('.tab-btn[data-tab="editor"]')?.focus();
 }
 
 async function saveToDisk(dataUrl, promptJson, loras, meta) {
-    const loraList = loras ?? state.loras;
-    const loraSuffix = loraList.map(l => l.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
-    try {
-        await fetch('/api/save-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dataUrl, promptJson: promptJson || '', loraSuffix, meta: meta || undefined }),
-        });
-    } catch {}
+  const loraSuffix = (loras ?? state.loras).map(lora => lora.filename.replace(/\.safetensors$/, '')).join('+') || undefined;
+  try {
+    const response = await fetch('/api/save-image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl, promptJson: promptJson || '', loraSuffix, meta: meta || undefined }),
+    });
+    if (!response.ok) throw new Error('Save failed');
+    const result = await response.json();
+    if (typeof result?.filename === 'string') {
+      emit('image:saved', { dataUrl, imageUrl: `/output/${encodeURIComponent(result.filename)}` });
+    }
+    return true;
+  } catch {
+    showToast('Image could not be saved to the gallery. Check that the local server is running.', 'error', 6000);
+    return false;
+  }
 }

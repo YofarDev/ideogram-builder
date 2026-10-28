@@ -64,6 +64,7 @@ function applyCanvasScale() {
   let scale = Math.min(fitW, fitH, 1);
   if (!(scale > 0)) scale = 1;
   state.canvas.scale = scale;
+  canvas.style.setProperty('--canvas-scale', scale);
 
   canvas.style.transformOrigin = 'top left';
   canvas.style.transform = `scale(${scale})`;
@@ -93,6 +94,9 @@ export function initCanvas() {
   }
   const opacityGroup = document.getElementById('opacity-group');
   if (opacityGroup) opacityGroup.style.display = 'none';
+  state.imageDataUrl = null;
+  state.referenceImageUrl = null;
+  state.imageRevision++;
 
   canvas.classList.add('empty-state');
   canvas.classList.remove('has-boxes');
@@ -115,6 +119,10 @@ export function selectBox(id) {
   state.selectedBoxId = id;
   document.querySelectorAll('.bounding-box').forEach(el => el.classList.remove('selected'));
   if (id) document.getElementById(id)?.classList.add('selected');
+  state.boxes.forEach((box, index) => {
+    const dom = document.getElementById(box.id);
+    if (dom) dom.style.zIndex = box.id === id ? state.boxes.length + 2 : index + 2;
+  });
   emit('box:selected', { id });
 }
 
@@ -124,7 +132,7 @@ export function reorderBoxes() {
     const dom = document.getElementById(box.id);
     if (dom) {
       canvas.appendChild(dom);
-      dom.style.zIndex = box.id === state.selectedBoxId ? 10 : i + 2;
+      dom.style.zIndex = box.id === state.selectedBoxId ? state.boxes.length + 2 : i + 2;
     }
   });
 }
@@ -151,6 +159,7 @@ export function setPreviewMode(enabled) {
   state.ui.previewMode = enabled;
   const container = document.querySelector('.canvas-container');
   if (container) container.classList.toggle('preview-mode', enabled);
+  emit('preview:changed', { enabled });
 }
 
 export { createBoxDOM, applyCanvasScale, resizeCanvas, renderBoxes };

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest'
 import { state, MODE_PHOTO, MODE_ARTSTYLE } from '../state.js'
+import { on, resetAllListeners } from '../events.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
@@ -53,6 +54,7 @@ const DOM_HTML = `
 `
 
 beforeEach(() => {
+  resetAllListeners()
   document.body.innerHTML = DOM_HTML
   state.boxes = []
   state.selectedBoxId = null
@@ -211,7 +213,7 @@ describe('settings', () => {
     expect(box.x).toBe(250)
   })
 
-  it('box geometry input clamps to [0,1000] and reflects the corrected px', async () => {
+  it('box geometry keeps the whole box inside the canvas and reflects the corrected px', async () => {
     await initSettings()
     const box = {
       id: 'box_0', mode: 'obj', x: 0, y: 0, w: 500, h: 500,
@@ -223,13 +225,36 @@ describe('settings', () => {
     const xInput = document.getElementById('box-x')
     xInput.value = '5000' // exceeds 1024px canvas width
     xInput.dispatchEvent(new Event('input'))
-    expect(box.x).toBe(1000)
-    expect(xInput.value).toBe('1024')
+    expect(box.x).toBe(500)
+    expect(xInput.value).toBe('512')
 
     xInput.value = '-100'
     xInput.dispatchEvent(new Event('input'))
     expect(box.x).toBe(0)
     expect(xInput.value).toBe('0')
+  })
+
+  it('geometry edits refresh prompt JSON and autosave without interrupting decimal input', async () => {
+    await initSettings()
+    document.body.insertAdjacentHTML('beforeend', '<button id="btn-copy-json"></button><div id="box_0" style="left:0px;top:0px;width:512px;height:512px"></div>')
+    state.boxes = [{ id: 'box_0', mode: 'obj', x: 0, y: 0, w: 500, h: 500, text: '', desc: 'Cat', colors: [] }]
+    state.selectedBoxId = 'box_0'
+    const { renderBoxes } = await import('../canvas-core.js')
+    const { initJsonBuilder } = await import('../json-builder.js')
+    const { initSession } = await import('../session.js')
+    on('box:geometry', renderBoxes)
+    initJsonBuilder()
+    initSession()
+    const input = document.getElementById('box-x')
+    input.focus()
+    input.value = '256.5'
+    input.dispatchEvent(new Event('input'))
+    expect(input.value).toBe('256.5')
+    expect(JSON.parse(document.getElementById('json-output').value).compositional_deconstruction.elements[0].bbox[1]).toBe(250)
+    await vi.waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('ideogram_session'))
+      expect(JSON.parse(saved.content).compositional_deconstruction.elements[0].bbox[1]).toBe(250)
+    })
   })
 })
 

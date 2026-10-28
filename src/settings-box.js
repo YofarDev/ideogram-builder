@@ -4,8 +4,13 @@
 
 import { state } from './state.js';
 import { on, emit } from './events.js';
+import { hasReferenceImage, localImageUrl } from './reference-image.js';
 
 export function initBoxForm() {
+  on('image:ready', ({ dataUrl, imageUrl }) => {
+    const group = document.getElementById('recaption-group');
+    if (group) group.style.display = state.selectedBoxId && (dataUrl || localImageUrl(imageUrl)) ? 'block' : 'none';
+  });
   ['box-mode', 'box-text', 'box-desc', 'box-tags'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => { updateBoxData(); emit('state:changed'); });
@@ -37,7 +42,7 @@ export function initBoxForm() {
       if (tagsInput) tagsInput.value = (box.tags ?? []).join(', ');
       document.getElementById('text-input-group').style.display = box.mode === 'text' ? 'block' : 'none';
       populateGeometry(box);
-      document.getElementById('recaption-group').style.display = state.imageDataUrl ? 'block' : 'none';
+      document.getElementById('recaption-group').style.display = hasReferenceImage() ? 'block' : 'none';
     } else {
       boxPanel.style.display = 'none';
     }
@@ -52,14 +57,17 @@ export function initBoxForm() {
       const raw = parseFloat(document.getElementById(id).value);
       if (isNaN(raw)) return;
       const cw = state.canvas.width, ch = state.canvas.height;
-      const max = (id === 'box-x' || id === 'box-w') ? cw : ch;
-      const v = Math.min(max, Math.max(0, raw));
+      const max = id === 'box-x' ? cw * (1 - box.w / 1000)
+        : id === 'box-y' ? ch * (1 - box.h / 1000)
+        : id === 'box-w' ? cw * (1 - box.x / 1000) : ch * (1 - box.y / 1000);
+      const v = Math.min(Math.max(0, max), Math.max(0, raw));
       if (v !== raw) document.getElementById(id).value = v;
       if (id === 'box-x') box.x = (v / cw) * 1000;
       else if (id === 'box-y') box.y = (v / ch) * 1000;
       else if (id === 'box-w') box.w = (v / cw) * 1000;
       else if (id === 'box-h') box.h = (v / ch) * 1000;
       emit('box:geometry', { id: box.id });
+      emit('state:changed');
     });
   });
 
@@ -67,7 +75,7 @@ export function initBoxForm() {
   on('state:changed', () => {
     if (!state.selectedBoxId) return;
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
-    if (box) populateGeometry(box);
+    if (box) populateGeometry(box, true);
   });
 
   // Re-render the element type toggle so a character box shows Object in
@@ -104,10 +112,10 @@ function updateBoxData() {
   if (label) label.textContent = box.text || box.desc || '';
 }
 
-function populateGeometry(box) {
+function populateGeometry(box, preserveFocus = false) {
   const cw = state.canvas.width, ch = state.canvas.height;
-  document.getElementById('box-x').value = Math.round((box.x / 1000) * cw);
-  document.getElementById('box-y').value = Math.round((box.y / 1000) * ch);
-  document.getElementById('box-w').value = Math.round((box.w / 1000) * cw);
-  document.getElementById('box-h').value = Math.round((box.h / 1000) * ch);
+  for (const [id, value] of [['box-x', box.x * cw], ['box-y', box.y * ch], ['box-w', box.w * cw], ['box-h', box.h * ch]]) {
+    const input = document.getElementById(id);
+    if (!preserveFocus || input !== document.activeElement) input.value = Math.round(value / 1000);
+  }
 }

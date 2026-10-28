@@ -19,6 +19,8 @@ const DOM_HTML = `
 `
 
 beforeEach(() => {
+  vi.restoreAllMocks()
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
   document.body.innerHTML = DOM_HTML
   localStorage.clear()
 })
@@ -108,7 +110,7 @@ describe('collections data layer', () => {
     expect(items[1].importJson).toBe(items[0].importJson)
   })
 
-  it('loadItemToEditor emits state:loaded with parsed json; errors on non-structured json', async () => {
+  it('loadItemToEditor routes Ideogram through shared model-aware apply; errors on non-structured json', async () => {
     const emit = vi.fn()
     const showToast = vi.fn()
     const mod = await loadCollections({ emit, showToast })
@@ -116,7 +118,7 @@ describe('collections data layer', () => {
     const c = mod.addItem(JSON.stringify({ high_level_description: 'hi', compositional_deconstruction: { elements: [] } }))
     emit.mockClear()
     mod.loadItemToEditor(c.items.at(-1).id)
-    expect(emit).toHaveBeenCalledWith('state:loaded', { json: expect.objectContaining({ high_level_description: 'hi' }) })
+    expect(emit).toHaveBeenCalledWith('prompt:apply', { raw: c.items.at(-1).importJson })
     emit.mockClear()
     const c2 = mod.addItem('not json', null, 'ideogram')
     emit.mockClear()
@@ -165,7 +167,7 @@ describe('per-model items (D2)', () => {
     const emit = vi.fn()
     const mod2 = await loadCollections({ emit })
     const restored = mod2.getActive()
-    expect(restored.items[0].model).toBeUndefined() // stored shape untouched
+    expect(restored.items[0].model).toBe('ideogram') // legacy format is normalized on read
     emit.mockClear()
     mod2.generateItem(restored.items[0].id)
     expect(emit).toHaveBeenCalledWith('queue:enqueue', expect.objectContaining({ model: 'ideogram' }))
@@ -201,5 +203,106 @@ describe('per-model items (D2)', () => {
     mod.duplicateItem(c.items[0].id)
     const items = mod.getActive().items
     expect(items[1].model).toBe('moss')
+  })
+})
+
+describe('collection workflow regressions', () => {
+  it('renders malformed layout metadata without losing the other collection prompts', async () => {
+    const mod = await loadCollections()
+    mod.createCollection('Recovered prompts')
+    const c = mod.addItem('{"compositional_deconstruction":{"elements":"broken"}}')
+    mod.addItem('{"compositional_deconstruction":{"elements":[null,{"desc":"Recovered","color_palette":false}]}}')
+    const data = await import('../collections-data.js')
+    const ui = await import('../collections-ui.js')
+    expect(() => ui.render()).not.toThrow()
+    expect(document.querySelectorAll('.coll-card')).toHaveLength(2)
+    data.setExpandedId(c.items[1].id)
+    expect(() => ui.render()).not.toThrow()
+    expect(document.querySelector('.coll-detail')).not.toBeNull()
+  })
+  it('switches to MOSS before applying a saved plain caption', async () => {
+    const emit = vi.fn()
+    const mod = await loadCollections({ emit })
+    mod.createCollection('Captions')
+    const c = mod.addItem('A fox in snow')
+    emit.mockClear()
+    mod.loadItemToEditor(c.items[0].id)
+    expect(emit.mock.calls.slice(0, 2)).toEqual([
+      ['model:set', { model: 'moss', seed: false }],
+      ['prompt:apply', { raw: 'A fox in snow' }],
+    ])
+  })
+
+  it('uses the structured prompt format when stored model metadata is stale', async () => {
+    const emit = vi.fn()
+    const mod = await loadCollections({ emit })
+    mod.createCollection('Mixed')
+    const c = mod.addItem('{"high_level_description":"Ideogram scene"}', null, 'moss')
+    mod.generateItem(c.items[0].id)
+    expect(emit).toHaveBeenCalledWith('queue:enqueue', { importJson: c.items[0].importJson, model: 'ideogram' })
+  })
+
+  it('persists variable input, renders quotes safely, and uses values for collapsed batch cards', async () => {
+    const emit = vi.fn()
+    const mod = await loadCollections({ emit })
+    mod.initCollections()
+    mod.createCollection('Variables')
+    const data = await import('../collections-data.js')
+    const c = mod.addItem('{"high_level_description":"A portrait of {{ subject }}"}')
+    const id = c.items[0].id
+    data.setExpandedId(id)
+    const ui = await import('../collections-ui.js')
+    ui.render()
+    const input = document.querySelector('.coll-token-input')
+    const text = '"quoted" $& and \\slashes'
+    input.value = text
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(JSON.parse(localStorage.getItem('ideogram_collections'))[0].items[0].tokenValues.subject).toBe(text)
+    ui.render()
+    expect(document.querySelector('.coll-token-input').value).toBe(text)
+    expect(document.querySelectorAll('.coll-token-input')).toHaveLength(1)
+    data.setExpandedId(null)
+    ui.render()
+    emit.mockClear()
+    mod.generateCollection()
+    const job = emit.mock.calls.find(call => call[0] === 'queue:enqueue')[1]
+    expect(JSON.parse(job.importJson).high_level_description).toBe(`A portrait of ${text}`)
+    data.setTokenValue(id, 'subject', text + '\nsecond line')
+    mod.generateItem(id)
+    const latest = emit.mock.calls.filter(call => call[0] === 'queue:enqueue').at(-1)[1]
+    expect(JSON.parse(latest.importJson).high_level_description).toBe(`A portrait of ${text}\nsecond line`)
+  })
+
+  it('does not queue a partial batch when a variable has not been filled', async () => {
+    const emit = vi.fn()
+    const showToast = vi.fn()
+    const mod = await loadCollections({ emit, showToast })
+    mod.createCollection('Variables')
+    mod.addItem('{"high_level_description":"Ready"}')
+    mod.addItem('{"high_level_description":"{{subject}}"}')
+    emit.mockClear()
+    mod.generateCollection()
+    expect(emit).not.toHaveBeenCalledWith('queue:enqueue', expect.anything())
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('subject'), 'error')
+  })
+
+  it('saves edited MOSS captions and refreshes model metadata when a prompt format changes', async () => {
+    const mod = await loadCollections()
+    mod.initCollections()
+    mod.createCollection('Editing')
+    const c = mod.addItem('Old caption')
+    const data = await import('../collections-data.js')
+    data.setExpandedId(c.items[0].id)
+    data.setEditingId(c.items[0].id)
+    const ui = await import('../collections-ui.js')
+    ui.render()
+    document.querySelector('.coll-edit-textarea').value = 'New caption'
+    document.querySelector('[data-act="save"]').click()
+    expect(c.items[0].importJson).toBe('New caption')
+    data.setEditingId(c.items[0].id)
+    ui.render()
+    document.querySelector('.coll-edit-textarea').value = '{"high_level_description":"Now Ideogram"}'
+    document.querySelector('[data-act="save"]').click()
+    expect(c.items[0].model).toBe('ideogram')
   })
 })

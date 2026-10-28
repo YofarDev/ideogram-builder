@@ -428,12 +428,14 @@
         }
 
         #canvas-wrapper.empty-state::after {
-            content: 'Draw bounding boxes by clicking and dragging';
+            content: 'Drag to draw a box';
             color: var(--text-dim);
             font-style: italic;
             font-size: 13px;
             pointer-events: none;
             letter-spacing: 0.01em;
+            white-space: nowrap;
+            transform: scale(calc(1 / var(--canvas-scale, 1)));
         }
 
         #canvas-overlay {
@@ -694,7 +696,7 @@
 
         .gallery-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr));
             gap: 12px;
         }
 
@@ -712,6 +714,52 @@
             transform: translateY(-2px);
         }
 
+        .gallery-card:focus-within { border-color: var(--accent); }
+        .gallery-card-open {
+            display: block;
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: var(--surface-2);
+            cursor: pointer;
+        }
+        .gallery-card-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+        .gallery-heading, .gallery-filters, .gallery-card-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .gallery-heading { justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+        .gallery-heading h1 { font: 400 28px var(--font-display); margin: 0; }
+        .gallery-heading p { margin: 4px 0 0; color: var(--text-label); }
+        .gallery-filters { gap: 10px; margin-bottom: 12px; }
+        .gallery-search { flex: 1; min-width: min(220px, 100%); }
+        .gallery-filters input { width: 100%; }
+        .gallery-filters input[type="search"] {
+            font: 400 13px var(--font-body);
+            padding: 9px 12px;
+            color: var(--text);
+            caret-color: var(--accent);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            appearance: none;
+        }
+        .gallery-filters input[type="search"]:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .gallery-filters input::placeholder { color: var(--text-label); }
+        .gallery-filters select { width: auto; min-width: 140px; }
+        .gallery-heading .btn, .gallery-filters .btn { color: var(--text-label); }
+        .gallery-filters input, .gallery-filters select, .gallery-heading .btn { min-height: 36px; }
+        .gallery-status { color: var(--text-label); min-height: 20px; margin: 0 0 14px; }
+        .gallery-status.has-error { color: var(--text); }
+        .gallery-more { display: block; margin: 20px auto; }
+        .gallery-more[hidden] { display: none; }
+        .gallery-card-meta { gap: 8px; justify-content: space-between; }
+        .workspace-tabs { display: flex; align-items: center; flex-wrap: wrap; }
+
         .gallery-card.vision-sourced {
             background: color-mix(in srgb, var(--surface), var(--accent) 6%);
         }
@@ -722,42 +770,44 @@
 
         .gallery-card img {
             width: 100%;
+            height: auto;
             aspect-ratio: 1;
             object-fit: cover;
             display: block;
         }
 
         .gallery-card-info {
-            padding: 8px 10px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             gap: 3px;
         }
 
         .gallery-card-date {
-            font-size: 10px;
-            color: var(--text-dim);
-            margin-bottom: 3px;
+            font-size: 11px;
+            color: var(--text-label);
         }
 
         /* Model chip on gallery cards (Ideogram / MOSS) */
         .gallery-card-model {
             display: inline-block;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            color: var(--text-muted);
+            color: var(--text-label);
             border: 1px solid var(--hairline-strong);
             border-radius: 999px;
             padding: 1px 7px;
-            margin-bottom: 4px;
+            flex: 0 0 auto;
         }
 
         .gallery-card-prompt {
-            font-size: 11px;
-            color: var(--text-muted);
-            line-height: 1.4;
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 3em;
+            margin: 6px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -776,7 +826,12 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            border-top: 1px solid var(--hairline);
+            padding-top: 8px;
         }
+
+        .gallery-card-actions .delete { margin-left: auto; }
+        .gallery-card-btn svg { display: block; }
 
         .gallery-card-badge {
             font-size: 9px;
@@ -797,11 +852,12 @@
         .gallery-card-btn {
             background: none;
             border: none;
-            color: var(--text-dim);
+            color: var(--text-label);
             cursor: pointer;
             font-size: 13px;
-            padding: 6px 8px;
-            min-height: 24px;
+            padding: 8px;
+            min-height: 32px;
+            min-width: 32px;
             line-height: 1;
             transition: color 0.15s;
         }
@@ -824,6 +880,7 @@
             flex: 1;
             min-height: 0;
             overflow-y: auto;
+            scroll-padding-block: 12px 64px;
         }
 
         .coll-top {
@@ -861,6 +918,10 @@
             transition: color .15s, background .15s, border-color .15s;
         }
         .coll-chip:hover { color: var(--text); border-color: var(--hairline-hover); }
+        .coll-chip:focus-visible, .coll-card-chevron:focus-visible, .coll-rename-trigger:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
         .coll-chip.active {
             color: var(--on-accent);
             background: var(--accent);
@@ -879,6 +940,13 @@
         }
 
         .coll-head-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+        .coll-head-actions .coll-file-btn { width: auto; gap: 6px; padding: 0 10px; font: 14px var(--font-body); color: var(--text-dim); }
+        .coll-icon-btn svg { width: 16px; height: 16px; }
+        .coll-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        @media (max-width: 600px) {
+            .coll-top { flex-wrap: wrap; }
+            .coll-chips { flex-basis: 100%; }
+        }
         .coll-icon-btn {
             width: 30px; height: 30px;
             display: inline-flex; align-items: center; justify-content: center;
@@ -903,7 +971,11 @@
             color: var(--text);
             cursor: text;
             letter-spacing: .2px;
+            overflow-wrap: anywhere;
         }
+        .coll-rename-trigger { max-width: 100%; padding: 0; font: inherit; color: inherit; background: none; border: none; text-align: start; white-space: normal; overflow-wrap: anywhere; cursor: text; border-radius: var(--radius-sm); }
+        .coll-rename-trigger:disabled { cursor: default; }
+        .coll-header[hidden], .coll-title[hidden], .coll-title-input[hidden] { display: none; }
         .coll-title-input {
             width: 100%;
             font-family: var(--font-display);
@@ -1019,7 +1091,7 @@
         .coll-card-chevron {
             position: absolute;
             top: 6px; right: 6px;
-            width: 22px; height: 22px;
+            width: 28px; height: 28px;
             display: inline-flex; align-items: center; justify-content: center;
             font-size: 11px;
             color: var(--text);
@@ -1027,8 +1099,10 @@
             border: 1px solid var(--border);
             border-radius: 999px;
             cursor: pointer;
-            backdrop-filter: blur(4px);
         }
+        .coll-card-chevron svg { width: 16px; height: 16px; }
+        .coll-draft-flag { display: inline-block; margin-top: 6px; color: var(--accent); font-size: 12px; }
+        .coll-draft-flag[hidden], .coll-edit-error[hidden] { display: none; }
 
         .coll-card-body { padding: 9px 10px 11px; }
         .coll-card-title {
@@ -1079,8 +1153,11 @@
         @media (max-width: 640px) {
             .coll-detail { grid-template-columns: 1fr; }
             .coll-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-            .coll-card.expanded { grid-template-columns: 1fr; grid-template-areas: "preview" "body" "detail"; }
-            .coll-card.expanded .coll-preview { width: 100%; height: auto; aspect-ratio: 1 / 1; border-right: none; border-bottom: 1px solid var(--border); }
+            .coll-card.expanded { grid-template-columns: 96px minmax(0, 1fr); grid-template-areas: "preview body" "detail detail"; }
+            .coll-card.expanded .coll-preview { width: 96px; height: 96px; aspect-ratio: 1 / 1; border-right: none; }
+            .coll-card.expanded .coll-card-body { padding: 12px; }
+            .coll-token-field .coll-token-input, .coll-paste textarea, .coll-edit .coll-edit-textarea { font-size: 16px; }
+            .coll-edit .coll-edit-textarea { min-height: 240px; }
         }
         .coll-detail-side { min-width: 0; }
         .coll-detail-hld {
@@ -1153,6 +1230,8 @@
 
         .coll-edit { display: block; }
         .coll-edit-main { display: flex; flex-direction: column; gap: 10px; }
+        .coll-edit-hint, .coll-edit-status { color: var(--text-dim); font-size: 14px; line-height: 1.5; margin: 0; }
+        .coll-edit-error { color: color-mix(in oklch, var(--danger), var(--text) 35%); font-size: 14px; line-height: 1.5; margin: 0; }
         .coll-edit-textarea {
             width: 100%;
             min-height: 360px;
@@ -1335,6 +1414,20 @@
             color: var(--text-dim);
             font-style: italic;
         }
+
+        .prompt-draft-notice {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            color: var(--text-label);
+            border-top: 1px solid var(--hairline);
+            font-size: 12px;
+        }
+        .prompt-draft-notice[hidden] { display: none; }
+        .prompt-draft-notice p { flex: 1; min-width: 130px; margin: 0; }
+        .prompt-draft-notice .btn { color: var(--text-label); }
 
         /* Generate section */
         .generate-section {
@@ -2237,8 +2330,30 @@
         }
 
         .layer-row.hidden-layer {
-            opacity: 0.4;
+            opacity: 1;
         }
+        .layer-row.hidden-layer .layer-thumb { opacity: 0.4; }
+        .layer-select {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            min-height: 36px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+            background: none;
+            color: var(--text);
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+        .layer-select:focus-visible, .layer-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .layers-help { margin: 0; padding: 4px 14px 10px; color: var(--text-label); font-size: 11px; }
 
         .layer-row.dragging {
             opacity: 0.35;
@@ -2311,7 +2426,7 @@
 
         .layer-name {
             font-size: 12px;
-            color: var(--text-muted);
+            color: var(--text-label);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2342,16 +2457,19 @@
             border: none;
             cursor: pointer;
             font-size: 13px;
-            padding: 6px 8px;
-            min-height: 24px;
+            padding: 8px;
+            min-height: 32px;
+            min-width: 32px;
             border-radius: 3px;
             line-height: 1;
             transition: background 0.15s, opacity 0.15s;
-            opacity: 0.4;
+            color: var(--text-label);
+            opacity: 1;
         }
+        .layer-btn svg { display: block; }
 
         .layer-row:hover .layer-btn {
-            opacity: 0.7;
+            color: var(--text);
         }
 
         .layer-btn:hover {
@@ -2360,11 +2478,11 @@
         }
 
         .layer-btn.off {
-            opacity: 0.25;
+            opacity: 1;
         }
 
         .layer-lock.on {
-            opacity: 0.8;
+            color: var(--accent);
         }
 
         .main-content.gallery-active .left-sidebar,
@@ -3019,7 +3137,7 @@
             position: absolute;
             top: calc(100% + 8px);
             right: 0;
-            width: 320px;
+            width: min(360px, calc(100vw - 32px));
             max-height: min(60vh, 520px);
             overflow-y: auto;
             display: flex;
@@ -3036,8 +3154,7 @@
         .queue-panel:empty::before {
             content: 'Queue is empty';
             color: var(--text-dim);
-            font-style: italic;
-            font-size: 12px;
+            font-size: 14px;
             padding: 14px 8px;
             text-align: center;
         }
@@ -3062,29 +3179,38 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 5px 8px;
+            padding: 10px 8px;
             border: 1px solid var(--hairline-strong);
             border-radius: var(--radius-sm);
             background: var(--surface);
-            font-size: 12px;
-            color: var(--text-muted);
-            white-space: nowrap;
+            font-size: 14px;
+            color: var(--text-dim);
+            min-width: 0;
             transition: border-color 0.2s, opacity 0.2s;
         }
         .queue-card.queue-running {
             border-color: var(--accent);
             color: var(--text);
         }
-        .queue-card.queue-done { opacity: 0.6; }
         .queue-card.queue-failed {
             border-color: var(--danger);
-            color: var(--danger);
         }
+        .queue-card.queue-failed .queue-marker { color: var(--danger); }
         .queue-thumb {
             width: 28px; height: 28px; object-fit: cover;
             border-radius: 3px;
             border: 1px solid var(--hairline-strong);
         }
+        .queue-visual { width: 28px; flex: 0 0 28px; display: flex; justify-content: center; align-self: flex-start; margin-top: 3px; }
+        .queue-marker { width: 22px; height: 22px; }
+        .queue-details { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+        .queue-status { font-weight: 600; color: var(--text); }
+        .queue-recipe, .queue-seed { overflow-wrap: anywhere; }
+        .queue-error { margin: 4px 0 0; color: color-mix(in oklch, var(--danger), var(--text) 35%); overflow-wrap: anywhere; line-height: 1.5; }
+        .queue-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; align-self: flex-start; }
+        .queue-retry { background: var(--surface); border: 1px solid var(--hairline-strong); border-radius: var(--radius-sm); color: var(--text); font: inherit; cursor: pointer; min-height: 32px; padding: 4px 8px; }
+        .queue-retry:hover { border-color: var(--accent); color: var(--accent); }
+        .queue-panel [hidden] { display: none; }
         .queue-spinner {
             width: 14px; height: 14px; border-radius: 50%;
             border: 2px solid var(--hairline-strong);
@@ -3094,20 +3220,23 @@
             flex-shrink: 0;
         }
         @keyframes queue-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .queue-spinner { animation: none; } }
         .queue-seed { color: var(--text-dim); }
         .queue-card.queue-running .queue-status { color: var(--accent); }
-        .queue-card.queue-failed .queue-status { color: var(--danger); }
+        .queue-card.queue-failed .queue-status { color: color-mix(in oklch, var(--danger), var(--text) 35%); }
         .queue-remove {
             background: none; border: none;
             color: var(--text-dim);
             cursor: pointer;
-            font-size: 16px; line-height: 1; padding: 0 2px;
-            min-height: 24px;
+            line-height: 1; padding: 6px;
+            min-height: 32px; min-width: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
             border-radius: 3px;
             transition: color 0.15s;
         }
+        .queue-remove svg { width: 16px; height: 16px; }
         .queue-remove:hover { color: var(--danger); }
-        .queue-remove:focus-visible {
+        .queue-remove:focus-visible, .queue-retry:focus-visible {
             outline: 2px solid var(--accent);
             outline-offset: 1px;
         }
@@ -3290,10 +3419,12 @@
 
     <header class="toolbar">
         <div class="toolbar-brand">Ideogram <em>Builder</em></div>
+        <nav class="workspace-tabs" role="tablist" aria-label="Workspace">
         <button class="tab-btn active" data-tab="editor" role="tab" aria-selected="true" aria-controls="tab-editor" id="tab-btn-editor">Editor</button>
         <button class="tab-btn" data-tab="prompt" data-tab-group="assist" role="tab" aria-selected="false" id="tab-btn-assist" title="AI tools: text → JSON, image → JSON, JSON → caption">Assist</button>
         <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" aria-controls="tab-collections" id="tab-btn-collections">Collections</button>
         <button class="tab-btn" data-tab="gallery" role="tab" aria-selected="false" aria-controls="tab-gallery" id="tab-btn-gallery">Gallery</button>
+        </nav>
         <button id="btn-open-output" class="icon-btn toolbar-icon-btn" type="button" title="Open the folder where generated images are saved" aria-label="Open output folder"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
         <div class="toolbar-spacer"></div>
         <div class="model-toggle pill-group" id="model-toggle" role="radiogroup" aria-label="Image model">
@@ -3529,7 +3660,7 @@
                 </div>
 
                 <div class="canvas-container">
-                    <div id="canvas-wrapper" role="img" aria-label="Bounding box editor canvas. Draw boxes by click-dragging; edit their properties in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
+                    <div id="canvas-wrapper" role="img" tabindex="-1" aria-label="Bounding box editor canvas. Drag to draw; Escape cancels. Edit boxes in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
                     <div id="caption-mode-banner" class="moss-only">Caption mode — boxes are ignored</div>
                 </div>
             </div>
@@ -3629,8 +3760,19 @@
 
             <div class="tab-content" id="tab-gallery" role="tabpanel" aria-labelledby="tab-btn-gallery">
                 <div id="gallery-container">
-                    <div class="gallery-empty" id="gallery-empty">No generations yet. Generate your first image!</div>
-                    <div class="gallery-grid" id="gallery-grid"></div>
+                    <div class="gallery-heading">
+                        <div><h1>Gallery</h1><p>Find an image. Pick up where you left off.</p></div>
+                        <button class="btn btn-secondary" id="gallery-refresh" type="button">Refresh</button>
+                    </div>
+                    <div class="gallery-filters">
+                        <label class="gallery-search"><span class="sr-only">Search gallery</span><input id="gallery-search" type="search" placeholder="Search prompts or filenames…" autocomplete="off" aria-controls="gallery-grid"></label>
+                        <label><span class="sr-only">Filter by image model</span><select id="gallery-model-filter" aria-controls="gallery-grid"><option value="all">All models</option><option value="ideogram">Ideogram 4</option><option value="moss">MOSS</option></select></label>
+                        <button class="btn btn-secondary" id="gallery-clear-filters" type="button" hidden>Clear filters</button>
+                    </div>
+                    <p class="gallery-status" id="gallery-status" role="status" aria-live="polite" aria-atomic="true"></p>
+                    <div class="gallery-empty" id="gallery-empty" hidden>No images yet. Generate an image in the editor to start your gallery.</div>
+                    <div class="gallery-grid" id="gallery-grid" aria-label="Saved images" aria-busy="false"></div>
+                    <button class="btn btn-secondary gallery-more" id="gallery-show-more" type="button" hidden>Show more images</button>
                 </div>
             </div>
 
@@ -3640,14 +3782,15 @@
                         <div class="coll-chips" id="collection-chips" role="tablist" aria-label="Collections"></div>
                         <div class="coll-head-actions">
                             <input type="file" id="collection-import-input" accept=".json,application/json" hidden>
-                            <button id="btn-collection-import" class="coll-icon-btn" title="Import collection" aria-label="Import collection">&#8593;&#8657;</button>
-                            <button id="btn-collection-export" class="coll-icon-btn" title="Export collection" aria-label="Export collection">&#8595;&#8651;</button>
-                            <button id="btn-collection-delete" class="coll-icon-btn danger" title="Delete collection" aria-label="Delete collection">&times;</button>
+                            <button id="btn-collection-import" type="button" class="coll-icon-btn coll-file-btn" title="Import collection" aria-label="Import collection"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4 4 4 4-4M5 16v4h14v-4"/></svg>Import</button>
+                            <button id="btn-collection-export" type="button" class="coll-icon-btn coll-file-btn" title="Export collection" aria-label="Export collection"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m-4 4 4-4 4 4M5 16v4h14v-4"/></svg>Export</button>
+                            <button id="btn-collection-delete" type="button" class="coll-icon-btn danger" title="Delete collection" aria-label="Delete collection"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg></button>
                         </div>
                     </div>
+                    <div id="collection-panel" role="tabpanel" aria-label="Collection prompts">
                     <header class="coll-header">
-                        <h2 class="coll-title" id="collection-title" title="Click to rename">No collection</h2>
-                        <input id="collection-title-edit" class="coll-title-input" maxlength="60" hidden>
+                        <h2 class="coll-title" id="collection-title"><button class="coll-rename-trigger" type="button" title="Rename collection" disabled>No collection</button></h2>
+                        <input id="collection-title-edit" class="coll-title-input" aria-label="Collection name" maxlength="60" hidden>
                         <div class="coll-meta" id="collection-meta">0 prompts</div>
                     </header>
                     <div class="coll-paste">
@@ -3658,6 +3801,7 @@
                     <div class="coll-grid" id="collection-grid"></div>
                     <div class="coll-footer">
                         <button id="btn-collection-generate" class="btn btn-primary btn-block">Generate Collection</button>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -3761,7 +3905,8 @@
                     <span class="layer-count" id="layer-count" aria-label="Layer count">0</span>
                     <button id="btn-add-layer" type="button" class="icon-btn" style="margin-left:auto;padding:4px 10px;" aria-label="Add new layer" title="Add new layer">+</button>
                 </div>
-                <div id="layers-list" class="layers-list"></div>
+                <div id="layers-list" class="layers-list" role="list" aria-label="Layers" aria-describedby="layers-help"></div>
+                <p class="layers-help" id="layers-help">↑↓ select · Alt+↑↓ reorder</p>
             </div>
 
             <div class="panel collapsible" id="box-panel" style="display: none;">
@@ -3843,6 +3988,10 @@
                 </div>
                 <label class="sr-only" for="json-output">Prompt JSON output</label>
                 <textarea id="json-output" placeholder="Prompt JSON will appear here after drawing boxes and filling settings..."></textarea>
+                <div class="prompt-draft-notice" id="prompt-draft-notice" hidden>
+                    <p role="status">Draft not applied to the editor.<br>Cmd/Ctrl+Enter applies.</p>
+                    <button class="btn btn-secondary" id="btn-use-editor-prompt" type="button">Use editor prompt</button>
+                </div>
             </div>
         </div>
 

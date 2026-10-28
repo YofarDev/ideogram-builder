@@ -3,6 +3,12 @@ import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 
 export function initPalette() {
+  renderColors('global');
+  on('workspace:restore', ({ palette }) => {
+    state.globalPalette = palette;
+    renderColors('global');
+    renderColors('box');
+  });
   on('box:selected', () => renderColors('box'));
 
   on('state:loaded', ({ json }) => {

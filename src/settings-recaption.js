@@ -4,6 +4,7 @@
 import { state } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
+import { hasReferenceImage, readReferenceImage } from './reference-image.js';
 
 export function initRecaption(parentFn) {
   const recaptionGroup = document.getElementById('recaption-group');
@@ -34,9 +35,15 @@ export function initRecaption(parentFn) {
     .catch(() => {});
 
   document.getElementById('btn-recaption')?.addEventListener('click', async () => {
-    if (!state.selectedBoxId || !state.imageDataUrl) return;
+    if (!state.selectedBoxId || !hasReferenceImage()) return;
     const box = state.boxes.find(b => b.id === state.selectedBoxId);
     if (!box) return;
+    const revision = state.imageRevision;
+    const geometry = JSON.stringify([box.x, box.y, box.w, box.h]);
+    const originalDesc = box.desc, originalText = box.text;
+    const unchanged = () => revision === state.imageRevision && state.boxes.includes(box)
+      && geometry === JSON.stringify([box.x, box.y, box.w, box.h])
+      && box.desc === originalDesc && box.text === originalText;
 
     const btn = document.getElementById('btn-recaption');
     const origText = btn.textContent;
@@ -54,11 +61,14 @@ export function initRecaption(parentFn) {
         return;
       }
 
+      const image = await readReferenceImage();
+      if (!unchanged()) throw new Error('Image or box changed. Try recaptioning again.');
+
       const resp = await fetch('/api/recaption-element', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: state.imageDataUrl,
+          image,
           bbox,
           elementIndex: state.boxes.indexOf(box),
           existingJson,
@@ -73,11 +83,16 @@ export function initRecaption(parentFn) {
       }
 
       const data = await resp.json();
+      if (!unchanged()) throw new Error('Image or box changed. The recaption was not applied.');
+      if (typeof data.desc !== 'string') throw new Error('The vision model returned no description. Try again.');
       box.desc = data.desc;
       if (data.has_text) {
-        box.text = data.visible_text || box.text;
+        box.text = typeof data.visible_text === 'string' ? data.visible_text : box.text;
       }
-      document.getElementById('box-desc').value = box.desc;
+      if (state.selectedBoxId === box.id) {
+        document.getElementById('box-desc').value = box.desc;
+        if (data.has_text) document.getElementById('box-text').value = box.text;
+      }
       emit('box:desc', { id: box.id });
       emit('state:changed');
       showToast('Element recaptioned', 'success');

@@ -29,8 +29,10 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `state.js` | All mutable state (boxes + tags, palette, canvas dims, mode, `model`, `moss` promptMode/preset) + `syncBoxesFromDOM()` | nothing |
 | `events.js` | Pub/sub event bus | nothing |
 | `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events, image overlay | state, events |
+| `canvas-pointer.js` | Bounded pointer gestures, cancellation, capture and commit lifecycle | state, events, canvas-core, toast |
 | `palette.js` | Color swatch DOM, add/remove colors | state, events |
 | `json-builder.js` | JSON pane dispatcher: format-detecting apply (Ideogram/MOSS/draft/caption + auto model switch), Ideogram output, format chip | state, events, toast, prompt-convert, json-builder-moss |
+| `prompt-draft.js` | Preserve manual JSON-pane drafts separately from the generated editor prompt; draft indicator, revert and session capture | events |
 | `json-builder-moss.js` | MOSS layout/caption output + MOSS apply path (split of json-builder) | state, events, toast, prompt-moss |
 | `json-convert.js` | `#btn-convert-json` (⇄ in the JSON header): converts the pane's prompt Ideogram ↔ MOSS and applies it via `prompt:apply` (overwrites the target model's fields) | state, events, toast, prompt-convert |
 | `model.js` | Workspace switch (`#model-toggle`, Ideogram/MOSS), `model:set`/`model:changed` events, persistence | state, events |
@@ -45,17 +47,30 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `lora-add.js` | "+ Add" LoRA form: URL or file upload (XHR progress) → `lora:added` | state, events, toast |
 | `gallery-meta.js` | Gallery card meta restore (model-first, MOSS preset/negative/prompt-mode) | state, events, lora |
 | `session-moss.js` | MOSS session capture/restore (model, moss inputs, prompt mode, preset) | state, events |
-| `collections-io.js` | Collection file export/import (model-aware) | events, toast, collections-data |
+| `session-workspace.js` | Session canvas dimensions, boxes, palette and layer selection independent of prompt format | state, events |
+| `reference-image.js` | Local image-reference validation and lazy image loading for recaptioning | state |
+| `collections-io.js` | Collection file export/import with complete validation and variable/reference round trips | toast, collections-data, collections-records |
+| `collections-records.js` | Collection record validation, legacy normalization, prompt summaries and model detection | prompt-convert |
+| `collections-detail.js` | Accessible collection detail, variable and prompt-edit form templates | collections-data, collections-drafts, escape-html |
+| `collections-drafts.js` | In-memory prompt drafts tied to live collection items; saved recipes stay unchanged until Save | nothing |
+| `collections-edit.js` | Prompt validation/save/cancel and collection rename lifecycle | collections-data, collections-drafts, events, toast |
+| `collections-interactions.js` | Collection tab keys, disclosure/action focus, input bindings and prompt-edit shortcuts | collections-data, collections-drafts, events |
 | `ai-enhancer-moss.js` | MOSS prompts for the AI enhancer (layout draft / caption) + result validation | events, prompt-moss |
 | `vision-moss.js` | Vision result → `moss` payload conversion (ideogramGlobalsToMoss) | prompt-convert |
 | `modal.js` | Modal serverless API calls: `runJob(snapshot)` submit + poll (mirrors runpod.js) | nothing |
 | `backend.js` | Dispatcher — routes `runJob(snapshot)` to RunPod or Modal per `localStorage.ideogram_backend` | runpod, modal |
-| `queue.js` | Generation queue — snapshot, enqueue, sequential worker, panel DOM | state, events, backend, toast |
+| `queue.js` | Generation queue — enqueue, sequential worker, cancel and retry | state, events, backend, toast, queue-panel, queue-snapshot |
+| `queue-panel.js` | Persistent queue rows, visible failure recovery, keyboard focus through progress and removal | DOM only |
+| `queue-snapshot.js` | Capture immutable prompt/settings recipes and server-resolved generation metadata | state, DOM |
 | `png-import.js` | PNG metadata parsing, drag-drop; per-node prompt detection (Ideogram/MOSS) → `prompt:apply` | state, events, toast, prompt-convert |
 | `ai-enhancer.js` | Multi-provider LLM prompt enhancement (deepseek, google, openrouter, mimo); MOSS mode delegates to ai-enhancer-moss | state, events, ai-enhancer-moss |
-| `gallery.js` | Tab switching (incl. the Assist group → prompt/vision/json2caption sub-tabs), history grid, model chips, MOSS load routing | events, state, prompt-convert, gallery-meta |
+| `gallery.js` | On-demand history loading, search/model filters, paging, image save/delete and editor loading | events, state, gallery-cards, gallery-meta, tabs |
+| `gallery-cards.js` | Safe gallery card DOM, searchable descriptions and thumbnail/original-image links | prompt-convert |
+| `tabs.js` | Workspace/Assist tab selection, ARIA state, roving focus and keyboard navigation | events |
 | `settings.js` | Mode toggle, aspect ratio (persisted), box form fields, toolbar generation params (seed, engine, turbo strength, backend) | state, events |
 | `layers.js` | Layer panel UI — list, reorder, visibility, lock | state, events, canvas (selectBox) |
+| `layer-row.js` | Persistent layer controls, keyboard selection/reordering, drag-and-drop | state, events, layer-thumbnail |
+| `layer-thumbnail.js` | Bounded image crops cached per live layer row | DOM only |
 | `lora.js` | LoRA toolbar popover (`#btn-lora` → `#lora-panel`): active stack + strength, searchable per-model library, user-entry delete, restore | state, events, toast, lora-library, lora-cards, lora-panel |
 | `collections.js` | Collections actions: per-model items, batch generate with each item's model, load-to-editor | events, state, toast, collections-data, collections-ui, collections-io |
 | `app.js` | Button wiring, init orchestration | all modules |
@@ -66,6 +81,14 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | Event | Payload | Emitted by | Consumed by |
 |-------|---------|-----------|-------------|
 | `box:selected` | `{ id }` or `null` | canvas | settings (form), palette (colors) |
+| `workspace:restore` | `{ boxes, palette, selectedIndex }` — validated session editing details | session-workspace | canvas, palette |
+| `preview:changed` | `{ enabled }` | canvas-core | session |
+| `loras:changed` | none — persist the active adapter stack and strengths | lora | session |
+| `prompt:draft-changed` | none — persist manual prompt edits | prompt-draft | session |
+| `prompt:draft-restore` | `{ text }` — restore raw draft after editor state | session | json-builder |
+| `prompt:prepare` | mutable `{ ok }` — apply an editor draft before the generation snapshot | queue | json-builder |
+| `image:saved` | `{ imageUrl, dataUrl }` — match an on-disk output to the current reference | gallery | canvas, session |
+| `overlay:changed` | none — persist reference opacity | canvas | session |
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |
 | `canvas:rebuild` | none | png-import | canvas (calls initCanvas) |
 | `canvas:relayout` | none | app | canvas (calls resizeCanvas) |

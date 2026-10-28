@@ -9,54 +9,61 @@ export function initImport() {
   document.addEventListener('dragover', (e) => e.preventDefault());
   document.addEventListener('drop', (e) => {
     e.preventDefault();
-    if (e.dataTransfer.files.length > 0) {
+    if (e.dataTransfer?.files?.length > 0) {
       importImage(e.dataTransfer.files[0]);
     }
   });
 }
 
-async function importImage(file) {
+let importSequence = 0;
+
+function readImageData(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Image could not be read. Try another file.'));
+    reader.onabort = () => reject(new Error('Image import was interrupted. Try again.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function importImage(file) {
   if (!file.type.startsWith('image')) {
     showToast('Only image files can be imported.', 'error');
     return;
   }
-
-  const img = new Image();
-  img.onload = function () {
-    state.canvas.width = this.width;
-    state.canvas.height = this.height;
-    document.getElementById('dim-display').textContent = `${this.width} × ${this.height}`;
-    const arSelect = document.getElementById('aspect-ratio');
-    const val = `${this.width}x${this.height}`;
-    if (Array.from(arSelect.options).some(o => o.value === val)) {
-      arSelect.value = val;
-    }
-
+  const sequence = ++importSequence;
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    const decoded = new Promise((resolve, reject) => {
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Image could not be opened. Try a PNG, JPEG, or WebP file.'));
+      image.src = url;
+    });
+    const metadata = file.type === 'image/png'
+      ? file.arrayBuffer().then(extractComfyUIMetadata).catch(() => null) : Promise.resolve(null);
+    const [loaded, dataUrl, found] = await Promise.all([decoded, readImageData(file), metadata]);
+    if (sequence !== importSequence) return;
+    state.canvas.width = loaded.naturalWidth || loaded.width;
+    state.canvas.height = loaded.naturalHeight || loaded.height;
+    document.getElementById('dim-display').textContent = `${state.canvas.width} × ${state.canvas.height}`;
+    const aspect = document.getElementById('aspect-ratio');
+    const value = `${state.canvas.width}x${state.canvas.height}`;
+    if ([...aspect.options].some(option => option.value === value)) aspect.value = value;
     emit('canvas:rebuild');
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      emit('image:ready', { imageUrl: img.src, dataUrl: reader.result });
-    };
-    reader.readAsDataURL(file);
-
-    if (file.type === 'image/png') {
-      file.arrayBuffer().then((buff) => {
-        const found = extractComfyUIMetadata(buff);
-        if (!found) return;
-        if (found.ideogram) {
-          document.getElementById('json-output').value = JSON.stringify(found.ideogram, null, 2);
-          emit('state:loaded', { json: found.ideogram });
-        } else {
-          // MOSS layout (any node's inputs.text) — shared apply path switches
-          // the model and rebuilds boxes from the parsed layout
-          emit('prompt:apply', { raw: found.moss });
-        }
-        showToast('PNG metadata extracted.', 'success');
-      }).catch(() => { /* non-critical */ });
+    if (found) {
+      const raw = found.ideogram ? JSON.stringify(found.ideogram, null, 2) : found.moss;
+      document.getElementById('json-output').value = raw;
+      emit('prompt:apply', { raw, quiet: true });
+      showToast('PNG metadata extracted.', 'success');
     }
-  };
-  img.src = URL.createObjectURL(file);
+    emit('image:ready', { imageUrl: dataUrl, dataUrl, importJson: found ? document.getElementById('json-output').value : '' });
+  } catch (error) {
+    if (sequence === importSequence) showToast(error.message, 'error');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 function extractComfyUIMetadata(arrayBuffer) {

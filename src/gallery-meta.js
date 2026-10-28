@@ -66,7 +66,7 @@ export function restoreMeta(meta) {
         const modeRadio = document.getElementById(meta.photoArtMode === 1 ? 'mode_artstyle' : 'mode_photo');
         if (modeRadio) modeRadio.checked = true;
     }
-    if (meta.loras && meta.loras.length > 0) {
+    if (Array.isArray(meta.loras)) {
         restoreLorasFromMeta(meta.loras);
     }
 }

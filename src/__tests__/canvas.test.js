@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { state } from '../state.js'
-import { emit, resetAllListeners } from '../events.js'
+import { emit, on, resetAllListeners } from '../events.js'
 
 vi.mock('../toast.js', () => ({ showToast: vi.fn() }))
 
 const DOM_HTML = `
-  <div id="tab-editor" style="width:1200px;height:900px">
+  <div id="tab-editor" class="active" style="width:1200px;height:900px">
     <div id="editor-toolbar"></div>
     <div class="main-content">
       <div class="canvas-container">
@@ -29,6 +29,7 @@ beforeEach(async () => {
   state.selectedBoxId = null
   state.boxCounter = 0
   state.globalPalette = []
+  state.ui.previewMode = false
   state.canvas = { width: 1024, height: 1024, scale: 1, maxDisplayHeight: 800 }
   delete state.imageDataUrl
   resetAllListeners()
@@ -37,7 +38,100 @@ beforeEach(async () => {
   canvasModule.initCanvasEvents()
 })
 
+afterEach(() => window.dispatchEvent(new Event('blur')))
+
+function pointer(target, type, values = {}) {
+  const event = new MouseEvent(type, { bubbles: true, clientX: 100, clientY: 100, ...values })
+  if (values.pointerId != null) Object.defineProperty(event, 'pointerId', { value: values.pointerId })
+  target.dispatchEvent(event)
+}
+
 describe('canvas', () => {
+  it('ignores right clicks and preview-mode gestures', () => {
+    const canvas = document.getElementById('canvas-wrapper')
+    pointer(canvas, 'pointerdown', { button: 2 })
+    expect(state.boxes).toHaveLength(0)
+    canvasModule.setPreviewMode(true)
+    pointer(canvas, 'pointerdown')
+    expect(state.boxes).toHaveLength(0)
+  })
+
+  it('continues drawing outside the canvas and clamps the result to its edges', () => {
+    pointer(document.getElementById('canvas-wrapper'), 'pointerdown')
+    pointer(window, 'pointermove', { clientX: 2000, clientY: 2000 })
+    pointer(window, 'pointerup')
+    const box = state.boxes[0]
+    expect(box.x + box.w).toBeCloseTo(1000)
+    expect(box.y + box.h).toBeCloseTo(1000)
+  })
+
+  it('Escape removes an unfinished box and releases the gesture', () => {
+    const canvas = document.getElementById('canvas-wrapper')
+    pointer(canvas, 'pointerdown')
+    pointer(window, 'pointermove', { clientX: 200, clientY: 200 })
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(state.boxes).toHaveLength(0)
+    expect(canvas.querySelector('.bounding-box')).toBeNull()
+    pointer(canvas, 'pointerdown')
+    pointer(window, 'pointermove', { clientX: 300, clientY: 300 })
+    pointer(window, 'pointerup')
+    expect(state.boxes).toHaveLength(1)
+  })
+
+  it('pointercancel restores a dragged box without changing the prompt', () => {
+    emit('box:create')
+    const changed = vi.fn()
+    on('state:changed', changed)
+    const box = state.boxes[0]
+    pointer(document.getElementById(box.id), 'pointerdown', { clientX: 500, clientY: 500 })
+    pointer(window, 'pointermove', { clientX: 700, clientY: 700 })
+    pointer(window, 'pointercancel')
+    expect(box.x).toBe(375)
+    expect(document.getElementById(box.id).style.left).toBe('384px')
+    expect(changed).not.toHaveBeenCalled()
+  })
+
+  it('ignores another pointer while a gesture is in progress', () => {
+    pointer(document.getElementById('canvas-wrapper'), 'pointerdown', { pointerId: 1 })
+    pointer(window, 'pointermove', { clientX: 400, clientY: 400, pointerId: 2 })
+    pointer(window, 'pointerup', { pointerId: 2 })
+    expect(state.boxes[0].w).toBe(0)
+    pointer(window, 'pointermove', { clientX: 200, clientY: 200, pointerId: 1 })
+    pointer(window, 'pointerup', { pointerId: 1 })
+    expect(state.boxes[0].w).toBeCloseTo(100 / 1024 * 1000)
+  })
+
+  it('selecting a locked box or clicking a box without moving leaves pasted JSON untouched', () => {
+    emit('box:create')
+    const changed = vi.fn()
+    on('state:changed', changed)
+    const box = state.boxes[0]
+    pointer(document.getElementById(box.id), 'pointerdown')
+    pointer(window, 'pointerup')
+    box.locked = true
+    pointer(document.getElementById(box.id), 'pointerdown')
+    pointer(window, 'pointerup')
+    expect(changed).not.toHaveBeenCalled()
+  })
+
+  it('keeps the entire box within the right and bottom edges while dragging', () => {
+    emit('box:create')
+    const box = state.boxes[0]
+    pointer(document.getElementById(box.id), 'pointerdown', { clientX: 500, clientY: 500 })
+    pointer(window, 'pointermove', { clientX: 2000, clientY: 2000 })
+    pointer(window, 'pointerup')
+    expect(box.x + box.w).toBe(1000)
+    expect(box.y + box.h).toBe(1000)
+  })
+
+  it('clears stale recaption data on reset and when loading another image', () => {
+    emit('image:ready', { imageUrl: '/first.png', dataUrl: 'data:first' })
+    canvasModule.initCanvas()
+    expect(state.imageDataUrl).toBeNull()
+    emit('image:ready', { imageUrl: '/first.png', dataUrl: 'data:first' })
+    emit('image:ready', { imageUrl: '/second.png' })
+    expect(state.imageDataUrl).toBeNull()
+  })
   it('initCanvas clears boxes and resets canvas', () => {
     state.boxes.push({ id: 'box_0' })
     canvasModule.initCanvas()
@@ -83,6 +177,17 @@ describe('canvas', () => {
     state.boxes.push({ id: 'box_0' }, { id: 'box_1' })
     canvasModule.reorderBoxes()
     expect(cw.lastChild.id).toBe('box_1')
+  })
+
+  it('keeps a selected box above large layer stacks and restores order when selection changes', () => {
+    for (let i = 0; i < 12; i++) emit('box:create')
+    const first = state.boxes[0].id
+    const last = state.boxes.at(-1).id
+    canvasModule.selectBox(first)
+    expect(Number(document.getElementById(first).style.zIndex)).toBeGreaterThan(Number(document.getElementById(last).style.zIndex))
+    canvasModule.selectBox(last)
+    expect(Number(document.getElementById(first).style.zIndex)).toBe(2)
+    expect(Number(document.getElementById(last).style.zIndex)).toBe(14)
   })
 
   it('setPreviewMode toggles class on container', () => {

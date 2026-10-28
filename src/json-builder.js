@@ -6,21 +6,27 @@ import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { detectPromptFormat } from './prompt-convert.js';
 import { generateMoss, applyMossText, applyCaptionText } from './json-builder-moss.js';
+import { initPromptDraft, acceptPromptValue, publishPrompt, restorePromptDraft, capturePromptDraft } from './prompt-draft.js';
 
 let isLoadingFromJSON = false;
 
 export function initJsonBuilder() {
+  initPromptDraft();
+  on('prompt:draft-restore', ({ text }) => restorePromptDraft(text));
+  on('prompt:prepare', request => {
+    if (capturePromptDraft()) request.ok = applyJsonText(document.getElementById('json-output').value, null, { quiet: true });
+  });
   on('canvas:reset', () => {
-    console.log('[json-builder] canvas:reset — clearing textarea');
     document.getElementById('json-output').value = '';
+    acceptPromptValue();
   });
 
   on('state:changed', () => {
-    console.log('[json-builder] state:changed → generateJSON');
     if (!isLoadingFromJSON) generateJSON();
   });
 
   on('state:loaded', () => {
+    acceptPromptValue();
     // No-op: each state:loaded caller sets #json-output itself before emitting
     // (see gallery.loadItem, collections.loadItemToEditor). generateJSON() here
     // would run before canvas rebuilds boxes → stale output.
@@ -38,14 +44,25 @@ export function initJsonBuilder() {
 
   // Capture textarea value on pointerdown, before canvas pointerup
   // can overwrite it via state:changed → generateJSON().
-  let capturedRaw = '';
+  let capturedRaw = null;
+  document.getElementById('json-output').addEventListener('keydown', event => {
+    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      document.getElementById('btn-load-json').click();
+    }
+  });
   document.getElementById('btn-load-json').addEventListener('pointerdown', (e) => {
     e.preventDefault();
     capturedRaw = document.getElementById('json-output').value;
   });
 
-  document.getElementById('btn-load-json').addEventListener('click', () => {
-    applyJsonText(capturedRaw, 'btn-load-json');
+  document.getElementById('btn-load-json').addEventListener('click', (event) => {
+    const raw = event.detail === 0 ? document.getElementById('json-output').value
+      : capturedRaw ?? document.getElementById('json-output').value;
+    capturedRaw = null;
+    if (!applyJsonText(raw, 'btn-load-json')) {
+      showToast('No valid prompt found — paste Ideogram JSON, MOSS layout, or a MOSS caption.', 'error');
+    }
   });
 
   document.getElementById('btn-paste-json').addEventListener('click', async () => {
@@ -73,11 +90,15 @@ export function initJsonBuilder() {
   document.getElementById('btn-copy-json').addEventListener('click', () => {
     const output = document.getElementById('json-output');
     if (!output.value.trim()) return;
-    navigator.clipboard.writeText(output.value).then(() => {
+    Promise.resolve().then(() => navigator.clipboard.writeText(output.value)).then(() => {
       const btn = document.getElementById('btn-copy-json');
       const original = btn.innerHTML;
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
       setTimeout(() => { btn.innerHTML = original; }, 1500);
+    }).catch(() => {
+      output.focus();
+      output.select();
+      showToast('Clipboard blocked — the prompt is selected. Press Cmd+C or Ctrl+C to copy.', 'warning');
     });
   });
 }
@@ -91,6 +112,7 @@ function applyJsonText(raw, btnId, { quiet = false } = {}) {
   }
 
   if (format === 'ideogram') {
+    acceptPromptValue();
     if (state.model === 'moss') {
       emit('model:set', { model: 'ideogram', seed: false });
       if (!quiet) showToast('Switched to Ideogram 4 — pasted Ideogram JSON.', 'info');
@@ -104,6 +126,7 @@ function applyJsonText(raw, btnId, { quiet = false } = {}) {
   }
 
   if (format === 'moss' || format === 'moss-draft') {
+    acceptPromptValue();
     if (state.model !== 'moss') {
       emit('model:set', { model: 'moss', seed: false });
       if (!quiet) showToast('Switched to MOSS-Image — pasted MOSS layout JSON.', 'info');
@@ -117,6 +140,7 @@ function applyJsonText(raw, btnId, { quiet = false } = {}) {
 
   // Plain natural-language caption
   if (state.model === 'moss') {
+    acceptPromptValue();
     applyCaptionText(raw);
     generateJSON();
     return true;
@@ -194,7 +218,5 @@ function generateIdeogram() {
   }
 
   output.style_description.color_palette = state.globalPalette;
-  document.getElementById('json-output').value = JSON.stringify(output, null, 2);
-  const chip = document.getElementById('json-format-chip');
-  if (chip) chip.textContent = chip.title = 'Ideogram JSON';
+  publishPrompt(JSON.stringify(output, null, 2), 'Ideogram JSON');
 }

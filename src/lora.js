@@ -4,7 +4,7 @@
 // `lora:added`. Talks to the rest of the app via state.
 
 import { state } from './state.js';
-import { on } from './events.js';
+import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { activeCard, libraryCard } from './lora-cards.js';
 import { initLoraPanel } from './lora-panel.js';
@@ -38,6 +38,7 @@ function syncState() {
     const e = getEntry(id);
     return { filename: e.filename, source_url: e.source_url, strengths: { ...e.strengths } };
   });
+  emit('loras:changed');
 }
 
 function libraryMatches() {
@@ -177,18 +178,25 @@ export function initLora() {
     syncState();
     renderCards();
   });
+  on('workspace:restore', ({ loras }) => {
+    if (Array.isArray(loras)) restoreLorasFromMeta(loras);
+  });
 }
 
 export function restoreLorasFromMeta(loras) {
   activeIds.clear();
-  loras.forEach(l => {
-    const entry = allEntries().find(e => e.filename === l.filename);
+  let missing = 0;
+  (Array.isArray(loras) ? loras : []).forEach(l => {
+    if (!l || typeof l.filename !== 'string') return;
+    const entry = allEntries().find(e => e.filename === l.filename && e.model === state.model);
     if (entry) {
-      entry.strengths.positive = l.strengths.positive;
-      entry.strengths.unconditional = l.strengths.unconditional;
+      for (const key of ['positive', 'unconditional']) {
+        if (Number.isFinite(l.strengths?.[key])) entry.strengths[key] = l.strengths[key];
+      }
       activeIds.add(entry.id);
-    }
+    } else missing++;
   });
   syncState();
   renderCards();
+  if (missing) showToast(`${missing} saved LoRA${missing === 1 ? ' is' : 's are'} unavailable for this model. Add them to the library to restore the full stack.`, 'warning', 5000);
 }
