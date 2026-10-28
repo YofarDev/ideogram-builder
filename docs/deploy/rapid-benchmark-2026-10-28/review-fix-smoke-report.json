@@ -1,0 +1,20 @@
+{
+  "endpoint": "https://yofarcorp--ideogram-builder-rapid-preview-web-app.us-east.modal.run/generate",
+  "seed": 101,
+  "profile": "rapid-auto-int8-cu128",
+  "capabilities_presets": [
+    "Fast",
+    "Quality",
+    "Turbo",
+    "Rapid"
+  ],
+  "workers": [
+    "modal-6c9cae3590b4-2"
+  ],
+  "adapters": {
+    "Turbo": "dmd8",
+    "Rapid": "rapid4"
+  },
+  "failures": [],
+  "recorded_at": "2026-10-28T09:18:35+0100"
+}

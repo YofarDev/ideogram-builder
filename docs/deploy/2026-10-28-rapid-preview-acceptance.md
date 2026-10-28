@@ -1,6 +1,6 @@
 # Rapid β preview — Milestone A acceptance report
 
-Date: 2026-10-28. Plan: [2026-10-28-moss-rapid-four-step-gui.md](2026-10-28-moss-rapid-four-step-gui.md).
+Date: 2026-10-28. Plan: [2026-10-28-moss-rapid-four-step-gui.md](../plans/2026-10-28-moss-rapid-four-step-gui.md).
 
 ## Deployment
 
@@ -14,11 +14,47 @@ Date: 2026-10-28. Plan: [2026-10-28-moss-rapid-four-step-gui.md](2026-10-28-moss
 | Adapter | `adapter_rapid4` = akhaliq `moss_image_sft_4step_v2.0.safetensors` @ `2ded95c3…`, SHA-256 verified, populated on the `moss-models` volume via the CPU maintenance entrypoint |
 | Rollback | `preview_rollback_endpoint_url` in `~/.config/llm-credentials.json`; production app unchanged |
 
-Deployment manifest: [deployment manifest JSON](2026-10-28-ideogram-builder-rapid-preview.json) (recorded at the final revision).
+Deployment manifest: [deployment manifest JSON](2026-10-28-ideogram-builder-rapid-preview.json). It records the deployed source revision separately from later documentation commits.
 
-## Milestone A evidence — smoke (PASSED)
+## Current review fixes and measured comparison
 
-All checks from `runpod/smoke_rapid_preview.py` passed; artifacts in
+The review fixes were committed and deployed at `8595cd8`, with a fresh full
+same-worker switching and oversize-rejection smoke passing. A live benchmark
+then caught a warmup/input-key collision. Commit `3047de1` fixes it and adds a
+regression test; that source is pushed and deployed as `git-3047de1` using the
+cached images. **184 Python + 393 frontend tests passed.**
+
+The restarted comparison completed **108/108 measured images plus 36 warmups**.
+The final audit found no missing jobs, execution errors, positive-encoder cache
+hits, invalid PNGs or incorrect recipes. All images are 1024².
+
+| Preset | Warm steady worker median |
+| --- | --- |
+| Rapid | 3.500 s |
+| Turbo | 5.733 s |
+| Fast | 24.840 s |
+
+Rapid was faster in all 34 comparable steady pairs against each baseline:
+median paired savings **41.3% / 2.329 s versus Turbo**, **85.6% / 21.195 s versus
+Fast**. A separate three-pair English-poster HTTP check saved a median paired
+**16.2% / 1.698 s**, including polling/image transfer. Worker medians exclude
+HTTP and cold startup; switched requests are reported separately.
+
+[Full benchmark evidence and quality limits](rapid-benchmark-2026-10-28/README.md)
+include raw JSONL, pair tables, runtime, image hashes, OCR screening and the
+human review sheet. Images/workflows persist on `moss-bench` under
+`run-20261028-083751-755837dd`; the local comparison gallery is
+`output/benchmarks/rapid-3047de1/comparison.html`.
+
+**Speed gate passed; quality acceptance remains pending.** Regional OCR flags a
+possible text regression, but checks of several worst differences show OCR
+recognition errors on visibly correct text. Checked transcriptions, observed
+region annotations and usability/visual review are still required. Rapid stays
+experimental on the preview; production remains unchanged.
+
+## Milestone A evidence — initial smoke (PASSED)
+
+These historical bring-up checks from `runpod/smoke_rapid_preview.py` passed; artifacts in
 [rapid-smoke-artifacts/](rapid-smoke-artifacts/) (images + `smoke-report.json`):
 
 - **Capabilities**: Rapid advertised with `validation_status="experimental"`,
@@ -54,11 +90,11 @@ pre-fix images are preserved in the artifacts for the record
 | Milestone | Status |
 | --- | --- |
 | **A — working experimental Rapid in the GUI** | **Reached.** The preview endpoint advertises Rapid β; the local GUI is pointed at it (`llm-credentials.json` now selects the preview URL with the production URL retained for rollback). Select model MOSS → preset Rapid β (≤1 MP canvas) and generate; queue/gallery metadata records the executed recipe. |
-| **B — validated production availability** | Pending §6 measurement (108-image paired comparison + CER/IoU quality evidence) and §7 promotion. Rapid remains experimental and absent from the production endpoint until then. |
+| **B — validated production availability** | 108-image comparison completed; speed gate passed. Checked CER/IoU/usability quality evidence and §7 promotion remain pending. Rapid remains experimental and absent from the production endpoint. |
 
-## Next steps for Milestone B
+## Reproducing the comparison and remaining Milestone B work
 
-1. Full comparison through the preview app (fixtures × 3 paired seeds ×
+1. **Completed comparison.** Reproduce through the preview app (fixtures × 3 paired seeds ×
    Rapid/Turbo/Fast = 108 measured images, ≤45 min submission budget):
 
    ```sh

@@ -1,0 +1,1507 @@
+fixture,seed,preset,expected,observed,cer,reference_characters,edit_distance,image
+poster_en_bold,101,Rapid,DESIGN SUMMIT 2026 OCT 27 09:00,"SUMMIT 2026
+
+OCT 27 - 09:00
+
+»
+
+a
+
+-",0.4838709677419355,31,15,rapid-auto-int8-cu128-Rapid-poster_en_bold-101_0.png
+poster_zh_vertical,101,Rapid,春茶上新 明前龙井限量发售,"春 人 和 从 上 新
+
+明 前 龙井 限量 发 售",1.0,13,13,rapid-auto-int8-cu128-Rapid-poster_zh_vertical-101_0.png
+menu_bilingual_cafe,101,Rapid,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+eo
+
+Latte 拿 铁
+
+Americano 美式 ¥24
+
+Matcha 抹茶 ¥32
+
+Md",0.19607843137254902,51,10,rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png
+small_numbers_gauge,101,Rapid,62% 38% APPROVAL REJECT,62% 38%,0.6956521739130435,23,16,rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png
+dense_json_dashboard,101,Rapid,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","€ PulseMetrics
+
+=
+
+=
+
+MRR
+
+@ Active
+
+(G) Churn
+
+™  $48.2k
+
+12,407
+
+1.8%
+
+2,5%
+
+2.0%
+
+1.5%
+
+1.7%
+
+1.0%
+
+%
+
+=
+
+23:10
+
+04:00
+
+02:00
+
+08:02
+
+06:00
+
+Updated 09:41",1.403225806451613,62,87,rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png
+illustration_storybook,101,Rapid,The Lantern Fox,"The Lantern
+
+ES Nas
+
+ih
+
+i
+
+ee
+
+yy
+
+4
+
+AOA ANE
+
+uf
+
+bie.
+
+VS
+
+Lagi
+
+aN
+
+Hp",3.2,15,48,rapid-auto-int8-cu128-Rapid-illustration_storybook-101_0.png
+tiny_labels_panel,101,Rapid,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"LINK
+
+aaa
+
+{Seg
+
+co
+
+7 一 一 一
+
+LN
+
+VN
+
+60/0
+
+SS
+
+ss
+
+SN 26-4417-B |",1.088235294117647,34,37,rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png
+long_prompt_stress,101,Rapid,Maison Levain Baguette 2 Croissant 1.5,"IS ees
+
+‘
+
+Ie Maison Levain
+
+人
+
+和
+
+2: aa
+
+a
+
+|
+
+By
+
+DN) ais
+
+a) ae
+
+Vary
+
+RY) oe
+
+vA
+
+E
+
+“4,
+
+|",1.5,38,57,rapid-auto-int8-cu128-Rapid-long_prompt_stress-101_0.png
+poster_en_bold,101,Turbo,DESIGN SUMMIT 2026 OCT 27 09:00,"SUMMIT 2026
+
+OCT 27 - 09:00
+
+20;",0.41935483870967744,31,13,rapid-auto-int8-cu128-Turbo-poster_en_bold-101_0.png
+poster_zh_vertical,101,Turbo,春茶上新 明前龙井限量发售,"4 a Bt
+
+明 前 龙井 限量 发 售",0.8461538461538461,13,11,rapid-auto-int8-cu128-Turbo-poster_zh_vertical-101_0.png
+menu_bilingual_cafe,101,Turbo,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE #4 OA
+
+Latte # ¥28
+
+Americano 美式 ¥24
+
+Matcha 抹茶 ¥32
+
+JZ",0.19607843137254902,51,10,rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png
+small_numbers_gauge,101,Turbo,62% 38% APPROVAL REJECT,62% 38:,0.7391304347826086,23,17,rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png
+dense_json_dashboard,101,Turbo,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","个 PulseMetrics
+
+—
+
+一
+
+MRR
+
+Active
+
+Churn
+
+= $48.2k
+
+全 12,407
+
+| 名
+
+1.8%
+
+Aruimeering atherrics
+
+50
+
+30
+
+20
+
+10
+
+TI
+
+0
+
+06:00
+
+02:00
+
+04:00
+
+08:00
+
+16:10
+
+Updated 09:41",1.5483870967741935,62,96,rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png
+illustration_storybook,101,Turbo,The Lantern Fox,"The Lantern a
+
+“ie
+
+ast
+
+WA,
+
+XV
+
+VP
+
+AAA
+
+用
+
+hehe
+
+” te Dell. le
+
+bho b
+
+VOR Le
+
+a.
+
+UZ
+
+ZZ
+
+(ZZ
+
+ji AOE
+
+hes
+
+WAG:
+
+il,
+
+hl,
+
+Vl
+
+0,
+
+Liha.
+
+“a
+
+bbe Mpa",7.733333333333333,15,116,rapid-auto-int8-cu128-Turbo-illustration_storybook-101_0.png
+tiny_labels_panel,101,Turbo,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"PNR 12v)
+
+LINK |
+
+OTS
+
+AN
+
+Al
+
+AZ
+
+A3
+
+|
+
+om
+
+oa le
+
+[SN 26-4417-B",0.7352941176470589,34,25,rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png
+long_prompt_stress,101,Turbo,Maison Levain Baguette 2 Croissant 1.5,"=a
+
+os \ N SY
+
+—
+
+Sey |
+
+«date
+
+a oh
+
+Sai
+
+一
+
+ON
+
+aison Leva
+
+in
+
+<4
+
+Bag uette
+
+2-Croissant
+
+iv TTT
+
+=
+
+OE
+
+SD
+
+ae
+
+1 fe
+
+sy.
+
+Se
+
+Me NE
+
+兰芝
+
+| a
+
+7
+
+AY GE
+
+ef
+
+AS， me
+
+a eT mee ne
+
+‘ai ines",3.3157894736842106,38,126,rapid-auto-int8-cu128-Turbo-long_prompt_stress-101_0.png
+poster_en_bold,101,Fast,DESIGN SUMMIT 2026 OCT 27 09:00,"DESIGN
+
+SUMMIT 2026
+
+OCT 27 + 09:00
+
+» «",0.1935483870967742,31,6,rapid-auto-int8-cu128-Fast-poster_en_bold-101_0.png
+poster_zh_vertical,101,Fast,春茶上新 明前龙井限量发售,"te oe |
+
+明 前 龙井 限量 发 售
+
+水合
+
+fal ee",1.6923076923076923,13,22,rapid-auto-int8-cu128-Fast-poster_zh_vertical-101_0.png
+menu_bilingual_cafe,101,Fast,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+Latte
+
+拿 铁 ¥28
+
+Americano
+
+式 ¥24
+
+Matcha 抹茶 ¥32",0.0392156862745098,51,2,rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png
+small_numbers_gauge,101,Fast,62% 38% APPROVAL REJECT,"62» 38:
+
+APPROVAL
+
+REJECT",0.08695652173913043,23,2,rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png
+dense_json_dashboard,101,Fast,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","@) PulseMetrics
+
+MRR
+
+Active
+
+Churn
+
+al
+
+$48.2k
+
+12,407
+
+1.8%
+
+200
+
+100 —<——_—
+
+50
+
+0
+
++) Updated 09:41",0.7580645161290323,62,47,rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png
+illustration_storybook,101,Fast,The Lantern Fox,"The Lantern Fox
+
+Ag
+
+'. A
+
+XQ
+
+®
+
+AN
+
+了
+
+it",1.4,15,21,rapid-auto-int8-cu128-Fast-illustration_storybook-101_0.png
+tiny_labels_panel,101,Fast,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"*F PWR 12V__
+
+a
+
+Al
+
+A2
+
+A3
+
+al
+
+CO
+
+=]
+
+An
+
+—— Lo
+
+——
+
+\\
+
+J)
+
+SS
+
+ES
+
+SN 26-4417-B
+
+wi",1.2941176470588236,34,44,rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png
+long_prompt_stress,101,Fast,Maison Levain Baguette 2 Croissant 1.5,"a
+
+6
+
+Se
+
+中
+
+-一 一 -一
+
+—
+
+ef:
+
+iy
+
+i Baguette
+
+2+ Croissant
+
+mm
+
+mm
+
+is
+
+zs
+
+a
+
+|
+
+he,
+
+—
+
+17
+
+=a)
+
+3
+
+af 这
+
+| oa
+
+yt
+
+Ni
+
+2SR，
+
+入
+
+=
+
+\,
+
+[3
+
+A\
+
+\\
+
+vA
+
+—
+
+Mite 一
+
+Ve
+
+\",2.8157894736842106,38,107,rapid-auto-int8-cu128-Fast-long_prompt_stress-101_0.png
+poster_en_bold,202,Turbo,DESIGN SUMMIT 2026 OCT 27 09:00,"SUMMIT 2026
+
+OCT 27 + 09:00
+
+yO",0.3870967741935484,31,12,rapid-auto-int8-cu128-Turbo-poster_en_bold-202_0.png
+poster_zh_vertical,202,Turbo,春茶上新 明前龙井限量发售,"春 条 上 新
+
+明 前 龙井 限量 发 售",0.6923076923076923,13,9,rapid-auto-int8-cu128-Turbo-poster_zh_vertical-202_0.png
+menu_bilingual_cafe,202,Turbo,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+Latte ## ¥28
+
+Americano 美式 ¥24
+
+ae
+
+Matcha 抹茶
+
+5",0.1568627450980392,51,8,rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png
+small_numbers_gauge,202,Turbo,62% 38% APPROVAL REJECT,"62% 38%
+
+APPROVAL
+
+REJECT",0.0,23,0,rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png
+dense_json_dashboard,202,Turbo,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","PulseMetrics
+
+e
+
+aie
+
+MRR
+
+e
+
+Active
+
+Churn
+
+$48.2k
+
+12,407
+
+1.8%
+
+1,800
+
+1,000
+
+500
+
+ii, wa
+
+1.18
+
+1.24
+
+08
+
+2.09
+
+0
+
+20.5
+
+20
+
+Updated 09:41",1.1935483870967742,62,74,rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png
+illustration_storybook,202,Turbo,The Lantern Fox,"The Lantern Fox
+
+lil
+
+alike
+
+tts
+
+lil
+
+a
+
+Be
+
+eer
+
+Ce
+
+Ay
+
+ied
+
+ea’
+
+ee
+
+we
+
+ce
+
+VL, f,
+
+Le
+
+ee
+
+机",4.333333333333333,15,65,rapid-auto-int8-cu128-Turbo-illustration_storybook-202_0.png
+tiny_labels_panel,202,Turbo,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"(¢
+
+加
+
+上
+
+[A1|
+
+™m 图
+
+j
+
+pee
+
+a»
+
+RY
+
+一 一 人 一 一 六 一 一
+
+eA
+
+SN 26-4417-B
+
+他",1.2352941176470589,34,42,rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png
+long_prompt_stress,202,Turbo,Maison Levain Baguette 2 Croissant 1.5,"oe
+
+ii}.
+
+a
+
+a
+
+nn sea
+
+ee
+
+: ison Levain
+
+—_
+
+Baa
+
+2. Croissant
+
+| 1.5 ¥
+
+-人
+
+ES
+
+Se
+
+ae)
+
+=a
+
+,@
+
+&
+
+A)
+
+Ned
+
+二
+
+-一 一 一 一
+
+\""
+
+came’ |
+
+Le
+
+SN",2.4210526315789473,38,92,rapid-auto-int8-cu128-Turbo-long_prompt_stress-202_0.png
+poster_en_bold,202,Fast,DESIGN SUMMIT 2026 OCT 27 09:00,"DESIGN SUMMIT 2026
+
+OCT 27 - 09:00
+
+&",0.12903225806451613,31,4,rapid-auto-int8-cu128-Fast-poster_en_bold-202_0.png
+poster_zh_vertical,202,Fast,春茶上新 明前龙井限量发售,"4 | Hi
+
+明 前 龙井 限量 发 售
+
+well
+
+fix:",1.6153846153846154,13,21,rapid-auto-int8-cu128-Fast-poster_zh_vertical-202_0.png
+menu_bilingual_cafe,202,Fast,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+Latte
+
+拿 铁 ¥28
+
+Americano 美式 ¥24
+
+Matcha 抹茶 ¥32",0.0196078431372549,51,1,rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png
+small_numbers_gauge,202,Fast,62% 38% APPROVAL REJECT,"62. 38:
+
+APPROVAL
+
+REJECT",0.08695652173913043,23,2,rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png
+dense_json_dashboard,202,Fast,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","PulseMetrics
+
+MRR
+
+Active
+
+Churn
+
+S $48.2k
+
+‘> 12,407
+
+ll
+
+1.8%
+
+muyolumies
+
+clarring teane
+
+miyauitel ttre
+
+0
+
+1,20
+
+|
+
+50) 5
+
+0-
+
+09:81
+
+$5/01 ($6)
+
+$5/21 Anc
+
+$3/31 (8,0)
+
+Updated 09:41",1.8870967741935485,62,117,rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png
+illustration_storybook,202,Fast,The Lantern Fox,"The Lantern Fox :
+
+Fh
+
+Mee
+
+ay
+
+|
+
+A"",
+
+Wise
+
+a
+
+at
+
+U4
+
+fede
+
+fog
+
+{fe",2.933333333333333,15,44,rapid-auto-int8-cu128-Fast-illustration_storybook-202_0.png
+tiny_labels_panel,202,Fast,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"LINK
+
+ee ————
+
+人
+
+sheng
+
+ad
+
+LAL
+
+LA2 |
+
+LAS |
+
+tt,
+
+ej Pies
+
+到
+
+i/
+
+:
+
+RIP: SAAR ATS SE OTR AEE BY
+
+sacrament tench manent nin acest
+
+SN
+
+26-4417-B",3.176470588235294,34,108,rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png
+long_prompt_stress,202,Fast,Maison Levain Baguette 2 Croissant 1.5,"| eh aa
+
+=i
+
+Peer
+
+过
+
+一 一
+
+| Mais (aison, Xevain
+
+————
+
+thi
+
+7; Y
+
+FILES
+
+|
+
+BPs
+
+ELS
+
+Ve
+
+152
+
+i
+
+人-
+
+G2
+
+Sr
+
+Sey
+
+ly
+
+a",2.0789473684210527,38,79,rapid-auto-int8-cu128-Fast-long_prompt_stress-202_0.png
+poster_en_bold,202,Rapid,DESIGN SUMMIT 2026 OCT 27 09:00,"SUMMIT 2026
+
+OUC 77-0200",0.41935483870967744,31,13,rapid-auto-int8-cu128-Rapid-poster_en_bold-202_0.png
+poster_zh_vertical,202,Rapid,春茶上新 明前龙井限量发售,"4 a it
+
+明 前 龙井 限量 发 售
+
+从 请
+
+fit Ba
+
+小 FE.",2.1538461538461537,13,28,rapid-auto-int8-cu128-Rapid-poster_zh_vertical-202_0.png
+menu_bilingual_cafe,202,Rapid,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"8 CAFE 菜单
+
+Latte #f ¥28
+
+Americano 美式 ¥24
+
+Matcha 抹茶
+
+¥32
+
+—",0.11764705882352941,51,6,rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png
+small_numbers_gauge,202,Rapid,62% 38% APPROVAL REJECT,"62% 38%
+
+APPROVAL
+
+REJECT",0.0,23,0,rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png
+dense_json_dashboard,202,Rapid,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","P PulseMetrics
+
+Active
+
+Churn
+
+als MRR
+
+$48.2k
+
+12,407
+
+1.8%
+
+oc
+
+oc
+
+10¢
+
+10¢
+
+4
+
+14
+
+Updated 09:41",0.6935483870967742,62,43,rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png
+illustration_storybook,202,Rapid,The Lantern Fox,"antern Fox
+
+The
+
+im
+
+it
+
+Whee.
+
+hho
+
+I
+
+ao
+
+oe
+
+See
+
+WZ hs
+
+bee b,
+
+“188))
+
+ve",3.8,15,57,rapid-auto-int8-cu128-Rapid-illustration_storybook-202_0.png
+tiny_labels_panel,202,Rapid,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"r
+
+iii
+
+Al
+
+A2
+
+一
+
+EES
+
+@
+
+Va
+
+4
+
+laa
+
+4",0.7352941176470589,34,25,rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png
+long_prompt_stress,202,Rapid,Maison Levain Baguette 2 Croissant 1.5,"—.
+
+(eee
+
+Maison Levain
+
+由
+
+)
+
+Sy
+
+i
+
+Baguette
+
+9. Croissant
+
+Gif 1.5
+
+|
+
+LA
+
+‘aa
+
+x |[""44
+
+| |
+
+SM
+
+L, | We ax
+
+ha Z
+
+A
+
+10
+
+(74)
+
+Nh
+
+SU 从
+
+7
+
+Nall
+
+i
+
+pees",2.5,38,95,rapid-auto-int8-cu128-Rapid-long_prompt_stress-202_0.png
+poster_en_bold,303,Fast,DESIGN SUMMIT 2026 OCT 27 09:00,"DESIGN SUMMIT 2026
+
+OCT 27 - 09:00
+
+@",0.12903225806451613,31,4,rapid-auto-int8-cu128-Fast-poster_en_bold-303_0.png
+poster_zh_vertical,303,Fast,春茶上新 明前龙井限量发售,"春 从 上
+
+新
+
+明 前 龙井 限量 发 售
+
+Hb >
+
+RR
+
+AR All
+
+=i a",2.230769230769231,13,29,rapid-auto-int8-cu128-Fast-poster_zh_vertical-303_0.png
+menu_bilingual_cafe,303,Fast,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 沫 单
+
+Latte #PR ¥28
+
+Americano 美式 ¥24
+
+Matcha 抹茶 ¥32",0.09803921568627451,51,5,rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png
+small_numbers_gauge,303,Fast,62% 38% APPROVAL REJECT,"62 38
+
+APPROVAL
+
+REJECT",0.08695652173913043,23,2,rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png
+dense_json_dashboard,303,Fast,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","PulseMetrics
+
+MRR
+
+Active
+
+wil
+
+$48.2k
+
+OO Churn
+
+1.8%
+
+12,407
+
+$,00
+
+$,00
+
+$,00
+
+0 1
+
+|
+
+08-12
+
+08-16
+
+08-17
+
+08-26
+
+08-22
+
+0!
+
+Updated 09:41",1.1774193548387097,62,73,rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png
+illustration_storybook,303,Fast,The Lantern Fox,"The — Fox
+
+山
+
+hig of
+
+Mh iy",1.2,15,18,rapid-auto-int8-cu128-Fast-illustration_storybook-303_0.png
+tiny_labels_panel,303,Fast,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"PWR Lev
+
+LINK
+
+AS
+
+Al
+
+A2 A3
+
+oe
+
+a
+
+(Gt",0.47058823529411764,34,16,rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png
+long_prompt_stress,303,Fast,Maison Levain Baguette 2 Croissant 1.5,"om
+
+—
+
+a
+
+on_ Lev
+
+-一 -一
+
+i Mais
+
+ee
+
+ee _
+
+—
+
+—
+
+Baguette
+
+NTT
+
+es es
+
+a
+
+Us
+
+r=
+
+|
+
+RE — Pe et or
+
+二",1.5789473684210527,38,60,rapid-auto-int8-cu128-Fast-long_prompt_stress-303_0.png
+poster_en_bold,303,Rapid,DESIGN SUMMIT 2026 OCT 27 09:00,"_SUMMIT 2026
+
+Ger A7 ° WEeriee)
+
+wr
+
+a",0.8387096774193549,31,26,rapid-auto-int8-cu128-Rapid-poster_en_bold-303_0.png
+poster_zh_vertical,303,Rapid,春茶上新 明前龙井限量发售,"4 = Lb Hi
+
+明 前 龙井 限量 发 售",1.0769230769230769,13,14,rapid-auto-int8-cu128-Rapid-poster_zh_vertical-303_0.png
+menu_bilingual_cafe,303,Rapid,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+Latte ## ¥28
+
+Americano 美式 ¥24
+
+Matcha 抹茶 ¥32",0.0392156862745098,51,2,rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png
+small_numbers_gauge,303,Rapid,62% 38% APPROVAL REJECT,"62%
+
+8%",0.7391304347826086,23,17,rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png
+dense_json_dashboard,303,Rapid,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","O PulseMetrics
+
+MRR
+
+@ Active
+
+Churn
+
+1
+
+$48.2k
+
+12,407
+
+1.8%
+
+60
+
+45
+
+20
+
+iN)
+
+O25
+
+00:12
+
+08:24
+
+Updated 09:41",0.8225806451612904,62,51,rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png
+illustration_storybook,303,Rapid,The Lantern Fox,"The Lantern pe !
+
+多
+
+二 SG
+
+ee i
+
+ye
+
+We
+
+1 .
+
+i
+
+1s
+
+vg
+
+eo WV Pa",2.8,15,42,rapid-auto-int8-cu128-Rapid-illustration_storybook-303_0.png
+tiny_labels_panel,303,Rapid,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"ill
+
+LAL
+
+alg Tyee
+
+om
+
+aN oy) ”",0.7941176470588235,34,27,rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png
+long_prompt_stress,303,Rapid,Maison Levain Baguette 2 Croissant 1.5,"el
+
+fa
+
+本 一 人
+
+四
+
+Ni
+
+. Gm
+
+wr
+
+>,
+
+evan &
+
+fe)
+
+|
+
+Ul
+
+|
+
+Loson
+
+|
+
+人 il
+
+Baguette
+
+Fi
+
+77
+
+4
+
+Li
+
+Seen en a a i 1
+
+CID '5 |
+
+as
+
+|
+
+|
+
+i |
+
+]
+
+F
+
+|
+
+in
+
+J
+
+|
+
+| (i
+
+day
+
+14
+
+“i
+
+cao |
+
+ak
+
+4m
+
+|
+
+ll
+
+7 a
+
+-一
+
+|
+
+2
+
+@
+
+\\
+
+(a SB |/ GG
+
+ee",4.368421052631579,38,166,rapid-auto-int8-cu128-Rapid-long_prompt_stress-303_0.png
+poster_en_bold,303,Turbo,DESIGN SUMMIT 2026 OCT 27 09:00,"SUMMIT 3026
+
+OG 27 >, OOE®
+
+LA
+
+e 4",0.7741935483870968,31,24,rapid-auto-int8-cu128-Turbo-poster_en_bold-303_0.png
+poster_zh_vertical,303,Turbo,春茶上新 明前龙井限量发售,"4e as Eb ii
+
+明 前 龙井 限量 发 售",1.2307692307692308,13,16,rapid-auto-int8-cu128-Turbo-poster_zh_vertical-303_0.png
+menu_bilingual_cafe,303,Turbo,CAFE 菜单 Latte 拿铁 ¥28 Americano 美式 ¥24 Matcha 抹茶 ¥32,"CAFE 菜单
+
+Latte ## ¥28
+
+Americano 美式 ¥24
+
+sae a
+
+Matcha 抹茶 ¥32",0.1568627450980392,51,8,rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png
+small_numbers_gauge,303,Turbo,62% 38% APPROVAL REJECT,RE,0.9130434782608695,23,21,rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png
+dense_json_dashboard,303,Turbo,"PulseMetrics MRR $48.2k Active 12,407 Churn 1.8% Updated 09:41","© PulseMetrics
+
+MRR
+
+Active
+
+Churn
+
+$ 48.2k
+
+12,407
+
+1.8 %
+
+50
+
+40
+
+20
+
+10
+
+2023
+
+06.1
+
+06.4
+
+Updated 09:41",0.7741935483870968,62,48,rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png
+illustration_storybook,303,Turbo,The Lantern Fox,"The Lantern Fox p
+
+wt | ov
+
+et
+
+ea
+
+Nf
+
+ey.
+
+e 4
+
+v
+
+OO
+
+whe
+
+> 4
+
+y :
+
+he",3.1333333333333333,15,47,rapid-auto-int8-cu128-Turbo-illustration_storybook-303_0.png
+tiny_labels_panel,303,Turbo,PWR 12V LINK A1 A2 A3 SN 26-4417-B,"necenaentnsnnene marentnewnamamesersnntatiins es
+
+oe
+
+laid
+
+es
+
+-_
+
+La2 |
+
+oa
+
+YOY
+
+A
+
+A
+
+上 |
+
+=
+
+I
+
+|
+
+一 一
+
+Ff
+
+QS
+
+fF
+
+Qo
+
+si
+
+a
+
+SN 25-4417-8 |",3.0,34,102,rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png
+long_prompt_stress,303,Turbo,Maison Levain Baguette 2 Croissant 1.5,"at
+
+i""!
+
+ner oe
+
+ae
+
+un
+
+aison Leva
+
+(oe
+
+=
+
+“je
+
+2: Craissant
+
+Bag —s
+
+全 全 人 人
+
+15
+
+a
+
+Sh
+
+fee
+
+全
+
+|
+
+4
+
+hie Wg 4
+
+7
+
+a
+
+KK
+
+thy
+
+t
+
+sire
+
+(aia
+
+J
+
+a",2.5789473684210527,38,98,rapid-auto-int8-cu128-Turbo-long_prompt_stress-303_0.png

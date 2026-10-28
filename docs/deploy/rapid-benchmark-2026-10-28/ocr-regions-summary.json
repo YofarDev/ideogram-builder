@@ -1,0 +1,17 @@
+{
+  "Rapid": {
+    "regions": 72,
+    "micro_cer": 0.32806324110671936,
+    "note": "Declared-box OCR screening only. Fixed box crops can truncate misplaced text; CJK spacing/recognition errors require manual transcription. Not a human quality gate."
+  },
+  "Turbo": {
+    "regions": 72,
+    "micro_cer": 0.27931488801054016,
+    "note": "Declared-box OCR screening only. Fixed box crops can truncate misplaced text; CJK spacing/recognition errors require manual transcription. Not a human quality gate."
+  },
+  "Fast": {
+    "regions": 72,
+    "micro_cer": 0.27931488801054016,
+    "note": "Declared-box OCR screening only. Fixed box crops can truncate misplaced text; CJK spacing/recognition errors require manual transcription. Not a human quality gate."
+  }
+}

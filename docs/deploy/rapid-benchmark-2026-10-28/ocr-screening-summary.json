@@ -1,0 +1,17 @@
+{
+  "Rapid": {
+    "n": 24,
+    "micro_cer": 1.1173533083645444,
+    "note": "Automated screening only: OCR errors and reading order need human checking."
+  },
+  "Turbo": {
+    "n": 24,
+    "micro_cer": 1.348314606741573,
+    "note": "Automated screening only: OCR errors and reading order need human checking."
+  },
+  "Fast": {
+    "n": 24,
+    "micro_cer": 1.0411985018726593,
+    "note": "Automated screening only: OCR errors and reading order need human checking."
+  }
+}

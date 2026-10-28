@@ -1,0 +1,629 @@
+{
+  "records": [
+    {
+      "preset": "Rapid",
+      "seed": 1101,
+      "http_ms": 10152.3,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "105f01b5-7c6c-455e-b25a-61ceffb0d8da",
+        "worker_total_ms": 3310.6,
+        "comfy_queue_ms": 1.6,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 736.8,
+          "sampler": 1895.2,
+          "vae_decode": 147.7,
+          "save_image": 61.5
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid \u03b2",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Rapid-1101_0.png"
+      ]
+    },
+    {
+      "preset": "Turbo",
+      "seed": 1101,
+      "http_ms": 11850.2,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "b3a6069d-7272-46f3-89e2-11bb44df3fbe",
+        "worker_total_ms": 5675.5,
+        "comfy_queue_ms": 1.3,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 760.0,
+          "sampler": 3853.9,
+          "vae_decode": 591.7,
+          "save_image": 58.4
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo \u03b2",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Turbo-1101_0.png"
+      ]
+    },
+    {
+      "preset": "Turbo",
+      "seed": 1202,
+      "http_ms": 8619.8,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "d3b5eff7-edcf-470d-b6b3-973239c7c372",
+        "worker_total_ms": 5070.4,
+        "comfy_queue_ms": 1.9,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 735.7,
+          "sampler": 3718.1,
+          "vae_decode": 146.8,
+          "save_image": 57.2
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo \u03b2",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Turbo-1202_0.png"
+      ]
+    },
+    {
+      "preset": "Rapid",
+      "seed": 1202,
+      "http_ms": 7224.1,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "8a0e2884-fd68-4ea2-b5ea-14434a1ed36a",
+        "worker_total_ms": 2879.5,
+        "comfy_queue_ms": 1.5,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 728.1,
+          "sampler": 1923.7,
+          "vae_decode": 147.1,
+          "save_image": 61.0
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid \u03b2",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Rapid-1202_0.png"
+      ]
+    },
+    {
+      "preset": "Rapid",
+      "seed": 1303,
+      "http_ms": 7290.6,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "404eef4b-35b2-49ae-a49b-5f4c95159193",
+        "worker_total_ms": 3252.4,
+        "comfy_queue_ms": 8.0,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 721.8,
+          "sampler": 1888.7,
+          "vae_decode": 152.9,
+          "save_image": 55.1
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid \u03b2",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Rapid-1303_0.png"
+      ]
+    },
+    {
+      "preset": "Turbo",
+      "seed": 1303,
+      "http_ms": 9742.3,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "d9398f0e-8dd7-46c5-9657-765825b0ea99",
+        "worker_total_ms": 4824.0,
+        "comfy_queue_ms": 1.7,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 858.8,
+          "sampler": 3746.8,
+          "vae_decode": 145.0,
+          "save_image": 53.9
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo \u03b2",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "images": [
+        "/Users/yofardev/development/Projects/Web/ideogram-builder/output/benchmarks/rapid-3047de1/http/images/Turbo-1303_0.png"
+      ]
+    }
+  ],
+  "warmups": [
+    {
+      "preset": "Rapid",
+      "http_ms": 121801.7,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "116d6d5b-debf-474c-932d-b7681bafa1db",
+        "worker_total_ms": 54485.3,
+        "comfy_queue_ms": 0.4,
+        "observed_node_wall_ms": {
+          "node_3": 402.3,
+          "node_9": 0.9,
+          "node_2": 5983.8,
+          "text_encode_negative": 17501.6,
+          "text_encode_positive": 754.2,
+          "node_1": 1413.4,
+          "node_4": 19504.1,
+          "node_5": 1.1,
+          "sampler": 5994.2,
+          "vae_decode": 1786.7,
+          "save_image": 67.4
+        },
+        "cached_node_ids": [],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid \u03b2",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": true
+      }
+    },
+    {
+      "preset": "Turbo",
+      "http_ms": 24391.2,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "e605bf7d-d383-4372-a402-c5a70c9bc247",
+        "worker_total_ms": 18204.1,
+        "comfy_queue_ms": 1.8,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 727.6,
+          "node_4": 12123.8,
+          "node_5": 1.1,
+          "sampler": 4694.6,
+          "vae_decode": 169.6,
+          "save_image": 65.2
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo \u03b2",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      }
+    },
+    {
+      "preset": "Rapid",
+      "http_ms": 7924.1,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "8bd0286b-e31b-4f21-98cb-32099e3a014a",
+        "worker_total_ms": 3250.3,
+        "comfy_queue_ms": 1.6,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 722.0,
+          "sampler": 2279.1,
+          "vae_decode": 172.8,
+          "save_image": 57.0
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid \u03b2",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      }
+    },
+    {
+      "preset": "Turbo",
+      "http_ms": 9816.8,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "modal",
+        "worker_instance_id": "modal-695334fb44d0-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "bb214526-5eed-40f8-a019-31e708cbf89f",
+        "worker_total_ms": 5165.2,
+        "comfy_queue_ms": 1.6,
+        "observed_node_wall_ms": {
+          "text_encode_positive": 763.4,
+          "sampler": 4180.8,
+          "vae_decode": 149.5,
+          "save_image": 52.5
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo \u03b2",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      }
+    }
+  ]
+}

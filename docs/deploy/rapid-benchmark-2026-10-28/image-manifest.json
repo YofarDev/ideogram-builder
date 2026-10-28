@@ -1,0 +1,542 @@
+[
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_en_bold-101_0.png",
+    "sha256": "554329204512e273d9e881b5b82e0e6bdfad8b1ab986fe24e03dad32cb21a353",
+    "bytes": 500322
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_zh_vertical-101_0.png",
+    "sha256": "bbfaea0bc93ec6a77c6f611f0ee7dee8d7e9d032abcbc088f81eddca595d3480",
+    "bytes": 1106013
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png",
+    "sha256": "0a1bd242cd3fd67975b874f9edf00acf988baae259f885b4a9abedbc6f98192c",
+    "bytes": 869037
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png",
+    "sha256": "1a4a16f6f16e14469aadff0137e921c55f00e2fde67dacfeccede9eca1dc7989",
+    "bytes": 437943
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png",
+    "sha256": "8cc4312a81a5287721e5d4527c8a4952a0504bbf7fc3fdac0f843f99b4845726",
+    "bytes": 520844
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-multi_subject_street-101_0.png",
+    "sha256": "ea08734f840a542d8d9cd47a29cdd0324f312bfe5debc8bcbde48b546b168055",
+    "bytes": 1243783
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-hands_closeup_craft-101_0.png",
+    "sha256": "274b74aaca7848d4cf11dc3d068f5341009f1687bfd13ed47ef51de022b28f90",
+    "bytes": 1037797
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-illustration_storybook-101_0.png",
+    "sha256": "982f26fa9bf81b2e7c7606e74b713bd5cc8a0f3d78c3d85c732bb603b7b18720",
+    "bytes": 1472981
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_portrait-101_0.png",
+    "sha256": "8397fe10732152ba91ffe87f70d53a02914beaa7cc75b2719ef80124a8ac9c4d",
+    "bytes": 905060
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_landscape-101_0.png",
+    "sha256": "8191b3dd1ac6bce2f3dd6dadc7a51ee6236e5c795a9223d3b70eeb0cee3cba97",
+    "bytes": 1174844
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png",
+    "sha256": "4d5478167029f9d21ac68b1c2d3db683cfcb5c1711b11deba7e1125ecbd823fe",
+    "bytes": 1732226
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-long_prompt_stress-101_0.png",
+    "sha256": "2916dd7ec15730b00154d1cd5c03f87f7e36e837da35f05262775464cc23095b",
+    "bytes": 1426839
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_en_bold-101_0.png",
+    "sha256": "d78d311a7afc96315f8bab144beb93ae967dab82581571aceed2292ff44fae06",
+    "bytes": 533963
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_zh_vertical-101_0.png",
+    "sha256": "60ea98537bf1e7c730ebbb452c070433e7c58771052e245151b6109f8e2a576d",
+    "bytes": 1174778
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png",
+    "sha256": "839d98851e303cacafd483722c01f22c263815e944f0034153158c69dd7fd8ce",
+    "bytes": 998093
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png",
+    "sha256": "a594d1a721ecb9d4aa057fb46eb95b0df6f5eb270e4aabcb794a2bcbefed427f",
+    "bytes": 441611
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png",
+    "sha256": "e3a284bfbf62b2f9cb82d1c831135a418627fb0b5f4465466fc67588463a33fa",
+    "bytes": 521349
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-multi_subject_street-101_0.png",
+    "sha256": "ba3f2406f98f8bb8153833aebfabb95e1cb98effb018d1f49e8324930fe962eb",
+    "bytes": 1361713
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-hands_closeup_craft-101_0.png",
+    "sha256": "94ba8028c7ca6f54ffcabb547e0ddd78d386e8f0b81d486d50b63f2ae08a2743",
+    "bytes": 1122981
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-illustration_storybook-101_0.png",
+    "sha256": "a306eca71893e9a2ed2658ab9d5c53e1f80acac0ae3821575fa78445746d0c9b",
+    "bytes": 1572168
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_portrait-101_0.png",
+    "sha256": "515403f579f618e7684b740b4f69f0ed4da9a438e2083fe7388c7e14dc945782",
+    "bytes": 921705
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_landscape-101_0.png",
+    "sha256": "c5974f9dab3d523868e8ecb938312070e3070ce67bdb7e87cec4ba5f2fdab209",
+    "bytes": 1297982
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png",
+    "sha256": "7ab11384b90746f57254bee1821de5a9b33b9d1ed5ca8364d572cd466030eb17",
+    "bytes": 1799956
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-long_prompt_stress-101_0.png",
+    "sha256": "a636c48a2c63dd5a7b4cfa2bc676b1e4430eaf25da3b083309b6e177d11df7d9",
+    "bytes": 1552448
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_en_bold-101_0.png",
+    "sha256": "769d3aa649a02e5ae29f2016035f7be84178aa87337acd0c84ba468979de391e",
+    "bytes": 688489
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_zh_vertical-101_0.png",
+    "sha256": "18a12591153cb1b00c398b2e51463f7602cec9d1f14bf5294336f0c94670746a",
+    "bytes": 1272354
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png",
+    "sha256": "6c84b49064132f7bbc38f1fd573cb4ba0b9f5068d5520b6f2cb2c2f1b152b9fe",
+    "bytes": 1071569
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png",
+    "sha256": "dd1dae064a8b05c705245c2bb5a8cee6f00c65496c1c2bce1940fd44dad3075f",
+    "bytes": 486879
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png",
+    "sha256": "f60ce2663869c1294ae84328d0ec41c500cb522b4028ab5303abf296d304997b",
+    "bytes": 614623
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-multi_subject_street-101_0.png",
+    "sha256": "f71d2b64b0fb12a01c5e17039ee843406419a2905abffe2b6be8f7fd6493a7b7",
+    "bytes": 1289892
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-hands_closeup_craft-101_0.png",
+    "sha256": "b3f347e015138300bfbc2cb74f493c3a7af69231910702c01939b4dab8ea39f0",
+    "bytes": 1258105
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-illustration_storybook-101_0.png",
+    "sha256": "734133120f58ec2451351f84e204d815569e187d0d9ad27708982d647664388d",
+    "bytes": 1279096
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_portrait-101_0.png",
+    "sha256": "99fbe1ee6065ff07eb8e349ceb158a27578ff5b651abd42867791bdb1691c4f1",
+    "bytes": 898613
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_landscape-101_0.png",
+    "sha256": "52c9d40475da8248c1aa4c7117eec41d25d3c24232d59ea63ad07b546e77aeb1",
+    "bytes": 1379935
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png",
+    "sha256": "39a949d5777300a27a3610e5e1bdbfbf3bcefb2c9bfa048ec093f23fa9b95a45",
+    "bytes": 1510392
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-long_prompt_stress-101_0.png",
+    "sha256": "7a428c438323b5e922bace00eb3a2d582659b94dbb5861da5bd9e7260b3435b5",
+    "bytes": 1582161
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_en_bold-202_0.png",
+    "sha256": "01ec4b6c4d5523b039507d692a5dac44ac80b1ada8aa7115e0365cd92b14c910",
+    "bytes": 503592
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_zh_vertical-202_0.png",
+    "sha256": "ef02d96981eb8fb7c600bcc5bfccccf27f2e7f151b08168d74616ea0f311d06e",
+    "bytes": 1323079
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png",
+    "sha256": "54837975113bf45e250a7faef8542075a4ea9368652e1e6a1e5a359ed10abb42",
+    "bytes": 1173177
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png",
+    "sha256": "b9d650d85b2991b09dd25ea74a1f50dfe4dd9caa37dfb8c8cc450484feb3c0a2",
+    "bytes": 426450
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png",
+    "sha256": "a0a34d9842406e4915541aa0207d44e8f38080532c7c5e1464352b5e9585fc6a",
+    "bytes": 528506
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-multi_subject_street-202_0.png",
+    "sha256": "b24e8342d058baa780157c61e616e74f44c35d59f8b54f304b784426d7612640",
+    "bytes": 1157606
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-hands_closeup_craft-202_0.png",
+    "sha256": "794a126b992adf817239b3057d0e3b3f1bc36ba05956a4b7627d0d94c2c1b26e",
+    "bytes": 1126643
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-illustration_storybook-202_0.png",
+    "sha256": "9ad7ce51ac017d96be4b9ad2aea82967d2b02f7d98bb2931b8e9a59cbaef065a",
+    "bytes": 1644121
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_portrait-202_0.png",
+    "sha256": "42e898ede49b01aea792bf33722caa6a721dd76bb3fda9b1844c1a265ac25514",
+    "bytes": 827498
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_landscape-202_0.png",
+    "sha256": "74dedbba3470990ac1efbeb3de877e6f4c33d2cb04b35f214463f570a7677d17",
+    "bytes": 1430542
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png",
+    "sha256": "d0be6fe09ee0fe9b02cf9281e50ba33408df858583e73fdaabfba1108e1933a3",
+    "bytes": 1662840
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-long_prompt_stress-202_0.png",
+    "sha256": "ca794483e750a8129cffcb5b12cd88e346d21a0cba2d79665f46a3746109a065",
+    "bytes": 1887643
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_en_bold-202_0.png",
+    "sha256": "2989318eddeb5a11a74d7189d58004fead4466fad04a1933f192caf584244078",
+    "bytes": 665587
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_zh_vertical-202_0.png",
+    "sha256": "91ec6ee420a961b93c9a8c35be1a65c23b7de6d00ee7cb3560e176c8dda2bd40",
+    "bytes": 1338270
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png",
+    "sha256": "b0198a4fc0c8dba3d7cc8001873d8a58ac7273aa1ac7cc2a5c48e109833b1408",
+    "bytes": 1231698
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png",
+    "sha256": "447361d67977220be4e99f795059da6efee7301d914c9dc13dd87abbea388b32",
+    "bytes": 555533
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png",
+    "sha256": "e9e2b7436abe0335c1dcff49b0b6276e34bae80bb071879f5111c2d2b18ac2eb",
+    "bytes": 644012
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-multi_subject_street-202_0.png",
+    "sha256": "a65a1bf89c1fd02c1eb2cae3f78fe970ade1a048fc403df5eb3f995ae8091b7b",
+    "bytes": 1511742
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-hands_closeup_craft-202_0.png",
+    "sha256": "15d80237e6931de475aa87053378f161f34f77c71154c0568f282fa81c995896",
+    "bytes": 1253997
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-illustration_storybook-202_0.png",
+    "sha256": "79161bd73622fb04336c04429633c76bfdebc9789de336e63cd3c365471e5088",
+    "bytes": 1260911
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_portrait-202_0.png",
+    "sha256": "f99f090ed78a74db58a832c30ef2c480aa987000d9adcb2e2ef258d51bc078aa",
+    "bytes": 1064801
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_landscape-202_0.png",
+    "sha256": "f587be40b714229382d83fe3ad14a7d7ee79c605e849446004bf7b55736eb326",
+    "bytes": 1510969
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png",
+    "sha256": "0d1aee56820dc6304e811f446217b25c7d110f8fbb42772cfbb5a169b85d1083",
+    "bytes": 1559707
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-long_prompt_stress-202_0.png",
+    "sha256": "b46dd8ccccd8542341dc0914bcad280e1cb9a7fa7e02dd008a1256b82f2c00a3",
+    "bytes": 1681649
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_en_bold-202_0.png",
+    "sha256": "2e5181b668625d862d94e021b0f9b782e4f1c2e3b4b0c20d707e56f88fd655ec",
+    "bytes": 539585
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_zh_vertical-202_0.png",
+    "sha256": "d387d57afd8b6381adaf95aa503764cbee1182700e380ff884bf9f4cc7acd70e",
+    "bytes": 1177019
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png",
+    "sha256": "4f02cf90c54fd0dd94c4e96c01b187631bc82a3b47a42d77a4d59f456bae7712",
+    "bytes": 916028
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png",
+    "sha256": "a558a8bba2f99a48d6c6dde480599792acd46d02d0f39c0e4f3849340b3cbdce",
+    "bytes": 438441
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png",
+    "sha256": "21cefe1287d4867369aedfcd3424987a91a5ba1956f44a4f41a3fc2c7d7bb628",
+    "bytes": 524470
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-multi_subject_street-202_0.png",
+    "sha256": "c8dcf3adea7ab10dcd1be3474ef49343c9673163bf8ea952f6763291b0e9e146",
+    "bytes": 1187290
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-hands_closeup_craft-202_0.png",
+    "sha256": "3b6d843cbe5010bcbbfe791f1b9ed2d2e71c6b145e9a254efaafce12fcde6200",
+    "bytes": 1085077
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-illustration_storybook-202_0.png",
+    "sha256": "308ca48cea49759480b216cc862d7fc10666134e7a1372ba6508387d11ee0bfc",
+    "bytes": 1531434
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_portrait-202_0.png",
+    "sha256": "3565faa6ac69d039539c1d1f1f99a8c70e3fc2ad78eeb7762f3eab2b3abdb5c1",
+    "bytes": 876593
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_landscape-202_0.png",
+    "sha256": "d79659e3ccf29f1846094016b1f30e38eb726208d89795f93c861cd4d5cc64c7",
+    "bytes": 1273130
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png",
+    "sha256": "49deab14082695d59201951cdc3a11afed652b5c5a7d4f3a5efd5568a29a2caf",
+    "bytes": 1698115
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-long_prompt_stress-202_0.png",
+    "sha256": "b8c04e06c76cc7590610aa277539a99ba405e1c7ea93d5629cd2a7015b7055c5",
+    "bytes": 1667697
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_en_bold-303_0.png",
+    "sha256": "cd3b98acc462914fcabb3ec41ed58d6bd67e7cfc4e599543ef0ae885e1141788",
+    "bytes": 442863
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-poster_zh_vertical-303_0.png",
+    "sha256": "161306df5d98167f2b60940f1353ebffd5c67b66e555521e99b2c539b8c8a76f",
+    "bytes": 1362448
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png",
+    "sha256": "c92720f37f9fd7d9b8cef97f876ceab90502bce544edeff103b6680b8cb4c916",
+    "bytes": 1166899
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png",
+    "sha256": "665e3c4d6d633023c76cdcd7e2ad90a569454867bbc93747b0fd299b1adfd714",
+    "bytes": 462787
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png",
+    "sha256": "7087f88679316727295445dec60be9db9f96d17d48f08483817a29242f5e0a37",
+    "bytes": 575726
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-multi_subject_street-303_0.png",
+    "sha256": "2a2615399dc20fcc7239040c9f5952d6fb7739b24d4a9a6c5b207993aa57c8f2",
+    "bytes": 1427484
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-hands_closeup_craft-303_0.png",
+    "sha256": "6ba5d5cae1831db22a7c7aed728e886ad9625f62bb6f4c9993d3d2b7e30fd829",
+    "bytes": 1212673
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-illustration_storybook-303_0.png",
+    "sha256": "83efe6dee20824732af0e5a8f88f499dfb973b99061820b1661360d6e17bdd62",
+    "bytes": 1506710
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_portrait-303_0.png",
+    "sha256": "9a9c83f68d7c25e3d0e9560a11fb7e401a86679674b009ffeddd5ae13aea420f",
+    "bytes": 876462
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-photo_natural_landscape-303_0.png",
+    "sha256": "5717c2a2a573004860d876afd27399632aec1a1e307dd88c7fded6bf9666c9fd",
+    "bytes": 1307411
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png",
+    "sha256": "a219ff3647433af8c4788690f3e629e74d42018d70a04d0dce8b5d4c3102edf0",
+    "bytes": 1434754
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Fast-long_prompt_stress-303_0.png",
+    "sha256": "d5cd65e96e308f272d4980306f97512a23fa85e893048a34a4e52a3730615cf8",
+    "bytes": 1674938
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_en_bold-303_0.png",
+    "sha256": "55b1b4cff47db780503a0594f42b6462bbf9a7ec1e77d15869cc77c72d8345bc",
+    "bytes": 535190
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-poster_zh_vertical-303_0.png",
+    "sha256": "7447412b0ee7796b28b72608baefb4c688344e6c048bf0671afedcdca274e802",
+    "bytes": 1216776
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png",
+    "sha256": "ad7205616c677863dee1980ac6df671b469defabe68d1076924024d2a7857324",
+    "bytes": 1022986
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png",
+    "sha256": "b40c5681af93a81188c0572b3cc671ddfa3875c7a9cc4a1f856d67cd41704885",
+    "bytes": 471757
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png",
+    "sha256": "e21b4c76e6ad20914795485345a6158c62f1b38a9a7c0b595589154e1278f875",
+    "bytes": 474892
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-multi_subject_street-303_0.png",
+    "sha256": "d0fe373090bba310395b0eb66d811fa0a43276d8d87f0fed2e9aaff386310071",
+    "bytes": 1147898
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-hands_closeup_craft-303_0.png",
+    "sha256": "82bd549b4bc904da373d6e9dbff9dcff58938d90ffc3a9c61ef6210085cd6c85",
+    "bytes": 1046908
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-illustration_storybook-303_0.png",
+    "sha256": "b1f11abb90146a8b592dfa46ec7e0395a8a336409f22dee3285709d9bfdac272",
+    "bytes": 1535468
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_portrait-303_0.png",
+    "sha256": "a536533dfa631564032619b7b756b56b3340353a690531c273e32702d60d7750",
+    "bytes": 883811
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-photo_natural_landscape-303_0.png",
+    "sha256": "3dd68b859d58babb1a8dbf54194aa11e9ae651fbe520670db93a521a84b906da",
+    "bytes": 1209941
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png",
+    "sha256": "ebf8ac79a39146fa1bc27ed332793d0bc541eb70ae636881e65cf51da1bba052",
+    "bytes": 1630901
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Rapid-long_prompt_stress-303_0.png",
+    "sha256": "6b0406bd6b972f03c3996881feb1bd2eb83b939ce75269102a8db7fd7fe30b26",
+    "bytes": 1617977
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_en_bold-303_0.png",
+    "sha256": "9f8407d4a3c9d1d256bf9a79a4bcadf27daa00f9c6ca54b38bdcb141986b3176",
+    "bytes": 651960
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-poster_zh_vertical-303_0.png",
+    "sha256": "47d19f95e241cf94fef74c8786bef8b3abb589812d624a0f268974b9ebdb2330",
+    "bytes": 1417929
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png",
+    "sha256": "d0a8c635fca08c3180130383d9a47f8338d76f2c18e1e4a2d1d781808caf3ef1",
+    "bytes": 1238342
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png",
+    "sha256": "2ead9f898cfed1e5a2bdff75ddf47a05af2865b98b561344def2be425a6c070d",
+    "bytes": 396376
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png",
+    "sha256": "f5bd1430d31df3161053a28b0a9bae765a5ab40b2bbbfb94f7fa72fa7be58141",
+    "bytes": 478188
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-multi_subject_street-303_0.png",
+    "sha256": "aee5d4f8f972e396884269f4a2f7c027095387aa0464b31a675ffd9279fe60a6",
+    "bytes": 1155275
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-hands_closeup_craft-303_0.png",
+    "sha256": "fa6149e90d4a54cfe5d59ecdab0170b9c884ea7cf87981508daf4411529e5cdf",
+    "bytes": 1025977
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-illustration_storybook-303_0.png",
+    "sha256": "89024f66a66748ed1863c8d09399b696a0db113924219fbc66256dca0985053b",
+    "bytes": 1609359
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_portrait-303_0.png",
+    "sha256": "e70fe90b81bc79669aa97df294c2524e344eadfa97205c4788ea831d71d9e81b",
+    "bytes": 917319
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-photo_natural_landscape-303_0.png",
+    "sha256": "7057fb13e8f5a588de3bb394e49a913bb6b5332752a6fd5221578b065a3d011f",
+    "bytes": 1296651
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png",
+    "sha256": "19391de7a1e85da0bfb4750b1b16af898706ef5775d0ec3f8d11f6df514dbb1b",
+    "bytes": 1617527
+  },
+  {
+    "file": "rapid-auto-int8-cu128-Turbo-long_prompt_stress-303_0.png",
+    "sha256": "2d9f9f34284fd9dea45ad3137e8d29b0a42a7c6e2d266f8f99d176757fa27258",
+    "bytes": 1660066
+  }
+]

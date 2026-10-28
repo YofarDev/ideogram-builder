@@ -1,0 +1,394 @@
+{
+  "data_directory": "output/benchmarks/rapid-3047de1/run-20261028-083751-755837dd",
+  "measured_records": 108,
+  "warmup_records": 36,
+  "first_warmup_per_preset": {
+    "Rapid": {
+      "profile": "rapid-auto-int8-cu128",
+      "preset": "Rapid",
+      "fixture_id": "poster_en_bold",
+      "width": 1024,
+      "height": 1024,
+      "seed": 304,
+      "status": "completed",
+      "switched": false,
+      "latency_ms": 22084.4,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "bench-304-poster_en_bold",
+        "worker_instance_id": "modal-f214ebaf306b-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "78a8569c-c56d-4af7-b5a6-163e1a0815e3",
+        "worker_total_ms": 22084.0,
+        "comfy_queue_ms": 0.4,
+        "observed_node_wall_ms": {
+          "node_3": 420.1,
+          "node_9": 1.6,
+          "node_2": 1870.9,
+          "text_encode_negative": 6741.2,
+          "text_encode_positive": 826.2,
+          "node_1": 391.6,
+          "node_4": 1487.2,
+          "node_5": 0.6,
+          "sampler": 8690.5,
+          "vae_decode": 1015.5,
+          "save_image": 85.6
+        },
+        "cached_node_ids": [],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Rapid β",
+        "preset_id": "Rapid",
+        "effective_steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "rapid4",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": true
+      },
+      "recorded_at": 1793176708.1039736
+    },
+    "Turbo": {
+      "profile": "rapid-auto-int8-cu128",
+      "preset": "Turbo",
+      "fixture_id": "poster_en_bold",
+      "width": 1024,
+      "height": 1024,
+      "seed": 304,
+      "status": "completed",
+      "switched": true,
+      "latency_ms": 10587.4,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "bench-304-poster_en_bold",
+        "worker_instance_id": "modal-f214ebaf306b-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "32ee8002-a5cf-49c3-b254-d952f546d18f",
+        "worker_total_ms": 10587.3,
+        "comfy_queue_ms": 1.4,
+        "observed_node_wall_ms": {
+          "node_4": 823.0,
+          "node_5": 0.2,
+          "sampler": 8118.8,
+          "vae_decode": 1315.8,
+          "save_image": 67.4
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "7",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Turbo β",
+        "preset_id": "Turbo",
+        "effective_steps": 8,
+        "cfg": 1.0,
+        "sampler": "euler",
+        "scheduler": "simple",
+        "negative_guidance_active": false,
+        "adapter": "dmd8",
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": null,
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "recorded_at": 1793176797.6111312
+    },
+    "Fast": {
+      "profile": "rapid-auto-int8-cu128",
+      "preset": "Fast",
+      "fixture_id": "poster_en_bold",
+      "width": 1024,
+      "height": 1024,
+      "seed": 304,
+      "status": "completed",
+      "switched": true,
+      "latency_ms": 23985.7,
+      "metrics": {
+        "schema_version": 1,
+        "request_id": "bench-304-poster_en_bold",
+        "worker_instance_id": "modal-f214ebaf306b-2",
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "prompt_id": "933a1e6a-b797-4e05-9216-c6e9454c5b4d",
+        "worker_total_ms": 23985.6,
+        "comfy_queue_ms": 1.7,
+        "observed_node_wall_ms": {
+          "node_5": 8.5,
+          "node_6": 1.2,
+          "sampler": 23151.5,
+          "vae_decode": 524.5,
+          "save_image": 63.8
+        },
+        "cached_node_ids": [
+          "1",
+          "2",
+          "3",
+          "7",
+          "8",
+          "9"
+        ],
+        "node_stage_map": {
+          "7": "text_encode_positive",
+          "8": "text_encode_negative",
+          "10": "sampler",
+          "11": "vae_decode",
+          "12": "save_image"
+        },
+        "measurement_complete": true,
+        "measurement_note": null,
+        "measurement_basis": "serial_node_transition_wall_estimate"
+      },
+      "generation": {
+        "schema_version": 1,
+        "runtime_profile": "rapid-auto-int8-cu128",
+        "preset": "Fast",
+        "preset_id": "Fast",
+        "effective_steps": 25,
+        "cfg": 2.5,
+        "sampler": "er_sde",
+        "scheduler": "simple",
+        "negative_guidance_active": true,
+        "adapter": null,
+        "spectrum": false,
+        "compile_backend": "off",
+        "memory_mode": "auto",
+        "dit_format": "int8_convrot",
+        "encoder_format": "w4a8",
+        "warmup": false,
+        "slg": [
+          0.0,
+          0.5
+        ],
+        "merged_adapter": null,
+        "model_manifest_id": "moss-models-2026-10-27b",
+        "first_generation_in_worker": false
+      },
+      "recorded_at": 1793176954.3459687
+    }
+  },
+  "statuses": {
+    "completed": 108
+  },
+  "worker_ids": [
+    "modal-f214ebaf306b-2"
+  ],
+  "missing_jobs": [],
+  "unexpected_jobs": [],
+  "violations": [],
+  "by_preset": {
+    "Rapid": {
+      "measured_n": 36,
+      "steady_n": 34,
+      "switched_n": 2,
+      "switched_worker_total_ms_median": 6650.15,
+      "worker_total_ms_median": 3499.65,
+      "sampler_ms_median": 2103.1,
+      "positive_encode_ms_median": 819.1,
+      "sampled_device_peak_gib": 12.596
+    },
+    "Turbo": {
+      "measured_n": 36,
+      "steady_n": 34,
+      "switched_n": 2,
+      "switched_worker_total_ms_median": 9622.8,
+      "worker_total_ms_median": 5733.2,
+      "sampler_ms_median": 4288.35,
+      "positive_encode_ms_median": 936.75,
+      "sampled_device_peak_gib": 12.564
+    },
+    "Fast": {
+      "measured_n": 36,
+      "steady_n": 34,
+      "switched_n": 2,
+      "switched_worker_total_ms_median": 24926.9,
+      "worker_total_ms_median": 24840.2,
+      "sampler_ms_median": 23087.95,
+      "positive_encode_ms_median": 937.15,
+      "sampled_device_peak_gib": 12.596
+    }
+  },
+  "paired": {
+    "Turbo": {
+      "n": 34,
+      "wins": 34,
+      "saved_ms_median": 2328.8,
+      "saved_pct_median": 41.299,
+      "per_fixture": {
+        "poster_en_bold": {
+          "n": 1,
+          "saved_ms_median": 2919.0,
+          "saved_pct_median": 45.354
+        },
+        "poster_zh_vertical": {
+          "n": 3,
+          "saved_ms_median": 871.0,
+          "saved_pct_median": 14.841
+        },
+        "menu_bilingual_cafe": {
+          "n": 3,
+          "saved_ms_median": 4494.3,
+          "saved_pct_median": 56.232
+        },
+        "small_numbers_gauge": {
+          "n": 3,
+          "saved_ms_median": 1980.6,
+          "saved_pct_median": 36.256
+        },
+        "dense_json_dashboard": {
+          "n": 3,
+          "saved_ms_median": 2280.8,
+          "saved_pct_median": 41.494
+        },
+        "multi_subject_street": {
+          "n": 3,
+          "saved_ms_median": 2550.8,
+          "saved_pct_median": 43.773
+        },
+        "hands_closeup_craft": {
+          "n": 3,
+          "saved_ms_median": 2895.7,
+          "saved_pct_median": 43.444
+        },
+        "illustration_storybook": {
+          "n": 3,
+          "saved_ms_median": 2732.8,
+          "saved_pct_median": 38.31
+        },
+        "photo_natural_portrait": {
+          "n": 3,
+          "saved_ms_median": 2562.5,
+          "saved_pct_median": 45.279
+        },
+        "photo_natural_landscape": {
+          "n": 3,
+          "saved_ms_median": 1819.2,
+          "saved_pct_median": 36.364
+        },
+        "tiny_labels_panel": {
+          "n": 3,
+          "saved_ms_median": 2231.9,
+          "saved_pct_median": 41.104
+        },
+        "long_prompt_stress": {
+          "n": 3,
+          "saved_ms_median": 979.1,
+          "saved_pct_median": 18.086
+        }
+      }
+    },
+    "Fast": {
+      "n": 34,
+      "wins": 34,
+      "saved_ms_median": 21195.25,
+      "saved_pct_median": 85.63,
+      "per_fixture": {
+        "poster_en_bold": {
+          "n": 1,
+          "saved_ms_median": 20702.1,
+          "saved_pct_median": 85.478
+        },
+        "poster_zh_vertical": {
+          "n": 3,
+          "saved_ms_median": 19768.0,
+          "saved_pct_median": 79.902
+        },
+        "menu_bilingual_cafe": {
+          "n": 3,
+          "saved_ms_median": 21467.6,
+          "saved_pct_median": 86.492
+        },
+        "small_numbers_gauge": {
+          "n": 3,
+          "saved_ms_median": 21532.3,
+          "saved_pct_median": 85.573
+        },
+        "dense_json_dashboard": {
+          "n": 3,
+          "saved_ms_median": 20998.6,
+          "saved_pct_median": 85.252
+        },
+        "multi_subject_street": {
+          "n": 3,
+          "saved_ms_median": 20828.3,
+          "saved_pct_median": 86.656
+        },
+        "hands_closeup_craft": {
+          "n": 3,
+          "saved_ms_median": 21838.0,
+          "saved_pct_median": 87.767
+        },
+        "illustration_storybook": {
+          "n": 3,
+          "saved_ms_median": 21112.9,
+          "saved_pct_median": 86.578
+        },
+        "photo_natural_portrait": {
+          "n": 3,
+          "saved_ms_median": 21672.4,
+          "saved_pct_median": 86.48
+        },
+        "photo_natural_landscape": {
+          "n": 3,
+          "saved_ms_median": 20882.3,
+          "saved_pct_median": 86.542
+        },
+        "tiny_labels_panel": {
+          "n": 3,
+          "saved_ms_median": 21037.6,
+          "saved_pct_median": 85.091
+        },
+        "long_prompt_stress": {
+          "n": 3,
+          "saved_ms_median": 20773.7,
+          "saved_pct_median": 84.201
+        }
+      }
+    }
+  },
+  "timing_note": "Steady warm worker wall time excludes HTTP polling and GPU/server startup; no p95 claim.",
+  "quality_status": "Unpromoted: automated OCR/visual screening is not a completed human CER/IoU/usability acceptance."
+}

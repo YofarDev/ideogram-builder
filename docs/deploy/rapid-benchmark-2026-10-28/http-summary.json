@@ -1,0 +1,34 @@
+{
+  "by_preset": {
+    "Rapid": {
+      "n": 3,
+      "http_median_ms": 7290.6,
+      "worker_median_ms": 3252.4
+    },
+    "Turbo": {
+      "n": 3,
+      "http_median_ms": 9742.3,
+      "worker_median_ms": 5070.4
+    }
+  },
+  "pairs": [
+    {
+      "seed": 1101,
+      "saved_ms": 1697.9000000000015,
+      "saved_pct": 14.328028218933024
+    },
+    {
+      "seed": 1202,
+      "saved_ms": 1395.699999999999,
+      "saved_pct": 16.191790992830448
+    },
+    {
+      "seed": 1303,
+      "saved_ms": 2451.699999999999,
+      "saved_pct": 25.16551533005552
+    }
+  ],
+  "paired_saved_ms_median": 1697.9000000000015,
+  "paired_saved_pct_median": 16.191790992830448,
+  "note": "Three paired seeds of one English poster, warm requests with unmeasured switch warmups; includes HTTP/image transfer and one-second polling; excludes first-use startup. Small corroborating sample, no p95 or full GUI claim."
+}

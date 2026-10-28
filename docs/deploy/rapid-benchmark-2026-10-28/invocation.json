@@ -1,0 +1,48 @@
+{
+  "source_revision": "3047de1ec8c417e5b34621d1927c797643f567df",
+  "started_at": "2026-10-28T09:37:51+01:00",
+  "workspace": "yofarcorp",
+  "app_name": "ideogram-builder-rapid-preview",
+  "modal_run_url": "https://modal.com/apps/yofarcorp/main/ap-zCdQtdLObhCaWOGyJIN3bs",
+  "runtime_profile": "rapid-auto-int8-cu128",
+  "runtime_build": "baseline",
+  "cached_images": {
+    "moss": "im-C6CYVuLZL3PDP7CmANZGPp",
+    "ideogram": "im-jAh6cs2wwMnYugf5Zhz6Qs"
+  },
+  "presets": [
+    "Rapid",
+    "Turbo",
+    "Fast"
+  ],
+  "seeds": [
+    101,
+    202,
+    303
+  ],
+  "dimensions": [
+    1024,
+    1024
+  ],
+  "case": "new-prompt",
+  "expected_measured_images": 108,
+  "expected_warmup_images": 36,
+  "max_measured_jobs": 108,
+  "max_submission_minutes": 45,
+  "notes": [
+    "Warmups are additional to measured jobs.",
+    "Internal worker latency excludes server/GPU startup.",
+    "Quality acceptance requires review; this run does not promote Rapid."
+  ],
+  "status": "completed",
+  "run_id": "run-20261028-083751-755837dd",
+  "previous_rejected_run": "run-20261028-082000-08348eae",
+  "cli_created_at": "2026-10-28T09:36:18+01:00",
+  "completed_at": "2026-10-28T10:09:19+01:00",
+  "measured_images": 108,
+  "warmup_images": 36,
+  "quality_acceptance": "pending; experimental only",
+  "rejected_attempt_included": false,
+  "last_image_recorded_at": "2026-10-28T10:06:38+01:00",
+  "run_id_to_last_image_seconds": 1727.6
+}

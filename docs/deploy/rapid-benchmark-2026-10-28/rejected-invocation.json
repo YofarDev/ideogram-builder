@@ -1,0 +1,42 @@
+{
+  "source_revision": "8595cd85d509514ff636ad370610f4eb0d1d5996",
+  "started_at": "2026-10-28T09:20:00+01:00",
+  "workspace": "yofarcorp",
+  "app_name": "ideogram-builder-rapid-preview",
+  "modal_run_url": "https://modal.com/apps/yofarcorp/main/ap-gc7UFYpE7z1XMmbWRlfMRw",
+  "runtime_profile": "rapid-auto-int8-cu128",
+  "runtime_build": "baseline",
+  "cached_images": {
+    "moss": "im-C6CYVuLZL3PDP7CmANZGPp",
+    "ideogram": "im-jAh6cs2wwMnYugf5Zhz6Qs"
+  },
+  "presets": [
+    "Rapid",
+    "Turbo",
+    "Fast"
+  ],
+  "seeds": [
+    101,
+    202,
+    303
+  ],
+  "dimensions": [
+    1024,
+    1024
+  ],
+  "case": "new-prompt",
+  "expected_measured_images": 108,
+  "expected_warmup_images": 36,
+  "max_measured_jobs": 108,
+  "max_submission_minutes": 45,
+  "notes": [
+    "Warmups are additional to measured jobs.",
+    "Internal worker latency excludes server/GPU startup.",
+    "Quality acceptance requires review; this run does not promote Rapid."
+  ],
+  "status": "interrupted_and_rejected",
+  "reason": "Warmup prompt variant 5 collided with all 12 Turbo seed202 encoder inputs; preserve as rejected evidence; restarted with 3047de1.",
+  "measured_at_last_volume_commit": 52,
+  "metadata_recorded_at": "2026-10-28T09:21:06+01:00",
+  "cli_created_at": "2026-10-28T09:19:47+01:00"
+}

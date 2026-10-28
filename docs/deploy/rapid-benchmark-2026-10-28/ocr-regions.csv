@@ -1,0 +1,271 @@
+fixture,seed,preset,text_box,expected,crop_bounds,image,observed,cer,reference_characters,edit_distance
+poster_en_bold,101,Rapid,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Rapid-poster_en_bold-101_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,101,Rapid,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Rapid-poster_en_bold-101_0.png,OCT 27 - 09:00,0.07142857142857142,14,1
+poster_zh_vertical,101,Rapid,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-101_0.png,As Az kk Hr,2.75,4,11
+poster_zh_vertical,101,Rapid,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-101_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,101,Rapid,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,101,Rapid,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png,Latte 拿 铁 = ¥28,0.25,12,3
+menu_bilingual_cafe,101,Rapid,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,101,Rapid,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-101_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,101,Rapid,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png,,1.0,3,3
+small_numbers_gauge,101,Rapid,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png,38,0.3333333333333333,3,1
+small_numbers_gauge,101,Rapid,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,101,Rapid,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-101_0.png,REJECT,0.0,6,0
+dense_json_dashboard,101,Rapid,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png,€ PulseMetrics,0.16666666666666666,12,2
+dense_json_dashboard,101,Rapid,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png,"== MRR
+= €12 Ok",0.9,10,9
+dense_json_dashboard,101,Rapid,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png,"全 Active
+12 407",0.23076923076923078,13,3
+dense_json_dashboard,101,Rapid,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png,"GO Churn
+12%",0.5,10,5
+dense_json_dashboard,101,Rapid,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-101_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,101,Rapid,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Rapid-illustration_storybook-101_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,101,Rapid,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,101,Rapid,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png,LINK,0.0,4,0
+tiny_labels_panel,101,Rapid,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png,,1.0,8,8
+tiny_labels_panel,101,Rapid,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-101_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,101,Rapid,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-101_0.png,Maison Levairt,0.15384615384615385,13,2
+long_prompt_stress,101,Rapid,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-101_0.png,"ad 圆 2.Croissant
+15
+a",0.4583333333333333,24,11
+poster_en_bold,101,Turbo,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Turbo-poster_en_bold-101_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,101,Turbo,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Turbo-poster_en_bold-101_0.png,== OC 127 (= O9e00) ge,0.9285714285714286,14,13
+poster_zh_vertical,101,Turbo,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-101_0.png,春 条 上 新,1.0,4,4
+poster_zh_vertical,101,Turbo,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-101_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,101,Turbo,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,101,Turbo,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png,Latte SR ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,101,Turbo,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,101,Turbo,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-101_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,101,Turbo,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png,,1.0,3,3
+small_numbers_gauge,101,Turbo,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png,,1.0,3,3
+small_numbers_gauge,101,Turbo,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,101,Turbo,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-101_0.png,REJECT,0.0,6,0
+dense_json_dashboard,101,Turbo,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png,€ PulseMetrics,0.16666666666666666,12,2
+dense_json_dashboard,101,Turbo,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png,"= MRR
+= ¢$48.2k",0.5,10,5
+dense_json_dashboard,101,Turbo,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png,"e Active
+全 12.407",0.38461538461538464,13,5
+dense_json_dashboard,101,Turbo,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png,"Churn
+C) 1.8%",0.3,10,3
+dense_json_dashboard,101,Turbo,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-101_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,101,Turbo,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Turbo-illustration_storybook-101_0.png,"The | antern Fox,",0.2,15,3
+tiny_labels_panel,101,Turbo,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png,PWR [Rag,0.5714285714285714,7,4
+tiny_labels_panel,101,Turbo,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png,区 LINK,0.5,4,2
+tiny_labels_panel,101,Turbo,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png,Al AZ A3,0.25,8,2
+tiny_labels_panel,101,Turbo,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-101_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,101,Turbo,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-101_0.png,“Maison 1 aU in,0.46153846153846156,13,6
+long_prompt_stress,101,Turbo,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-101_0.png,""" | Bag uette
+2-Croissant
+15",0.2916666666666667,24,7
+poster_en_bold,101,Fast,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Fast-poster_en_bold-101_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,101,Fast,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Fast-poster_en_bold-101_0.png,OCT 27 + 09:00,0.07142857142857142,14,1
+poster_zh_vertical,101,Fast,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-101_0.png,a a I,1.25,4,5
+poster_zh_vertical,101,Fast,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-101_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,101,Fast,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,101,Fast,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png,Latte ## ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,101,Fast,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,101,Fast,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-101_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,101,Fast,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png,A?,1.0,3,3
+small_numbers_gauge,101,Fast,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png,,1.0,3,3
+small_numbers_gauge,101,Fast,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,101,Fast,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-101_0.png,REJECT,0.0,6,0
+dense_json_dashboard,101,Fast,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png,@) PulseMetrics,0.25,12,3
+dense_json_dashboard,101,Fast,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png,"| MRR
+all ¢aeg or",1.3,10,13
+dense_json_dashboard,101,Fast,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png,"Active
+co 19 AN7",0.5384615384615384,13,7
+dense_json_dashboard,101,Fast,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png,"@e Churn
+1297",0.6,10,6
+dense_json_dashboard,101,Fast,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-101_0.png,+) Updated 09:41,0.23076923076923078,13,3
+illustration_storybook,101,Fast,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Fast-illustration_storybook-101_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,101,Fast,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png,_PWR12V,0.2857142857142857,7,2
+tiny_labels_panel,101,Fast,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png,LINK,0.0,4,0
+tiny_labels_panel,101,Fast,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png,Al A2 A3,0.125,8,1
+tiny_labels_panel,101,Fast,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-101_0.png,__SN 26-4417-B |,0.3333333333333333,12,4
+long_prompt_stress,101,Fast,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Fast-long_prompt_stress-101_0.png,a QMSON » Van,0.5384615384615384,13,7
+long_prompt_stress,101,Fast,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Fast-long_prompt_stress-101_0.png,f r i 2: Croissant |,0.5416666666666666,24,13
+poster_en_bold,202,Turbo,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Turbo-poster_en_bold-202_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,202,Turbo,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Turbo-poster_en_bold-202_0.png,OCT 27 + 09:00,0.07142857142857142,14,1
+poster_zh_vertical,202,Turbo,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-202_0.png,et,1.0,4,4
+poster_zh_vertical,202,Turbo,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-202_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,202,Turbo,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,202,Turbo,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png,Latte @P# ¥28,0.25,12,3
+menu_bilingual_cafe,202,Turbo,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,202,Turbo,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-202_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,202,Turbo,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png,62%,0.0,3,0
+small_numbers_gauge,202,Turbo,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png,38%,0.0,3,0
+small_numbers_gauge,202,Turbo,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,202,Turbo,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-202_0.png,REJECT,0.0,6,0
+dense_json_dashboard,202,Turbo,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png,PulseMetrics,0.0,12,0
+dense_json_dashboard,202,Turbo,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png,"ate MRR
+AQ Ok",0.9,10,9
+dense_json_dashboard,202,Turbo,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png,"se Active
+als
+19 ANZ",0.9230769230769231,13,12
+dense_json_dashboard,202,Turbo,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png,"pf Churn
+129,",0.6,10,6
+dense_json_dashboard,202,Turbo,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-202_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,202,Turbo,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Turbo-illustration_storybook-202_0.png,The Lantern ios,0.13333333333333333,15,2
+tiny_labels_panel,202,Turbo,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,202,Turbo,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png,LINK,0.0,4,0
+tiny_labels_panel,202,Turbo,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png,Oo © &,0.75,8,6
+tiny_labels_panel,202,Turbo,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-202_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,202,Turbo,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-202_0.png,Maison Lévain,0.07692307692307693,13,1
+long_prompt_stress,202,Turbo,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-202_0.png,"| |)
+| | 9.Croissant",0.5833333333333334,24,14
+poster_en_bold,202,Fast,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Fast-poster_en_bold-202_0.png,DESIGN SUMMIT 2026,0.0,18,0
+poster_en_bold,202,Fast,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Fast-poster_en_bold-202_0.png,OCT 27 - 09:00,0.07142857142857142,14,1
+poster_zh_vertical,202,Fast,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-202_0.png,Fz,1.0,4,4
+poster_zh_vertical,202,Fast,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-202_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,202,Fast,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,202,Fast,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png,Latte 4% ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,202,Fast,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,202,Fast,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-202_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,202,Fast,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png,62:,0.3333333333333333,3,1
+small_numbers_gauge,202,Fast,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png,30°.,1.0,3,3
+small_numbers_gauge,202,Fast,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,202,Fast,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-202_0.png,REJECT,0.0,6,0
+dense_json_dashboard,202,Fast,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png,PulseMetrics,0.0,12,0
+dense_json_dashboard,202,Fast,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png,"MRR
+© $ag.2k",0.4,10,4
+dense_json_dashboard,202,Fast,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png,"age Active
+» 12,407",0.46153846153846156,13,6
+dense_json_dashboard,202,Fast,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png,"Churn
+ll 1.8%",0.3,10,3
+dense_json_dashboard,202,Fast,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-202_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,202,Fast,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Fast-illustration_storybook-202_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,202,Fast,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,202,Fast,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png,LINK,0.0,4,0
+tiny_labels_panel,202,Fast,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png,,1.0,8,8
+tiny_labels_panel,202,Fast,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-202_0.png,ON. 26-4417-B,0.16666666666666666,12,2
+long_prompt_stress,202,Fast,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Fast-long_prompt_stress-202_0.png,,1.0,13,13
+long_prompt_stress,202,Fast,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Fast-long_prompt_stress-202_0.png,"a | Bag ette
+i] 2. + Croissant |",0.625,24,15
+poster_en_bold,202,Rapid,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Rapid-poster_en_bold-202_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,202,Rapid,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Rapid-poster_en_bold-202_0.png,OUC 77-0200,0.5714285714285714,14,8
+poster_zh_vertical,202,Rapid,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-202_0.png,Ae Ae Lk Hr,2.75,4,11
+poster_zh_vertical,202,Rapid,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-202_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,202,Rapid,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,202,Rapid,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png,Latte ## ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,202,Rapid,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,202,Rapid,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-202_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,202,Rapid,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png,62%,0.0,3,0
+small_numbers_gauge,202,Rapid,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png,38%,0.0,3,0
+small_numbers_gauge,202,Rapid,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,202,Rapid,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-202_0.png,REJECT,0.0,6,0
+dense_json_dashboard,202,Rapid,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png,P PulseMetrics,0.16666666666666666,12,2
+dense_json_dashboard,202,Rapid,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png,"alg MRR
+AQ OL",1.0,10,10
+dense_json_dashboard,202,Rapid,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png,"aul Active
+19 ANZ",0.6923076923076923,13,9
+dense_json_dashboard,202,Rapid,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png,"gd Churn
+4297,",0.8,10,8
+dense_json_dashboard,202,Rapid,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-202_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,202,Rapid,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Rapid-illustration_storybook-202_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,202,Rapid,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,202,Rapid,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png,LINK,0.0,4,0
+tiny_labels_panel,202,Rapid,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png,Al  A2 A3,0.125,8,1
+tiny_labels_panel,202,Rapid,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-202_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,202,Rapid,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-202_0.png,,1.0,13,13
+long_prompt_stress,202,Rapid,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-202_0.png,,1.0,24,24
+poster_en_bold,303,Fast,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Fast-poster_en_bold-303_0.png,DESIGN SUMMIT 2026,0.0,18,0
+poster_en_bold,303,Fast,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Fast-poster_en_bold-303_0.png,OCT 27 - 09:00,0.07142857142857142,14,1
+poster_zh_vertical,303,Fast,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-303_0.png,ee A EL HH,2.5,4,10
+poster_zh_vertical,303,Fast,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Fast-poster_zh_vertical-303_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,303,Fast,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png,CAFE 32,0.2857142857142857,7,2
+menu_bilingual_cafe,303,Fast,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png,Latte 拿 铁 = ¥28,0.25,12,3
+menu_bilingual_cafe,303,Fast,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,303,Fast,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Fast-menu_bilingual_cafe-303_0.png,Matcha FER ¥32,0.23076923076923078,13,3
+small_numbers_gauge,303,Fast,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png,62»,0.3333333333333333,3,1
+small_numbers_gauge,303,Fast,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png,,1.0,3,3
+small_numbers_gauge,303,Fast,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,303,Fast,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Fast-small_numbers_gauge-303_0.png,REJECT,0.0,6,0
+dense_json_dashboard,303,Fast,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png,PulseMetrics,0.0,12,0
+dense_json_dashboard,303,Fast,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png,"~il MRR
+“48 9k",0.7,10,7
+dense_json_dashboard,303,Fast,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png,"I Active
+12. 407",0.3076923076923077,13,4
+dense_json_dashboard,303,Fast,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png,"Y\ Churn
+O 1.8%",0.5,10,5
+dense_json_dashboard,303,Fast,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Fast-dense_json_dashboard-303_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,303,Fast,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Fast-illustration_storybook-303_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,303,Fast,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,303,Fast,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png,LINK,0.0,4,0
+tiny_labels_panel,303,Fast,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png,AL1 A2 A3,0.125,8,1
+tiny_labels_panel,303,Fast,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Fast-tiny_labels_panel-303_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,303,Fast,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Fast-long_prompt_stress-303_0.png,"iV PER, ii
+Maison Levain",0.8461538461538461,13,11
+long_prompt_stress,303,Fast,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Fast-long_prompt_stress-303_0.png,"+} Baguette
+2.- Croissant
+é | 45",0.4583333333333333,24,11
+poster_en_bold,303,Rapid,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Rapid-poster_en_bold-303_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,303,Rapid,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Rapid-poster_en_bold-303_0.png,Ger A7 ° WEeriee),0.9285714285714286,14,13
+poster_zh_vertical,303,Rapid,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-303_0.png,春 余 上 新,1.0,4,4
+poster_zh_vertical,303,Rapid,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Rapid-poster_zh_vertical-303_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,303,Rapid,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,303,Rapid,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png,Latte ## ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,303,Rapid,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,303,Rapid,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Rapid-menu_bilingual_cafe-303_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,303,Rapid,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png,62%,0.0,3,0
+small_numbers_gauge,303,Rapid,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png,38%,0.0,3,0
+small_numbers_gauge,303,Rapid,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,303,Rapid,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Rapid-small_numbers_gauge-303_0.png,REJECT,0.0,6,0
+dense_json_dashboard,303,Rapid,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png,O PulseMetrics,0.16666666666666666,12,2
+dense_json_dashboard,303,Rapid,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png,"at], MRR
+CAQ Ik",1.0,10,10
+dense_json_dashboard,303,Rapid,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png,"一 Active
+12 AN7",0.38461538461538464,13,5
+dense_json_dashboard,303,Rapid,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png,"(A Churn
+129",0.6,10,6
+dense_json_dashboard,303,Rapid,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Rapid-dense_json_dashboard-303_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,303,Rapid,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Rapid-illustration_storybook-303_0.png,The Lantern Fox,0.0,15,0
+tiny_labels_panel,303,Rapid,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,303,Rapid,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png,LINK,0.0,4,0
+tiny_labels_panel,303,Rapid,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png,[Al im A2 mm A3 |,1.25,8,10
+tiny_labels_panel,303,Rapid,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Rapid-tiny_labels_panel-303_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,303,Rapid,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-303_0.png,,1.0,13,13
+long_prompt_stress,303,Rapid,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Rapid-long_prompt_stress-303_0.png,"| ae
+
+ea
+que
+
+| | | | | 2.Croissant ff",0.9166666666666666,24,22
+poster_en_bold,303,Turbo,0,DESIGN SUMMIT 2026,"(53, 53, 971, 254)",rapid-auto-int8-cu128-Turbo-poster_en_bold-303_0.png,"DESIGN
+SUMMIT 2026",0.0,18,0
+poster_en_bold,303,Turbo,1,OCT 27 · 09:00,"(237, 258, 787, 367)",rapid-auto-int8-cu128-Turbo-poster_en_bold-303_0.png,"OG 27 >, OOE®",0.6428571428571429,14,9
+poster_zh_vertical,303,Turbo,0,春茶上新,"(73, 63, 951, 254)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-303_0.png,Ae Fz kk Hr,2.75,4,11
+poster_zh_vertical,303,Turbo,1,明前龙井限量发售,"(176, 268, 848, 387)",rapid-auto-int8-cu128-Turbo-poster_zh_vertical-303_0.png,明 前 龙井 限量 发 售,0.625,8,5
+menu_bilingual_cafe,303,Turbo,0,CAFE 菜单,"(248, 43, 776, 183)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png,CAFE 菜单,0.0,7,0
+menu_bilingual_cafe,303,Turbo,1,Latte 拿铁 ¥28,"(114, 237, 705, 336)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png,Latte ## ¥28,0.16666666666666666,12,2
+menu_bilingual_cafe,303,Turbo,2,Americano 美式 ¥24,"(114, 360, 787, 459)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png,Americano 美式 ¥24,0.0,16,0
+menu_bilingual_cafe,303,Turbo,3,Matcha 抹茶 ¥32,"(114, 483, 705, 582)",rapid-auto-int8-cu128-Turbo-menu_bilingual_cafe-303_0.png,Matcha 抹茶 ¥32,0.0,13,0
+small_numbers_gauge,303,Turbo,0,62%,"(73, 299, 459, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png,62%,0.0,3,0
+small_numbers_gauge,303,Turbo,1,38%,"(565, 299, 951, 561)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png,38%,0.0,3,0
+small_numbers_gauge,303,Turbo,2,APPROVAL,"(94, 585, 418, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png,APPROVAL,0.0,8,0
+small_numbers_gauge,303,Turbo,3,REJECT,"(585, 585, 869, 664)",rapid-auto-int8-cu128-Turbo-small_numbers_gauge-303_0.png,REJECT,0.0,6,0
+dense_json_dashboard,303,Turbo,0,PulseMetrics,"(32, 22, 377, 101)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png,© PulseMetrics,0.16666666666666666,12,2
+dense_json_dashboard,303,Turbo,1,MRR $48.2k,"(32, 135, 357, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png,"MRR
+AAA AI,",0.7,10,7
+dense_json_dashboard,303,Turbo,2,"Active 12,407","(381, 135, 746, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png,"Active
+Ahn AR™",0.5384615384615384,13,7
+dense_json_dashboard,303,Turbo,3,Churn 1.8%,"(770, 135, 1024, 244)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png,"Churn
+ay ae",0.5,10,5
+dense_json_dashboard,303,Turbo,5,Updated 09:41,"(32, 770, 295, 838)",rapid-auto-int8-cu128-Turbo-dense_json_dashboard-303_0.png,Updated 09:41,0.0,13,0
+illustration_storybook,303,Turbo,2,The Lantern Fox,"(145, 53, 736, 183)",rapid-auto-int8-cu128-Turbo-illustration_storybook-303_0.png,The Lantern Fo Dx,0.13333333333333333,15,2
+tiny_labels_panel,303,Turbo,0,PWR 12V,"(73, 73, 336, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png,PWR 12V,0.0,7,0
+tiny_labels_panel,303,Turbo,1,LINK,"(708, 73, 910, 152)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png,LINK,0.0,4,0
+tiny_labels_panel,303,Turbo,2,A1 A2 A3,"(319, 463, 705, 536)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png,oo 本,0.875,8,7
+tiny_labels_panel,303,Turbo,3,SN 26-4417-B,"(299, 893, 725, 961)",rapid-auto-int8-cu128-Turbo-tiny_labels_panel-303_0.png,SN 26-4417-B,0.0,12,0
+long_prompt_stress,303,Turbo,0,Maison Levain,"(176, 135, 848, 275)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-303_0.png,M gison Levan,0.23076923076923078,13,3
+long_prompt_stress,303,Turbo,1,Baguette 2·Croissant 1.5,"(565, 329, 930, 510)",rapid-auto-int8-cu128-Turbo-long_prompt_stress-303_0.png,"if 『 Baguette
+2: Craissant |
+
+| 15 |
+
+ie ‘",0.8333333333333334,24,20

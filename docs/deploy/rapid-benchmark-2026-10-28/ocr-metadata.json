@@ -1,0 +1,19 @@
+{
+  "engine": "tesseract 5.5.3",
+  "languages": "eng+chi_sim",
+  "chinese_model_source": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/chi_sim.traineddata",
+  "models": {
+    "chi_sim.traineddata": {
+      "size_bytes": 2469156,
+      "sha256": "a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730"
+    },
+    "eng.traineddata": {
+      "size_bytes": 4113088,
+      "sha256": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"
+    }
+  },
+  "note": "Offline OCR screening, not calibrated human quality acceptance; reading order and OCR errors affect CER.",
+  "regional_psm": 6,
+  "regional_padding_pixels": 8,
+  "whole_page_psm": 11
+}
