@@ -387,7 +387,7 @@ describe('preset availability guard', () => {
   it('re-validates a queued moss job at dispatch when capabilities changed', async () => {
     // Job enqueued while Rapid was advertised, queued behind a stalled run; by
     // its dispatch time capabilities no longer advertise it — the stale job is
-    // dropped with an explicit message instead of being submitted.
+    // retained as a visible failure instead of being submitted or deleted.
     let resolveFirst
     const runJob = vi.fn()
       .mockImplementationOnce(() => new Promise(r => { resolveFirst = r }))
@@ -402,13 +402,27 @@ describe('preset availability guard', () => {
     freshState.moss = { promptMode: 'layout', preset: 'Rapid' }
     mod.enqueue()                                   // queued; Rapid advertised at enqueue time
     expect(document.getElementById('queue-panel').children.length).toBe(2)
-    mossPresets.setCapabilities(null, 'runpod')     // capabilities disappear before its dispatch
+    mossPresets.setCapabilities({ presets: [{ id: 'Fast' }] }, 'runpod') // explicit withdrawal
     resolveFirst({ dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:x' })
     await vi.waitFor(() => {
       expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid β'), 'error', expect.anything())
     })
     expect(runJob).toHaveBeenCalledTimes(1)         // the stale Rapid job was never submitted
-    expect(document.getElementById('queue-panel').children.length).toBe(1)  // only the done job remains
+    expect(document.getElementById('queue-panel').children.length).toBe(2)
+    expect(document.querySelector('.queue-failed .queue-status')?.textContent).toBe('Failed')
+  })
+
+  it.each(['Quality', 'Turbo'])('uses the MOSS recipe for collection items while Ideogram uses %s', async (preset) => {
+    const runJob = okRunJob()
+    const { mod, freshState } = await loadQueueWithFreshState({ runJob })
+    const mossPresets = await import('../moss-presets.js')
+    mossPresets.setCapabilities({ presets: [{ id: 'Rapid', max_area_mp: 1 }] })
+    freshState.model = 'ideogram'
+    freshState.preset = preset
+    freshState.moss = { preset: 'Rapid', promptMode: 'caption' }
+    mod.enqueueImportJson('{}', { model: 'moss' })
+    await vi.waitFor(() => expect(runJob).toHaveBeenCalledTimes(1))
+    expect(runJob.mock.calls[0][0]).toMatchObject({ model: 'moss', preset: 'Rapid', promptFormat: 'caption', negativePrompt: 'nsfw' })
   })
 
   it('lets base presets enqueue without capabilities', async () => {

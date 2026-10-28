@@ -236,6 +236,9 @@ class _ComfyWorker:
         """Prepare files and environment before the server imports model paths."""
 
     def startup(self):
+        sys.path.insert(0, "/")
+        import handler as comfy
+        self.worker_instance_id = comfy.reset_worker_identity()
         self.pre_start()
         env = self.comfy_env(os.environ)
         args = self.comfy_args()
@@ -359,7 +362,8 @@ class ComfyMoss(_ComfyWorker):
         response.raise_for_status()
         self.runtime_info = response.json()
         self.runtime_info.update(runtime_profile=self._profile["profile_id"], runtime_build=_RUNTIME_BUILD,
-                                 runtime_lock_id=_RUNTIME_LOCK["lock_id"])
+                                 runtime_lock_id=_RUNTIME_LOCK["lock_id"],
+                                 worker_instance_id=self.worker_instance_id)
         if MOSS_STARTUP_DIAG:
             print("[startup] ComfyUI runtime: " + json.dumps(self.runtime_info, default=str))
         runtime_check.enforce_profile_requirements(self._profile, self.runtime_info)

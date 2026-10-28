@@ -60,9 +60,24 @@ pre-fix images are preserved in the artifacts for the record
 
 1. Full comparison through the preview app (fixtures × 3 paired seeds ×
    Rapid/Turbo/Fast = 108 measured images, ≤45 min submission budget):
-   `modal run runpod/modal_app.py::moss_benchmark_main --presets Rapid,Turbo,Fast --width 1024 --height 1024 …`
-   (counterbalanced order, per-(config,seed) encoder cache-bust, warmups in
-   `warmups.jsonl`, review sheet + optional OCR CER).
+
+   ```sh
+   MOSS_APP_NAME=ideogram-builder-rapid-preview \
+   MOSS_RUNTIME_PROFILE=rapid-auto-int8-cu128 \
+   MOSS_RUNTIME_BUILD=baseline MOSS_EXPERIMENTAL_PRESETS=Rapid \
+   MOSS_CACHED_IMAGE_ID=im-C6CYVuLZL3PDP7CmANZGPp \
+   IDEOGRAM_CACHED_IMAGE_ID=im-jAh6cs2wwMnYugf5Zhz6Qs \
+   modal run --env main runpod/modal_app.py::moss_benchmark_main \
+     --profiles rapid-auto-int8-cu128 --presets Rapid,Turbo,Fast \
+     --seeds 101,202,303 --width 1024 --height 1024 \
+     --max-jobs 108 --max-minutes 45
+   ```
+
+   The profile, three seeds, image IDs and budget are deliberate. Omitting
+   them selects the baseline/five-seed defaults or rebuilds heavy images.
+   Warmups are additional generations, persisted in `warmups.jsonl`; the
+   45-minute limit stops new submissions and is not a hard billing deadline.
+   Use the recorded graphs/runtime and review sheet for acceptance evidence.
 2. Manual review of the review sheet; OCR CER and IoU where annotated.
 3. Promotion gates from the plan; if fine-text regressions appear, evaluate the
    BF16 DiT reference profile (`bf16-adapters`) with its own truthful gates.

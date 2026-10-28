@@ -3,7 +3,7 @@ import { emit, on } from './events.js';
 import { showToast } from './toast.js';
 import { logError } from './client-log.js';
 import { runJob } from './backend.js';
-import { ensurePresetUsable, checkSnapshot, MOSS_PRESET_IDS } from './moss-presets.js';
+import { ensurePresetUsable, checkSnapshot, getCapabilities } from './moss-presets.js';
 
 let queue = [];
 let isRunning = false;
@@ -13,7 +13,7 @@ const panel = () => document.getElementById('queue-panel');
 const genBtn = () => document.getElementById('btn-generate-image');
 const statusEl = () => document.getElementById('generate-status');
 
-function buildSnapshot() {
+function buildSnapshot(model = state.model) {
     const jsonText = document.getElementById('json-output').value;
     let importJson;
     try {
@@ -21,10 +21,10 @@ function buildSnapshot() {
     } catch {
         importJson = jsonText;
     }
-    const isMoss = state.model === 'moss';
+    const isMoss = model === 'moss';
     return {
         importJson,
-        model: state.model,
+        model,
         // MOSS-only; empty for Ideogram so its payload stays unchanged
         negativePrompt: isMoss ? (document.getElementById('moss-negative')?.value ?? '') : '',
         promptFormat: isMoss ? state.moss.promptMode : 'layout',
@@ -45,16 +45,9 @@ function buildSnapshot() {
 }
 
 function makeJob(importJson, model) {
-    const snapshot = { ...buildSnapshot(), importJson };
-    // Collections pass their item's model; other snapshot fields stay from the
-    // UI (v1) — except the preset when switching TO moss, where the Ideogram
-    // steps-preset name would be an invalid recipe: use the moss UI preset.
-    if (model) {
-        snapshot.model = model;
-        if (model === 'moss' && !MOSS_PRESET_IDS.includes(snapshot.preset)) {
-            snapshot.preset = state.moss.preset;
-        }
-    }
+    // Resolve all model-specific fields together. Quality and Turbo are names
+    // in both models, so name membership cannot select the intended recipe.
+    const snapshot = { ...buildSnapshot(model || state.model), importJson };
     return {
         id: counter++,
         snapshot,
@@ -64,12 +57,22 @@ function makeJob(importJson, model) {
 }
 
 /** Guards the actual snapshot (its preset AND dimensions), not editor state. */
-function snapshotGuard(job) {
+function snapshotGuard(job, { dispatch = false } = {}) {
     const verdict = checkSnapshot(job.snapshot);
     if (verdict.ok) return true;
+    if (dispatch) {
+        const backend = localStorage.getItem('ideogram_backend') || 'runpod';
+        // Unknown capabilities during a refresh/failure are not an explicit
+        // withdrawal of a recipe accepted at enqueue. Retain it for refresh.
+        job.status = backend === 'modal' && getCapabilities() === null ? 'blocked' : 'failed';
+        job.error = job.status === 'blocked'
+            ? 'Waiting for backend capabilities; refresh backend settings to resume.'
+            : verdict.message;
+        if (job.status === 'failed') showToast(job.error, 'error', 5000);
+        render();
+        return false;
+    }
     showToast(verdict.message, 'error', 5000);
-    queue = queue.filter(j => j !== job);
-    render();
     return false;
 }
 
@@ -115,7 +118,7 @@ async function drain() {
     while ((job = queue.find(j => j.status === 'queued'))) {
         // Capabilities may have changed since enqueue (backend switch, refresh):
         // re-validate the snapshot at dispatch, not just the editor's state.
-        if (!snapshotGuard(job)) continue;
+        if (!snapshotGuard(job, { dispatch: true })) continue;
         job.status = 'running';
         render();
         try {
@@ -182,7 +185,7 @@ function render() {
     const el = panel();
     if (!el || !genBtn()) return;
 
-    const pending = queue.filter(j => j.status === 'queued' || j.status === 'running').length;
+    const pending = queue.filter(j => ['queued', 'running', 'blocked'].includes(j.status)).length;
     genBtn().textContent = pending > 0 ? `Generate (+${pending} queued)` : 'Generate';
 
     const badge = document.getElementById('queue-badge');
@@ -199,7 +202,8 @@ function render() {
         if (job.status === 'running' && job.elapsed != null) statusText = `${job.elapsed}s`;
         else if (job.status === 'done') statusText = 'Done';
         else if (job.status === 'failed') statusText = 'Failed';
-        const failTitle = (job.status === 'failed' && job.error)
+        else if (job.status === 'blocked') statusText = 'Waiting for capabilities';
+        const failTitle = (['failed', 'blocked'].includes(job.status) && job.error)
             ? ` title="${job.error.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`
             : '';
         return `
@@ -222,5 +226,20 @@ export function initQueue() {
         });
     }
     on('queue:enqueue', ({ importJson, model }) => enqueueImportJson(importJson, { model }));
+    on('moss:capabilities-changed', ({ backend, known }) => {
+        const current = localStorage.getItem('ideogram_backend') || 'runpod';
+        if (backend !== current || (current === 'modal' && !known)) return;
+        let resumed = false;
+        for (const job of queue) {
+            if (job.status !== 'blocked') continue;
+            job.status = 'queued';
+            delete job.error;
+            resumed = true;
+        }
+        if (resumed) {
+            render();
+            drain();
+        }
+    });
     render();
 }

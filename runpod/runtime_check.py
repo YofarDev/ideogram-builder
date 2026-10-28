@@ -50,6 +50,7 @@ def collect(*, apply_comfy_policy=False, smoke=False):
         sys.path.insert(0, COMFY_DIR)
         import comfy.quant_ops  # noqa: F401 — apply the real server backend policy
     info = {
+        "worker_instance_id": os.environ.get("MOSS_WORKER_INSTANCE_ID"),
         "python": sys.version.split()[0],
         "executable": sys.executable,
         "torch": _module_version("torch"),

@@ -100,14 +100,23 @@ def _get_object_info():
     return _OBJECT_INFO
 
 
-# Unique per server process (module import = container start), stable across
-# that worker's jobs, changes on a real restart. The hostname alone ("modal")
-# is shared by every Modal container and cannot group samples per worker.
+# Fallback for a single-process RunPod worker. Modal explicitly resets this at
+# each ComfyUI startup, including profile round trips in benchmark containers.
 _WORKER_BOOT_ID = f"{uuid.uuid4().hex[:12]}-{os.getpid()}"
 
 
+def reset_worker_identity():
+    global _WORKER_BOOT_ID, _MOSS_JOBS_IN_WORKER, _OBJECT_INFO
+    _WORKER_BOOT_ID = f"{uuid.uuid4().hex[:12]}-{os.getpid()}"
+    _MOSS_JOBS_IN_WORKER = 0
+    _OBJECT_INFO = None
+    identity = f"{os.environ.get('HOSTNAME') or os.uname().nodename}-{_WORKER_BOOT_ID}"
+    os.environ["MOSS_WORKER_INSTANCE_ID"] = identity
+    return identity
+
+
 def _worker_instance_id():
-    return f"{os.environ.get('HOSTNAME') or os.uname().nodename}-{_WORKER_BOOT_ID}"
+    return os.environ.get("MOSS_WORKER_INSTANCE_ID") or f"{os.environ.get('HOSTNAME') or os.uname().nodename}-{_WORKER_BOOT_ID}"
 
 
 def _load_template(key):

@@ -8,6 +8,7 @@
 
 import { state } from './state.js';
 import { showToast } from './toast.js';
+import { emit } from './events.js';
 
 export const BASE_PRESETS = ['Fast', 'Quality', 'Turbo'];
 export const CANDIDATE_PRESETS = ['Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum'];
@@ -50,6 +51,7 @@ let capabilities = null;   // null = unknown/absent → base presets only
 export function setCapabilities(caps, backend = localStorage.getItem("ideogram_backend") || "runpod") {
     capabilitiesBackend = backend;
     capabilities = (caps && Array.isArray(caps.presets)) ? caps : null;
+    emit('moss:capabilities-changed', { backend, known: capabilities !== null });
 }
 
 export function getCapabilities() {

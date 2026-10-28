@@ -510,7 +510,8 @@ def validate_request_preset(preset_name, width, height, env=None):
             f"Keep the selected recipe and reduce the canvas size."
         )
     validated_limit = profile.get("validated_presets", {}).get(preset_name)
-    if validated_limit is not None and width * height > validated_limit * MP and not benchmark_mode:
+    is_validated = preset_name in BASE_PRESET_IDS or profile.get("status") == "validated"
+    if is_validated and validated_limit is not None and width * height > validated_limit * MP and not benchmark_mode:
         raise PresetUnsupportedError(f"Preset '{preset_name}' is validated only up to {validated_limit} MP on this deployment")
     preset, steps = effective_preset(preset_name, width, height, profile=profile)
     return profile, preset, steps
@@ -532,6 +533,11 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
         preset = MOSS_PRESETS[pid]
         is_experimental = pid not in profile.get("validated_presets", {}) or not (
             pid in BASE_PRESET_IDS or profile.get("status") == "validated")
+        limit = preset_area_limit(pid, profile)
+        if not is_experimental:
+            validated_limit = profile.get("validated_presets", {}).get(pid)
+            if validated_limit is not None:
+                limit = min(limit, validated_limit) if limit is not None else validated_limit
         entry = {
             "id": pid,
             "label": preset["label"],
@@ -542,7 +548,7 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
             "sampler": preset["sampler"],
             "scheduler": preset["scheduler"],
             "validation_status": "experimental" if is_experimental else "validated",
-            "max_area_mp": preset_area_limit(pid, profile),
+            "max_area_mp": limit,
         }
         if preset.get("steps_policy"):
             entry["steps_policy"] = preset["steps_policy"]
