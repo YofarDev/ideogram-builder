@@ -138,6 +138,14 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Yofardev/yofardev_moss_v1/resolve/main/yofardev_moss_v1.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
+  {
+    id: 'mil-moss-v1',
+    label: 'Cecile Milf (v1) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/mil_moss_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
 ];
 
 /** User-added entries: [{ id, label, filename, source_url, model, strengths }] */
