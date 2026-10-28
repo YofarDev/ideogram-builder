@@ -15,13 +15,12 @@ export const CANDIDATE_PRESETS = ['Rapid', 'Draft3', 'FastSpectrum', 'QualitySpe
 export const MOSS_PRESET_IDS = [...BASE_PRESETS, ...CANDIDATE_PRESETS];
 
 // UI copy; limits and status come from the server capabilities, not this
-// table. Rapid stays explicitly experimental in local fallback copy — no
-// unproven performance claims.
+// table. Availability remains capability-gated, including promoted Rapid.
 export const PRESET_INFO = {
     Fast: { label: 'Fast', blurb: '25 steps · balanced quality/speed' },
     Quality: { label: 'Quality', blurb: '50 steps · maximum quality' },
     Turbo: { label: 'Turbo β', blurb: '8 steps · DMD distillation' },
-    Rapid: { label: 'Rapid β', blurb: '4 steps · experimental · up to 1 MP' },
+    Rapid: { label: 'Rapid', blurb: '4 steps · up to 1 MP' },
     Draft3: { label: 'Draft β', blurb: '3 steps, 1024² max · preview quality' },
     FastSpectrum: { label: 'Fast+ β', blurb: 'Fast with feature-forecasting acceleration' },
     QualitySpectrum: { label: 'Quality+ β', blurb: 'Quality with feature-forecasting acceleration' },

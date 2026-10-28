@@ -121,6 +121,7 @@ def main(argv=None):
     parser.add_argument("--fixtures", default="poster_en_bold,poster_zh_vertical")
     parser.add_argument("--seed", type=int, default=101)
     parser.add_argument("--out", default="rapid-smoke-artifacts")
+    parser.add_argument("--expected-validation", choices=("experimental", "validated"), default="experimental")
     args = parser.parse_args(argv)
 
     client = Client(args.endpoint, args.token)
@@ -136,7 +137,7 @@ def main(argv=None):
     rapid = presets.get("Rapid")
     check("Rapid advertised", rapid is not None)
     if rapid:
-        check("Rapid marked experimental", rapid.get("validation_status") == "experimental",
+        check(f"Rapid marked {args.expected_validation}", rapid.get("validation_status") == args.expected_validation,
               f"got {rapid.get('validation_status')}")
         check("Rapid limit 1 MP", rapid.get("max_area_mp") == 1, f"got {rapid.get('max_area_mp')}")
         check("Rapid recipe 4 steps / CFG 1 / euler", rapid.get("steps") == 4 and rapid.get("cfg") == 1.0

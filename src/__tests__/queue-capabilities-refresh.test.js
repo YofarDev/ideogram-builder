@@ -77,7 +77,7 @@ it('shows an explicit withdrawal as a failed card without deleting the recipe', 
   first.resolve({ dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:first' });
   await vi.waitFor(() => expect(document.querySelector('.queue-failed')).not.toBeNull());
   expect(document.querySelectorAll('.queue-card')).toHaveLength(2);
-  expect(document.querySelector('.queue-failed').title).toContain('Rapid β');
+  expect(document.querySelector('.queue-failed').title).toContain('Rapid');
   expect(runJob).toHaveBeenCalledTimes(1);
 });
 

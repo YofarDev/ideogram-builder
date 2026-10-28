@@ -117,7 +117,7 @@ describe('restoreMeta (gallery)', () => {
     expect(state.moss.preset).toBe('Rapid')
     expect(localStorage.getItem('ideogram_moss_preset')).toBe('Rapid')
     expect(showToast).toHaveBeenCalledWith(
-      expect.stringContaining('Rapid β'),
+      expect.stringContaining('Rapid'),
       'error',
       expect.any(Number),
     )

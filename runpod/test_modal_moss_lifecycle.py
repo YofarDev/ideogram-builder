@@ -16,6 +16,21 @@ def load_app():
     return module
 
 
+def test_default_deployment_keeps_rapid_permanent_and_baseline_rollback(monkeypatch):
+    import moss_config
+    for key in ('MOSS_RUNTIME_PROFILE', 'MOSS_ENABLED_PRESETS', 'MOSS_EXPERIMENTAL_PRESETS'):
+        monkeypatch.delenv(key, raising=False)
+    app = load_app()
+    assert app._MOSS_ENV['MOSS_RUNTIME_PROFILE'] == 'rapid-auto-int8-cu128'
+    assert app._MOSS_ENV['MOSS_EXPERIMENTAL_PRESETS'] == ''
+    assert 'Rapid' in app.MOSS_ENABLED_PRESETS
+    assert 'Rapid' in moss_config.advertised_presets(app.MOSS_PROFILE)
+    monkeypatch.setenv('MOSS_RUNTIME_PROFILE', 'baseline')
+    app = load_app()
+    assert app._MOSS_ENV['MOSS_RUNTIME_PROFILE'] == 'baseline'
+    assert 'Rapid' not in app.MOSS_ENABLED_PRESETS
+
+
 def test_remote_configuration_snapshot_options_and_matched_build(monkeypatch):
     for key, value in {'MOSS_RUNTIME_PROFILE':'resident-auto-int8', 'MOSS_RUNTIME_BUILD':'cu130',
                        'MOSS_ENABLED_PRESETS':'Fast', 'MOSS_SNAPSHOT_MODE':'gpu_experimental',

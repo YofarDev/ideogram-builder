@@ -492,8 +492,14 @@ def test_moss_flow_rapid_unsupported_size_is_actionable(moss_flow, monkeypatch):
     result = run_handler(model="moss", import_json="P", preset="Rapid",
                          width=4096, height=4096)
     assert "above the limit" in result["error"]
-    # Without the experimental opt-in the same preset is not advertised at all.
+    # Promoted Rapid remains served without an experimental opt-in.
     monkeypatch.delenv("MOSS_EXPERIMENTAL_PRESETS")
+    result = run_handler(model="moss", import_json="P", preset="Rapid",
+                         width=1024, height=1024)
+    assert "error" not in result
+    assert result["generation"]["effective_steps"] == 4
+    # An unpromoted profile still requires explicit preview opt-in.
+    monkeypatch.setenv("MOSS_RUNTIME_PROFILE", "rapid-auto-int8-cu128-warm")
     result = run_handler(model="moss", import_json="P", preset="Rapid",
                          width=1024, height=1024)
     assert "not advertised" in result["error"]

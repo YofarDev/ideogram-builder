@@ -191,6 +191,25 @@ def test_capabilities_only_advertise_validated_profile_presets():
     assert advertised_presets(candidate) == list(BASE_PRESET_IDS)
 
 
+def test_permanent_rapid_needs_no_experimental_opt_in():
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-auto-int8-cu128"}
+    profile, enabled = resolve_enabled_presets(env)
+    caps = capabilities(profile, enabled=enabled, experimental=())
+    assert caps["status"] == "validated"
+    by_id = {p["id"]: p for p in caps["presets"]}
+    assert set(by_id) == set(BASE_PRESET_IDS) | {"Rapid"}
+    assert by_id["Rapid"]["validation_status"] == "validated"
+    assert by_id["Rapid"]["label"] == "Rapid"
+    assert by_id["Rapid"]["max_area_mp"] == 1
+    assert "experimental" not in by_id["Rapid"]["blurb"]
+    _, preset, steps = validate_request_preset("Rapid", 1024, 1024, env)
+    assert steps == 4 and preset["adapter"] == "rapid4"
+    with pytest.raises(PresetUnsupportedError, match="above the limit"):
+        validate_request_preset("Rapid", 1024, 1536, env)
+    for pid in BASE_PRESET_IDS:
+        assert effective_preset(pid, 1024, 1024, profile=profile) == effective_preset(pid, 1024, 1024)
+
+
 def test_rapid_advertisement_requires_validated_or_experimental():
     import copy
     from moss_config import RUNTIME_PROFILES
@@ -206,6 +225,7 @@ def test_rapid_advertisement_requires_validated_or_experimental():
 
     # Experimental opt-in: advertised but explicitly NOT validated, technical limit only.
     candidate = copy.deepcopy(RUNTIME_PROFILES["rapid-auto-int8-cu128"])
+    candidate["status"] = "candidate"
     caps = capabilities(candidate, experimental=("Rapid",))
     by_id = {p["id"]: p for p in caps["presets"]}
     assert [p["validation_status"] for p in caps["presets"] if p["id"] == "Rapid"] == ["experimental"]
@@ -222,7 +242,7 @@ def test_validate_request_preset_uses_availability_calculation():
     """HTTP gate = same advertisement calculation as capabilities; benchmark
     mode may execute technical candidates; the technical 1 MP limit applies to
     both paths."""
-    env = {"MOSS_RUNTIME_PROFILE": "rapid-auto-int8-cu128"}
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-auto-int8-cu128-warm"}
 
     # No experimental opt-in → Rapid rejected over the request API…
     with pytest.raises(PresetUnsupportedError, match="not advertised"):

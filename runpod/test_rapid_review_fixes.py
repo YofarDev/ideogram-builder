@@ -134,6 +134,7 @@ def test_advertised_validated_limits_match_request_limits(monkeypatch, preset, v
 
 def test_experimental_recipe_advertises_and_accepts_its_technical_limit(monkeypatch):
     profile = config.resolve_profile({'MOSS_RUNTIME_PROFILE':'rapid-auto-int8-cu128'})
+    profile['status'] = 'candidate'
     profile['validated_presets']['Rapid'] = .5
     monkeypatch.setitem(config.RUNTIME_PROFILES, profile['profile_id'], profile)
     caps = config.capabilities(profile, experimental=('Rapid',))

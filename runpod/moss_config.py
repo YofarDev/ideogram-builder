@@ -45,7 +45,7 @@ MOSS_PRESETS = {
         "label": "Turbo β", "tier": "final",
         "blurb": "8 steps, DMD distillation",
     },
-    # Rapid β — akhaliq four-step adapter, v2.0 Euler-native release, strength 1,
+    # Rapid — akhaliq four-step adapter, v2.0 Euler-native release, strength 1,
     # euler/simple, CFG 1, no SLG. v1 carries a hard technical 1 MP limit
     # (max_area_mp): exactly four steps, never the six/eight-step ladder — those
     # larger buckets stay unreachable until a separately declared profile lifts
@@ -53,8 +53,8 @@ MOSS_PRESETS = {
     "Rapid": {
         "steps": 4, "cfg": 1.0, "sampler": "euler", "scheduler": "simple",
         "slg": None, "adapter": "rapid4", "spectrum": False,
-        "label": "Rapid β", "tier": "final",
-        "blurb": "4 steps · experimental · up to 1 MP",
+        "label": "Rapid", "tier": "final",
+        "blurb": "4 steps · up to 1 MP",
         "steps_policy": "rapid",
         "max_area_mp": 1,
     },
@@ -221,7 +221,7 @@ ASSET_BY_FORMAT = {
 def _profile(profile_id, *, description, status, memory_mode, dit_format,
              encoder_format, compile_backend="off", warmup=False,
              requires_cuda13=None, enabled_presets=BASE_PRESET_IDS,
-             merged_adapter=None):
+             merged_adapter=None, validated_presets=None):
     if memory_mode not in MEMORY_MODES:
         raise ProfileError(f"profile {profile_id}: bad memory_mode")
     if dit_format not in DIT_FORMATS or encoder_format not in ENCODER_FORMATS:
@@ -248,13 +248,16 @@ def _profile(profile_id, *, description, status, memory_mode, dit_format,
         "merged_adapter": merged_adapter,
         # Validation is per recipe and resolution, independently of whether a
         # runtime profile has passed its infrastructure gate. Values are MP.
-        "validated_presets": {pid: None for pid in enabled_presets if pid in BASE_PRESET_IDS},
+        "validated_presets": {
+            **{pid: None for pid in enabled_presets if pid in BASE_PRESET_IDS},
+            **(validated_presets or {}),
+        },
     }
 
 
 # Named, immutable profile IDs capturing complete effective configurations.
-# Only "baseline" is validated initially; candidates are promoted after their
-# benchmark gates pass (status flip in this file is the promotion mechanism).
+# Baseline is retained for rollback; the measured Rapid profile is promoted
+# following user visual acceptance. Other candidates remain unpromoted.
 RUNTIME_PROFILES = {
     "baseline": _profile(
         "baseline",
@@ -265,13 +268,14 @@ RUNTIME_PROFILES = {
     ),
     "rapid-auto-int8-cu128": _profile(
         "rapid-auto-int8-cu128",
-        description="Rapid β candidate on the observed cu128 baseline: INT8 DiT + W4A8 encoder, "
+        description="Production Rapid on the measured cu128 baseline: INT8 DiT + W4A8 encoder, "
                     "auto residency, eager kernels tolerated (as baseline), no compile, no warmup. "
-                    "Technical support for the three shipped presets plus Rapid at ≤1 MP only.",
-        status="candidate",
+                    "User-accepted Rapid at ≤1 MP plus the three existing recipes unchanged.",
+        status="validated",
         memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
         requires_cuda13=False,
         enabled_presets=BASE_PRESET_IDS + ("Rapid",),
+        validated_presets={"Rapid": 1},
     ),
     "resident-auto-int8": _profile(
         "resident-auto-int8",

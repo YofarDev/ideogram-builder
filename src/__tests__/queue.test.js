@@ -357,7 +357,7 @@ describe('preset availability guard', () => {
     freshState.moss = { promptMode: 'layout', preset: 'Rapid' }  // no capabilities → unavailable
     mod.enqueue()
     await vi.waitFor(() => {
-      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid β'), expect.anything())
+      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid'), expect.anything())
     })
     expect(runJob).not.toHaveBeenCalled()
     expect(document.getElementById('queue-panel').children.length).toBe(0)
@@ -405,7 +405,7 @@ describe('preset availability guard', () => {
     mossPresets.setCapabilities({ presets: [{ id: 'Fast' }] }, 'runpod') // explicit withdrawal
     resolveFirst({ dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:x' })
     await vi.waitFor(() => {
-      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid β'), 'error', expect.anything())
+      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid'), 'error', expect.anything())
     })
     expect(runJob).toHaveBeenCalledTimes(1)         // the stale Rapid job was never submitted
     expect(document.getElementById('queue-panel').children.length).toBe(2)

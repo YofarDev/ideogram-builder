@@ -7,7 +7,7 @@ const DOM_HTML = `
     <input type="radio" name="moss_preset" id="moss_preset_fast" value="Fast" checked>
     <label for="moss_preset_fast">Fast</label>
     <input type="radio" name="moss_preset" id="moss_preset_rapid" value="Rapid" data-candidate disabled>
-    <label for="moss_preset_rapid" data-candidate hidden>Rapid β</label>
+    <label for="moss_preset_rapid" data-candidate hidden>Rapid</label>
     <input type="radio" name="moss_preset" id="moss_preset_draft3" value="Draft3" data-candidate disabled>
     <label for="moss_preset_draft3" data-candidate hidden>Draft β</label>
   </div>
@@ -21,7 +21,7 @@ const CAPS_WITH_CANDIDATES = {
     { id: 'Fast', label: 'Fast' },
     { id: 'Quality', label: 'Quality' },
     { id: 'Turbo', label: 'Turbo β' },
-    { id: 'Rapid', label: 'Rapid β', blurb: '4 steps · experimental · up to 1 MP',
+    { id: 'Rapid', label: 'Rapid', blurb: '4 steps · experimental · up to 1 MP',
       steps_policy: 'rapid', validation_status: 'experimental', max_area_mp: 1 },
     { id: 'Draft3', label: 'Draft β', blurb: '3 steps, 1024² max', max_area_mp: 1 },
   ],
@@ -79,7 +79,7 @@ describe('moss-presets availability', () => {
   it('availability message names the preset', async () => {
     const mod = await importModule()
     const msg = mod.availabilityMessage('Rapid')
-    expect(msg).toContain('Rapid β')
+    expect(msg).toContain('Rapid')
     expect(msg).toMatch(/not available/i)
   })
 })
@@ -141,7 +141,7 @@ describe('moss-presets ensurePresetUsable', () => {
     const usable = mod.ensurePresetUsable('moss')
     expect(usable).toBe(false)
     const toast = document.querySelector('#toast-container .toast')
-    expect(toast?.textContent).toContain('Rapid β')
+    expect(toast?.textContent).toContain('Rapid')
     expect(toast?.className).toContain('toast-error')
   })
 

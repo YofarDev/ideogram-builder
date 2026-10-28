@@ -17,7 +17,7 @@ MOSS worker settings are SEPARATE from the Ideogram worker (GPU, launch args,
 memory policy, lifetime, warmup, snapshots) and are configured at deploy time:
 
     MOSS_GPU                   GPU for ComfyMoss only        (default IDEOGRAM_GPU)
-    MOSS_RUNTIME_PROFILE       named runtime profile         (default "baseline")
+    MOSS_RUNTIME_PROFILE       named runtime profile         (default "rapid-auto-int8-cu128")
     MOSS_MEMORY_MODE           auto|highvram|gpu_only        (profile override)
     MOSS_DIT_FORMAT            int8_convrot|bf16             (profile override)
     MOSS_ENCODER_FORMAT        w4a8|int8_convrot|bf16        (profile override)
@@ -82,7 +82,9 @@ MOSS_SNAPSHOT_MODE = (os.environ.get("MOSS_SNAPSHOT_MODE") or "off").strip().low
 # fails `modal deploy` instead of every request.
 import moss_config  # noqa: E402  (runpod/ is this file's directory)
 
-_deploy_env = os.environ
+_deploy_env = dict(os.environ)
+# Permanent production default; baseline remains an explicit rollback profile.
+_deploy_env.setdefault("MOSS_RUNTIME_PROFILE", "rapid-auto-int8-cu128")
 MOSS_PROFILE = moss_config.resolve_profile(_deploy_env)
 MOSS_DEPLOYMENT = moss_config.deployment_settings(_deploy_env)
 MOSS_ENABLED_PRESETS = moss_config.resolve_enabled_presets(_deploy_env)[1]
