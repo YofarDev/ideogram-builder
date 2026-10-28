@@ -11,17 +11,38 @@ import { showToast } from './toast.js';
 
 export const BASE_PRESETS = ['Fast', 'Quality', 'Turbo'];
 export const CANDIDATE_PRESETS = ['Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum'];
+export const MOSS_PRESET_IDS = [...BASE_PRESETS, ...CANDIDATE_PRESETS];
 
-// UI copy; step counts come from the server result metadata, not this table.
+// UI copy; limits and status come from the server capabilities, not this
+// table. Rapid stays explicitly experimental in local fallback copy — no
+// unproven performance claims.
 export const PRESET_INFO = {
     Fast: { label: 'Fast', blurb: '25 steps · balanced quality/speed' },
     Quality: { label: 'Quality', blurb: '50 steps · maximum quality' },
     Turbo: { label: 'Turbo β', blurb: '8 steps · DMD distillation' },
-    Rapid: { label: 'Rapid β', blurb: '4 steps up to 1024² · fastest final-quality iterations' },
+    Rapid: { label: 'Rapid β', blurb: '4 steps · experimental · up to 1 MP' },
     Draft3: { label: 'Draft β', blurb: '3 steps, 1024² max · preview quality' },
     FastSpectrum: { label: 'Fast+ β', blurb: 'Fast with feature-forecasting acceleration' },
     QualitySpectrum: { label: 'Quality+ β', blurb: 'Quality with feature-forecasting acceleration' },
 };
+
+/** Capabilities entry for one preset (validation_status, max_area_mp, blurb). */
+export function presetMeta(presetId) {
+    return getCapabilities()?.presets?.find(p => p.id === presetId) || null;
+}
+
+/** validation_status from capabilities: "validated" | "experimental" | null. */
+export function validationStatus(presetId) {
+    return presetMeta(presetId)?.validation_status || null;
+}
+
+/** Advertised pixel-limit in MP. Without capabilities, apply the known v1
+ * technical limits conservatively (they bind server-side regardless). */
+export function presetAreaLimitMp(presetId) {
+    const meta = presetMeta(presetId);
+    if (meta?.max_area_mp != null) return meta.max_area_mp;
+    return (presetId === 'Rapid' || presetId === 'Draft3') ? 1 : null;
+}
 
 let capabilitiesBackend = null;
 let capabilities = null;   // null = unknown/absent → base presets only
@@ -78,4 +99,30 @@ export function ensurePresetUsable(model = state.model) {
 /** True when the current moss preset needs the availability warning shown. */
 export function currentPresetUnavailable() {
     return state.model === 'moss' && !isAvailable(state.moss.preset);
+}
+
+/**
+ * Validates an actual queued snapshot — the preset AND dimensions that would
+ * really be submitted, not the currently-edited canvas. Checks availability
+ * and the preset's advertised pixel limit. Returns { ok, message }.
+ */
+export function checkSnapshot(snapshot) {
+    if (snapshot?.model !== 'moss') return { ok: true, message: '' };
+    const preset = snapshot.preset;
+    if (!isAvailable(preset)) {
+        return { ok: false, message: availabilityMessage(preset) };
+    }
+    const limitMp = presetAreaLimitMp(preset);
+    if (limitMp != null) {
+        const areaMp = (snapshot.width * snapshot.height) / (1024 * 1024);
+        if (areaMp > limitMp) {
+            return {
+                ok: false,
+                message: `Preset “${presetLabel(preset)}” supports up to ${limitMp} MP — ` +
+                    `this request is ${snapshot.width}×${snapshot.height} (${areaMp.toFixed(2)} MP). ` +
+                    'Keep the selected recipe and reduce the canvas size.',
+            };
+        }
+    }
+    return { ok: true, message: '' };
 }

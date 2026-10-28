@@ -21,8 +21,9 @@ const CAPS_WITH_CANDIDATES = {
     { id: 'Fast', label: 'Fast' },
     { id: 'Quality', label: 'Quality' },
     { id: 'Turbo', label: 'Turbo β' },
-    { id: 'Rapid', label: 'Rapid β', blurb: '4 steps up to 1024²', steps_policy: 'rapid' },
-    { id: 'Draft3', label: 'Draft β', blurb: '3 steps, 1024² max' },
+    { id: 'Rapid', label: 'Rapid β', blurb: '4 steps · experimental · up to 1 MP',
+      steps_policy: 'rapid', validation_status: 'experimental', max_area_mp: 1 },
+    { id: 'Draft3', label: 'Draft β', blurb: '3 steps, 1024² max', max_area_mp: 1 },
   ],
 }
 
@@ -70,7 +71,7 @@ describe('moss-presets availability', () => {
   it('remote blurb wins over the local table', async () => {
     const mod = await importModule()
     mod.setCapabilities(CAPS_WITH_CANDIDATES)
-    expect(mod.describePreset('Rapid')).toBe('4 steps up to 1024²')
+    expect(mod.describePreset('Rapid')).toBe('4 steps · experimental · up to 1 MP')
     expect(mod.describePreset('Fast')).toMatch(/25 steps/)
     expect(mod.presetLabel('Draft3')).toBe('Draft β')
   })
@@ -80,6 +81,46 @@ describe('moss-presets availability', () => {
     const msg = mod.availabilityMessage('Rapid')
     expect(msg).toContain('Rapid β')
     expect(msg).toMatch(/not available/i)
+  })
+})
+
+describe('preset limits and snapshot guards', () => {
+  const snap = (over = {}) => ({ model: 'moss', preset: 'Rapid', width: 1024, height: 1024, ...over });
+
+  it('exposes the advertised validation status and area limit', async () => {
+    const mod = await importModule()
+    mod.setCapabilities(CAPS_WITH_CANDIDATES)
+    expect(mod.presetAreaLimitMp('Rapid')).toBe(1)
+    expect(mod.validationStatus('Rapid')).toBe('experimental')
+    expect(mod.validationStatus('Fast')).toBe(null)            // base entry without status field
+    mod.setCapabilities(null)
+    expect(mod.presetAreaLimitMp('Rapid')).toBe(1)             // conservative local fallback
+    expect(mod.presetAreaLimitMp('Fast')).toBe(null)
+  })
+
+  it('checkSnapshot passes an in-limit moss snapshot and any ideogram snapshot', async () => {
+    const mod = await importModule()
+    mod.setCapabilities(CAPS_WITH_CANDIDATES)
+    expect(mod.checkSnapshot(snap()).ok).toBe(true)
+    expect(mod.checkSnapshot({ model: 'ideogram', preset: 'Default', width: 4096, height: 4096 }).ok).toBe(true)
+  })
+
+  it('checkSnapshot rejects oversize with the requested area and the limit', async () => {
+    const mod = await importModule()
+    mod.setCapabilities(CAPS_WITH_CANDIDATES)
+    const verdict = mod.checkSnapshot(snap({ width: 1024, height: 1536 }))  // 1.5 MP
+    expect(verdict.ok).toBe(false)
+    expect(verdict.message).toContain('up to 1 MP')
+    expect(verdict.message).toContain('1024×1536')
+    expect(verdict.message).toContain('1.50 MP')
+  })
+
+  it('checkSnapshot rejects an unavailable preset using the snapshot itself', async () => {
+    const mod = await importModule()
+    mod.setCapabilities(CAPS_WITH_CANDIDATES)
+    const verdict = mod.checkSnapshot(snap({ preset: 'FastSpectrum' }))  // not advertised here
+    expect(verdict.ok).toBe(false)
+    expect(verdict.message).toContain('Fast+ β')
   })
 })
 

@@ -7,7 +7,7 @@ import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { ideogramGlobalsToMoss, mossGlobalsToIdeogram } from './prompt-convert.js';
 import { fetchCapabilities } from './modal.js';
-import { setCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage } from './moss-presets.js';
+import { setCapabilities, getCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage } from './moss-presets.js';
 
 const MOSS_INPUTS = ['moss-caption', 'moss-meta', 'moss-canvas', 'moss-negative'];
 
@@ -76,12 +76,24 @@ let capabilityRequest = 0;
 let capabilityAbort;
 
 function renderPresetCapabilities() {
+  const caps = getCapabilities();
   const available = availablePresets();
   document.querySelectorAll('#moss-preset-toggle input[name="moss_preset"]').forEach(input => {
     const show = available.includes(input.value);
     input.disabled = !show;
     const label = document.querySelector(`label[for="${input.id}"]`);
-    if (label) label.hidden = !show;
+    if (label) {
+      label.hidden = !show;
+      // Experimental presets must read as experimental at a glance: tooltip
+      // carries the server's status and pixel limit next to the pill.
+      const meta = caps?.presets?.find(p => p.id === input.value);
+      if (meta) {
+        const bits = [meta.blurb];
+        if (meta.validation_status === 'experimental') bits.push('experimental — quality validation ongoing');
+        if (meta.max_area_mp != null) bits.push(`up to ${meta.max_area_mp} MP`);
+        label.title = bits.filter(Boolean).join(' · ');
+      }
+    }
   });
 }
 

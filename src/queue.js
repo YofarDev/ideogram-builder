@@ -3,7 +3,7 @@ import { emit, on } from './events.js';
 import { showToast } from './toast.js';
 import { logError } from './client-log.js';
 import { runJob } from './backend.js';
-import { ensurePresetUsable } from './moss-presets.js';
+import { ensurePresetUsable, checkSnapshot, MOSS_PRESET_IDS } from './moss-presets.js';
 
 let queue = [];
 let isRunning = false;
@@ -46,14 +46,31 @@ function buildSnapshot() {
 
 function makeJob(importJson, model) {
     const snapshot = { ...buildSnapshot(), importJson };
-    // Collections pass their item's model; other snapshot fields stay from the UI (v1)
-    if (model) snapshot.model = model;
+    // Collections pass their item's model; other snapshot fields stay from the
+    // UI (v1) — except the preset when switching TO moss, where the Ideogram
+    // steps-preset name would be an invalid recipe: use the moss UI preset.
+    if (model) {
+        snapshot.model = model;
+        if (model === 'moss' && !MOSS_PRESET_IDS.includes(snapshot.preset)) {
+            snapshot.preset = state.moss.preset;
+        }
+    }
     return {
         id: counter++,
         snapshot,
         status: 'queued',
         abort: new AbortController(),
     };
+}
+
+/** Guards the actual snapshot (its preset AND dimensions), not editor state. */
+function snapshotGuard(job) {
+    const verdict = checkSnapshot(job.snapshot);
+    if (verdict.ok) return true;
+    showToast(verdict.message, 'error', 5000);
+    queue = queue.filter(j => j !== job);
+    render();
+    return false;
 }
 
 export function enqueue() {
@@ -63,7 +80,9 @@ export function enqueue() {
         return;
     }
     if (!ensurePresetUsable(state.model)) return;
-    queue.push(makeJob(jsonText));
+    const job = makeJob(jsonText);
+    if (!snapshotGuard(job)) return;
+    queue.push(job);
     render();
     drain();
 }
@@ -71,7 +90,9 @@ export function enqueue() {
 export function enqueueImportJson(importJson, { model } = {}) {
     if (!importJson || !importJson.trim()) return;
     if (!ensurePresetUsable(model || state.model)) return;
-    queue.push(makeJob(importJson, model));
+    const job = makeJob(importJson, model);
+    if (!snapshotGuard(job)) return;
+    queue.push(job);
     render();
     drain();
 }
@@ -92,6 +113,9 @@ async function drain() {
 
     let job;
     while ((job = queue.find(j => j.status === 'queued'))) {
+        // Capabilities may have changed since enqueue (backend switch, refresh):
+        // re-validate the snapshot at dispatch, not just the editor's state.
+        if (!snapshotGuard(job)) continue;
         job.status = 'running';
         render();
         try {

@@ -363,6 +363,54 @@ describe('preset availability guard', () => {
     expect(document.getElementById('queue-panel').children.length).toBe(0)
   })
 
+  it('blocks oversize moss snapshots at enqueue with area numbers, recipe intact', async () => {
+    const showToast = vi.fn()
+    const runJob = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({ showToast, runJob })
+    const mossPresets = await import('../moss-presets.js')
+    mossPresets.setCapabilities({ presets: [{ id: 'Fast' }, { id: 'Rapid', max_area_mp: 1 }] }, 'runpod')
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Rapid' }
+    freshState.canvas = { width: 1024, height: 1536 }   // 1.5 MP > the 1 MP limit
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        expect.stringContaining('up to 1 MP'), 'error', expect.anything())
+    })
+    const message = showToast.mock.calls[0][0]
+    expect(message).toContain('1024×1536')
+    expect(message).toContain('1.50 MP')
+    expect(runJob).not.toHaveBeenCalled()
+    expect(document.getElementById('queue-panel').children.length).toBe(0)
+  })
+
+  it('re-validates a queued moss job at dispatch when capabilities changed', async () => {
+    // Job enqueued while Rapid was advertised, queued behind a stalled run; by
+    // its dispatch time capabilities no longer advertise it — the stale job is
+    // dropped with an explicit message instead of being submitted.
+    let resolveFirst
+    const runJob = vi.fn()
+      .mockImplementationOnce(() => new Promise(r => { resolveFirst = r }))
+      .mockResolvedValueOnce({ dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:x' })
+    const showToast = vi.fn()
+    const { mod, freshState } = await loadQueueWithFreshState({ showToast, runJob })
+    const mossPresets = await import('../moss-presets.js')
+    mossPresets.setCapabilities({ presets: [{ id: 'Fast' }, { id: 'Rapid' }] }, 'runpod')
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'layout', preset: 'Fast' }
+    mod.enqueue()                                   // starts running (stalled)
+    freshState.moss = { promptMode: 'layout', preset: 'Rapid' }
+    mod.enqueue()                                   // queued; Rapid advertised at enqueue time
+    expect(document.getElementById('queue-panel').children.length).toBe(2)
+    mossPresets.setCapabilities(null, 'runpod')     // capabilities disappear before its dispatch
+    resolveFirst({ dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:x' })
+    await vi.waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid β'), 'error', expect.anything())
+    })
+    expect(runJob).toHaveBeenCalledTimes(1)         // the stale Rapid job was never submitted
+    expect(document.getElementById('queue-panel').children.length).toBe(1)  // only the done job remains
+  })
+
   it('lets base presets enqueue without capabilities', async () => {
     const runJob = vi.fn(async (_s, opts) => {
       opts?.onStatus?.(1)

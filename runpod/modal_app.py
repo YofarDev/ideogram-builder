@@ -88,13 +88,17 @@ MOSS_DEPLOYMENT = moss_config.deployment_settings(_deploy_env)
 MOSS_ENABLED_PRESETS = moss_config.resolve_enabled_presets(_deploy_env)[1]
 
 # Env baked into the MOSS GPU container + proxy so runtime code sees the same
-# configuration the deploy validated.
+# configuration the deploy validated. The experimental allow-list is parsed and
+# validated here (deploy-time) so an unknown name fails `modal deploy` rather
+# than surprising the proxy at request time.
+_MOSS_EXPERIMENTAL_PRESETS = moss_config.resolve_experimental_presets(_deploy_env)
 _MOSS_ENV = {
     "MOSS_RUNTIME_PROFILE": MOSS_PROFILE["profile_id"],
     "MOSS_RUNTIME_BUILD": os.environ.get("MOSS_RUNTIME_BUILD", "baseline"),
     "MOSS_APP_NAME": os.environ.get("MOSS_APP_NAME", "ideogram-builder"),
     "MOSS_STARTUP_DIAG": str(MOSS_STARTUP_DIAG).lower(),
     "MOSS_ENABLED_PRESETS": ",".join(MOSS_ENABLED_PRESETS),
+    "MOSS_EXPERIMENTAL_PRESETS": ",".join(_MOSS_EXPERIMENTAL_PRESETS),
     "MOSS_MIN_CONTAINERS": str(MOSS_DEPLOYMENT["min_containers"]),
     "MOSS_SCALEDOWN_SECONDS": str(MOSS_DEPLOYMENT["scaledown_seconds"]),
     "MOSS_SNAPSHOT_MODE": MOSS_DEPLOYMENT["snapshot_mode"],
@@ -595,7 +599,9 @@ def web_app():
 
         try:
             profile, enabled = moss_config.resolve_enabled_presets(os.environ)
-            return moss_config.capabilities(profile, model_manifest_id=moss_assets.manifest_id(), enabled=enabled)
+            return moss_config.capabilities(
+                profile, model_manifest_id=moss_assets.manifest_id(), enabled=enabled,
+                experimental=moss_config.resolve_experimental_presets(os.environ))
         except moss_config.ProfileError as e:
             raise HTTPException(status_code=503, detail=f"deployment configuration error: {e}")
 
