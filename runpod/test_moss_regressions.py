@@ -340,3 +340,15 @@ def test_module_version_falls_back_to_distribution_metadata(monkeypatch):
     monkeypatch.setitem(_sys.modules, 'comfy_kitchen', fake)
     value = runtime_check._module_version('comfy_kitchen')
     assert value == 'unknown' or isinstance(value, str) and value
+
+
+def test_fixture_compilation_keeps_cjk_as_raw_utf8_like_the_ui():
+    r"""The UI compiles layouts with JSON.stringify (raw UTF-8). Escaped
+    \uXXXX sequences reach the encoder as literal text and the model renders
+    garbled digit/character mixtures — fixtures must compile like the UI."""
+    fixture = bench.load_fixtures(ids=['poster_zh_vertical'])[0]
+    compiled = bench.compile_fixture_layout(fixture, 1024, 1024)
+    assert '春茶上新' in compiled          # raw characters, not escapes
+    assert '\\u6625' not in compiled
+    texts = [item.get('text') for item in json.loads(compiled)['items'] if item.get('label') == 'text']
+    assert '春茶上新' in texts and '明前龙井限量发售' in texts

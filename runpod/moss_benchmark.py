@@ -92,7 +92,10 @@ def compile_fixture_layout(fixture, width, height):
         "bbox_coord_space": "abs_centralized",
         "bbox_format": "yxyx",
     }
-    return json.dumps(layout)
+    # ensure_ascii=False matches the UI's JSON.stringify: CJK text reaches the
+    # encoder as real UTF-8, not \uXXXX escapes the model would render as
+    # garbled digit/character mixtures.
+    return json.dumps(layout, ensure_ascii=False)
 
 
 def build_jobs(fixtures, seeds, configs, cached_prompt=False):
@@ -313,17 +316,34 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
     warmed = set()
     stop_reason = None
     last_executed_config = None
+    last_executed_worker = None
+    observed_workers = {}
     execute = runner or (run_http if mode == "http" else run_internal)
 
     def run(job):
+        nonlocal last_executed_config, last_executed_worker
         remaining = 900 if max_minutes is None else min(900, max_minutes * 60 - (time.monotonic() - started))
         if remaining <= 0:
             return {"status": "timeout", "error": "max_minutes reached"}
         kwargs = {"timeout_s": remaining}
         if mode == "http":
             kwargs.update(endpoint=(endpoints or {}).get(job['config']['profile'], endpoint), token=token)
+        current_config = (job["config"]["profile"], job["config"]["preset"])
+        switched = last_executed_config is not None and last_executed_config != current_config
+        last_executed_config = current_config
         body = execute(job, **kwargs)
         result = body.get("result") or {}
+        worker = (result.get("metrics") or {}).get("worker_instance_id")
+        if worker:
+            # A fresh server is startup cost, not an in-residence preset switch.
+            if last_executed_worker is not None and worker != last_executed_worker:
+                switched = False
+            previous_worker = observed_workers.get(current_config[0])
+            if previous_worker is not None and worker != previous_worker:
+                warmed.difference_update(key for key in tuple(warmed) if key[0] == current_config[0])
+            observed_workers[current_config[0]] = worker
+        last_executed_worker = worker
+        body["_benchmark_switched"] = switched
         if result.get("error") or result.get("errors"):
             body["status"] = "failed"
             body["error"] = result.get("error") or str(result["errors"])
@@ -347,6 +367,10 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             stop_reason = "max_minutes reached"
             break
 
+        # Internal profile changes replace ComfyUI before execution. Its old
+        # prompt/shape warmups cannot be reused when that profile is revisited.
+        if mode == "internal" and last_executed_config is not None and last_executed_config[0] != job['config']['profile']:
+            warmed.difference_update(key for key in tuple(warmed) if key[0] == job['config']['profile'])
         warm_key = (job['config']['profile'], job['config']['preset'], job['fixture_id'], job['width'], job['height'])
         if warmup and warm_key not in warmed:
             warm_job = dict(job)
@@ -370,6 +394,7 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                     "profile": job["config"]["profile"], "preset": job["config"]["preset"],
                     "fixture_id": job["fixture_id"], "width": job["width"], "height": job["height"],
                     "seed": warm_job["seed"], "status": warm_body.get("status"),
+                    "switched": warm_body.get("_benchmark_switched", False),
                     "latency_ms": warm_body.get("latency_ms"),
                     "metrics": warm_result.get("metrics"),
                     "generation": warm_result.get("generation"),
@@ -381,8 +406,7 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             body = run(job)
         except Exception as e:  # noqa: BLE001
             body = {"status": "error", "error": str(e)}
-        switched = last_executed_config is not None and last_executed_config != (job["config"]["profile"], job["config"]["preset"])
-        last_executed_config = (job["config"]["profile"], job["config"]["preset"])
+        switched = body.get("_benchmark_switched", False)
 
         executed += 1
         result = body.get("result") or {}
@@ -486,7 +510,7 @@ def cohort(r):
     return (r['profile'], r['preset'], r['fixture_id'], r['width'], r['height'], r['case'],
             (r.get('metrics') or {}).get('worker_instance_id', 'unknown'),
             bool((r.get('generation') or {}).get('first_generation_in_worker')),
-            r.get('cache_state', 'unknown'))
+            r.get('cache_state', 'unknown'), bool(r.get('switched', False)))
 
 
 def summarize(results_path):
@@ -499,7 +523,7 @@ def summarize(results_path):
         workers.setdefault(key, set()).add((record.get('metrics') or {}).get('worker_instance_id', 'unknown'))
     rows = []
     for key, rs in sorted(groups.items()):
-        profile, preset, fixture, width, height, case, worker, cold, cached = key
+        profile, preset, fixture, width, height, case, worker, cold, cached, switched = key
         valid = [r for r in rs if eligible(r)]
         def median(values):
             values = [v for v in values if v is not None]
@@ -507,7 +531,7 @@ def summarize(results_path):
         total = [(r.get('metrics') or {}).get('worker_total_ms') for r in valid]
         rows.append({
             'profile': profile, 'preset': preset, 'fixture': fixture, 'width': width, 'height': height,
-            'case': case, 'worker': worker, 'cold': cold, 'cache_state': cached,
+            'case': case, 'worker': worker, 'cold': cold, 'cache_state': cached, 'switched': switched,
             'n': len(rs), 'completed': sum(r.get('status') == 'completed' for r in rs),
             'valid_timings': len(valid), 'first_gen_in_worker': sum(bool((r.get('generation') or {}).get('first_generation_in_worker')) for r in rs),
             'worker_total_ms_median': median(total),
@@ -524,11 +548,11 @@ def render_summary(summary):
         lines.append(f"NOTE: multiple workers observed for {', '.join(summary['worker_split_configs'])} — "
                      f"compare rows per worker, not across them.")
         lines.append("")
-    header = "| profile | preset | fixture / size | case / cache / cold | worker | n | ok / valid | worker_total med (ms) | sampler med (ms) | latency med (ms) | first-in-worker |"
+    header = "| profile | preset | fixture / size | case / cache / cold / switched | worker | n | ok / valid | worker_total med (ms) | sampler med (ms) | latency med (ms) | first-in-worker |"
     lines += [header, "|---|---|---|---|---|---|---|---|---|---|---|"]
     for row in summary["rows"]:
         lines.append(
-            f"| {row['profile']} | {row['preset']} | {row['fixture']} {row['width']}×{row['height']} | {row['case']} / {row['cache_state']} / {row['cold']} | {row['worker']} | {row['n']} "
+            f"| {row['profile']} | {row['preset']} | {row['fixture']} {row['width']}×{row['height']} | {row['case']} / {row['cache_state']} / {row['cold']} / {row['switched']} | {row['worker']} | {row['n']} "
             f"| {row['completed']} / {row['valid_timings']} | {row['worker_total_ms_median']} | {row['sampler_ms_median']} "
             f"| {row['latency_ms_median']} | {row['first_gen_in_worker']} |")
     lines += ["", f"records: {summary['total_records']}; stop: {summary.get('stop_reason')}"]
@@ -557,7 +581,8 @@ def _levenshtein(a, b):
 
 def character_error_rate(expected, observed):
     """CER in [0, ∞) against the fixture's expected string, normalized
-    (casefold, whitespace collapsed). Returns None when either side is empty."""
+    (casefold, whitespace collapsed). Empty observations count as deletions;
+    returns None when the reference is empty."""
     normalize = lambda s: " ".join((s or "").casefold().split())  # noqa: E731
     expected, observed = normalize(expected), normalize(observed)
     if not expected:
@@ -621,10 +646,13 @@ def write_review_sheet(out_dir, records, ocr=False):
         if ocr_entry and record.get("image_files"):
             try:
                 observed = ocr_entry[0](image_path)
-                scores = [character_error_rate(e, observed) for e in fixture.get("expected_text", [])]
-                scores = [s for s in scores if s is not None]
-                cer = f"{min(scores):.3f}" if scores else "n/a"
-                ocr_records.append({"image": str(image_path), "observed": observed, "cer": cer})
+                # Score all required text in fixture reading order. Choosing
+                # the best individual label rewards omission of other labels.
+                reference = " ".join(fixture.get("expected_text", []))
+                score = character_error_rate(reference, observed)
+                cer = f"{score:.3f}" if score is not None else "n/a"
+                ocr_records.append({"image": str(image_path), "expected": reference,
+                                    "observed": observed, "cer": score})
             except Exception as error:  # noqa: BLE001 — OCR must never fail the sheet
                 observed = f"OCR error: {error}"
         lines.append(
