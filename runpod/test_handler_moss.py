@@ -475,16 +475,28 @@ def test_moss_flow_turbo_records_negative_guidance_inactive(moss_flow, monkeypat
 
 
 def test_moss_flow_rapid_unsupported_size_is_actionable(moss_flow, monkeypatch):
-    monkeypatch.setenv("MOSS_RUNTIME_PROFILE", "resident-highvram-int8-adapters")
+    monkeypatch.setenv("MOSS_RUNTIME_PROFILE", "rapid-auto-int8-cu128")
+    monkeypatch.setenv("MOSS_EXPERIMENTAL_PRESETS", "Rapid")  # experimental opt-in advertises it
     _wire_ws(monkeypatch, metric_messages())
     result = run_handler(model="moss", import_json="P", preset="Rapid",
-                         width=2048, height=2048)
-    # 4 MP is the last validated bucket (8 steps) — passes; 4096² must fail.
+                         width=1024, height=1024)
+    # The v1 recipe: exactly 4 steps at ≤1 MP; anything larger is rejected with
+    # the requested area and the supported limit — no silent resize.
     assert "error" not in result
-    assert result["generation"]["effective_steps"] == 8
+    assert result["generation"]["effective_steps"] == 4
+    assert result["generation"]["adapter"] == "rapid4"
+    result = run_handler(model="moss", import_json="P", preset="Rapid",
+                         width=1024, height=1040)
+    assert "supports up to 1 MP" in result["error"]
+    assert "1024×1040" in result["error"]
     result = run_handler(model="moss", import_json="P", preset="Rapid",
                          width=4096, height=4096)
-    assert "above the validated area" in result["error"]
+    assert "above the limit" in result["error"]
+    # Without the experimental opt-in the same preset is not advertised at all.
+    monkeypatch.delenv("MOSS_EXPERIMENTAL_PRESETS")
+    result = run_handler(model="moss", import_json="P", preset="Rapid",
+                         width=1024, height=1024)
+    assert "not advertised" in result["error"]
 
 
 def test_moss_flow_keeps_partial_metrics_on_execution_error(moss_flow, monkeypatch):

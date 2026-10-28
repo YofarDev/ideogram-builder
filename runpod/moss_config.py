@@ -46,14 +46,17 @@ MOSS_PRESETS = {
         "blurb": "8 steps, DMD distillation",
     },
     # Rapid β — akhaliq four-step adapter, v2.0 Euler-native release, strength 1,
-    # euler/simple, CFG 1, no SLG. Steps scale with resolution per the area
-    # policy below (a project policy to validate, not an author guarantee).
+    # euler/simple, CFG 1, no SLG. v1 carries a hard technical 1 MP limit
+    # (max_area_mp): exactly four steps, never the six/eight-step ladder — those
+    # larger buckets stay unreachable until a separately declared profile lifts
+    # the limit. Quality is explicitly unvalidated: experimental until measured.
     "Rapid": {
         "steps": 4, "cfg": 1.0, "sampler": "euler", "scheduler": "simple",
         "slg": None, "adapter": "rapid4", "spectrum": False,
         "label": "Rapid β", "tier": "final",
-        "blurb": "4 steps up to 1024² — fast iterations",
+        "blurb": "4 steps · experimental · up to 1 MP",
         "steps_policy": "rapid",
+        "max_area_mp": 1,
     },
     # Draft β — the separately trained three-step adapter. Never run the
     # four-step LoRA for three steps instead.
@@ -63,6 +66,7 @@ MOSS_PRESETS = {
         "label": "Draft β", "tier": "preview",
         "blurb": "3 steps, 1024² max — preview quality",
         "steps_policy": "draft3",
+        "max_area_mp": 1,
     },
     # Spectrum presets keep their base preset's sampler/steps; FastSpectrum
     # moves to the full SLG range (the Spectrum author recommends 0–1 because a
@@ -131,32 +135,45 @@ class PresetUnsupportedError(ValueError):
     written to be shown to a user verbatim (actionable, not a stack trace)."""
 
 
+def preset_area_limit(preset_name, profile=None):
+    """Hard technical area limit (MP) for a preset: the profile may only lower
+    it via its declared preset_area_limits — lifting the Rapid limit beyond its
+    technical value requires a NEW preset/profile declaration, never an env
+    override. Enforced for production AND benchmark requests alike."""
+    preset = MOSS_PRESETS.get(preset_name) or {}
+    technical = preset.get("max_area_mp")
+    if profile is not None:
+        declared = (profile.get("preset_area_limits") or {}).get(preset_name)
+        if declared is not None:
+            return min(declared, technical) if technical is not None else declared
+    return technical
+
+
 def steps_for_area(policy, width, height):
     """Effective step count for an area-based preset policy.
 
-    rapid: 4 steps ≤1 MP, 6 steps ≤2 MP, 8 steps ≤4 MP (boundaries to validate
-    on the GPU; advertised only after the bucket passes). draft3: 3 steps ≤1 MP.
-    Raises PresetUnsupportedError beyond the supported area with an actionable
-    message — never silently resizes a layout.
+    rapid: exactly 4 steps at ≤1 MP (the v1 hard limit; the 6/8-step buckets
+    below stay unreachable until a declared profile lifts preset_area_limits).
+    draft3: 3 steps ≤1 MP. Raises PresetUnsupportedError beyond the supported
+    area with an actionable message — never silently resizes a layout.
     """
     pixels = width * height
     if policy == "rapid":
         if pixels <= 1 * MP:
             return 4
-        if pixels <= 2 * MP:
-            return 6
-        if pixels <= 4 * MP:
-            return 8
-        limit = "2048×2048 (4 MP)"
+        # Larger buckets (6 steps ≤2 MP, 8 steps ≤4 MP) exist only for a future
+        # declared profile that lifts preset_area_limits; the hard technical
+        # limit enforced in effective_preset makes this branch unreachable today.
+        limit = "2 MP" if pixels <= 2 * MP else "4 MP"
     elif policy == "draft3":
         if pixels <= 1 * MP:
             return 3
-        limit = "1024×1024 (1 MP)"
+        limit = "1 MP"
     else:
         return None
     raise PresetUnsupportedError(
         f"{preset_label_for_policy(policy)} supports up to {limit}; "
-        f"requested {width}x{height} ({pixels / MP:.2f} MP) is above the validated area. "
+        f"requested {width}x{height} ({pixels / MP:.2f} MP) is above the enabled area. "
         f"Reduce the canvas size or use Fast/Quality/Turbo."
     )
 
@@ -165,12 +182,20 @@ def preset_label_for_policy(policy):
     return {"rapid": "Rapid β", "draft3": "Draft β"}.get(policy, policy)
 
 
-def effective_preset(preset_name, width, height):
-    """Returns (preset_definition, effective_steps). Raises PresetUnsupportedError
-    for area-policy violations."""
+def effective_preset(preset_name, width, height, *, profile=None):
+    """Returns (preset_definition, effective_steps). Enforces the preset's hard
+    technical area limit (profile may lower it), then the area-step policy.
+    Raises PresetUnsupportedError with an actionable message."""
     preset = MOSS_PRESETS.get(preset_name)
     if preset is None:
         raise PresetUnsupportedError(f"Unknown MOSS preset '{preset_name}'")
+    limit = preset_area_limit(preset_name, profile)
+    if limit is not None and width * height > limit * MP:
+        raise PresetUnsupportedError(
+            f"{preset['label']} supports up to {limit} MP ({int((limit * MP) ** 0.5)}×{int((limit * MP) ** 0.5)} "
+            f"or equivalent area); requested {width}×{height} ({width * height / MP:.2f} MP) is above the limit. "
+            f"Keep the selected recipe and reduce the canvas size."
+        )
     steps = preset["steps"]
     policy = preset.get("steps_policy")
     if policy:
@@ -237,6 +262,16 @@ RUNTIME_PROFILES = {
         status="validated",
         memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
         requires_cuda13=False,
+    ),
+    "rapid-auto-int8-cu128": _profile(
+        "rapid-auto-int8-cu128",
+        description="Rapid β candidate on the observed cu128 baseline: INT8 DiT + W4A8 encoder, "
+                    "auto residency, eager kernels tolerated (as baseline), no compile, no warmup. "
+                    "Technical support for the three shipped presets plus Rapid at ≤1 MP only.",
+        status="candidate",
+        memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
+        requires_cuda13=False,
+        enabled_presets=BASE_PRESET_IDS + ("Rapid",),
     ),
     "resident-auto-int8": _profile(
         "resident-auto-int8",
@@ -392,7 +427,7 @@ def _match_declared_profile(profile, preferred=None):
 
 def resolve_enabled_presets(env=None):
     """Presets the handler will accept: profile technical support ∩ env allow-list.
-    Advertisement to clients is narrower — see capabilities()."""
+    Advertisement to clients is narrower — see advertised_presets()."""
     env = os.environ if env is None else env
     profile = resolve_profile(env)
     enabled = set(profile["enabled_presets"])
@@ -408,20 +443,76 @@ def resolve_enabled_presets(env=None):
     return profile, tuple(p for p in (BASE_PRESET_IDS + CANDIDATE_PRESET_IDS + BENCHMARK_PRESET_IDS) if p in enabled)
 
 
+def resolve_experimental_presets(env=None):
+    """Explicit experimental-preview allow-list (plan 2026-10-28 §4), e.g.
+    MOSS_EXPERIMENTAL_PRESETS=Rapid. Default empty: unvalidated presets stay
+    hidden until a per-preset validation gate passes. Parsed/validated here and
+    frozen into both the GPU container and the CPU proxy environment."""
+    env = os.environ if env is None else env
+    raw = (env.get("MOSS_EXPERIMENTAL_PRESETS") or "").strip()
+    if not raw:
+        return ()
+    wanted = tuple(dict.fromkeys(p.strip() for p in raw.split(",") if p.strip()))
+    unknown = [p for p in wanted if p not in MOSS_PRESETS]
+    if unknown:
+        raise ProfileError(
+            f"MOSS_EXPERIMENTAL_PRESETS names unknown presets: {', '.join(unknown)}. "
+            f"Known: {', '.join(sorted(MOSS_PRESETS))}"
+        )
+    return wanted
+
+
+def advertised_presets(profile, enabled=None, experimental=()):
+    """Presets shown to clients AND accepted over the request API: technical
+    support ∩ (validated recipes ∪ explicit experimental opt-in). Experimental
+    entries carry their own unvalidated status and area limit — they are never
+    presented as validated. Benchmark mode bypasses advertisement entirely so
+    technical candidates can be measured before promotion."""
+    allowed = set(profile["enabled_presets"] if enabled is None else enabled)
+    validated = profile.get("validated_presets", {})
+    experimental = set(experimental)
+    result = []
+    for pid in profile["enabled_presets"]:
+        if pid not in allowed:
+            continue
+        if pid in validated and (pid in BASE_PRESET_IDS or profile.get("status") == "validated"):
+            result.append(pid)
+        elif pid in experimental:
+            result.append(pid)
+    return result
+
+
 def validate_request_preset(preset_name, width, height, env=None):
     """Full server-side gate for a generation request. Returns (profile, preset,
-    effective_steps). Raises PresetUnsupportedError with an actionable message."""
+    effective_steps). Raises PresetUnsupportedError with an actionable message.
+    Uses the same availability calculation as capabilities(): validated recipes
+    plus explicit experimental opt-in; benchmark mode may execute technical
+    candidates. The per-preset technical area limit applies to ALL paths."""
     env = os.environ if env is None else env
+    benchmark_mode = env.get("MOSS_BENCHMARK_MODE") == "true"
     profile, enabled = resolve_enabled_presets(env)
+    advertised = advertised_presets(profile, enabled, resolve_experimental_presets(env))
     if preset_name not in enabled:
         raise PresetUnsupportedError(
             f"Preset '{preset_name}' is not enabled on this deployment "
             f"(profile '{profile['profile_id']}'). Available: {', '.join(enabled)}"
         )
-    limit = profile.get("validated_presets", {}).get(preset_name)
-    if limit is not None and width * height > limit * MP and env.get("MOSS_BENCHMARK_MODE") != "true":
-        raise PresetUnsupportedError(f"Preset '{preset_name}' is validated only up to {limit} MP on this deployment")
-    preset, steps = effective_preset(preset_name, width, height)
+    if preset_name not in advertised and not benchmark_mode:
+        raise PresetUnsupportedError(
+            f"Preset '{preset_name}' is not advertised on this deployment "
+            f"(profile '{profile['profile_id']}'). Available: {', '.join(advertised)}"
+        )
+    limit = preset_area_limit(preset_name, profile)
+    if limit is not None and width * height > limit * MP:
+        raise PresetUnsupportedError(
+            f"Preset '{preset_name}' supports up to {limit} MP; requested "
+            f"{width}×{height} ({width * height / MP:.2f} MP) is above the limit. "
+            f"Keep the selected recipe and reduce the canvas size."
+        )
+    validated_limit = profile.get("validated_presets", {}).get(preset_name)
+    if validated_limit is not None and width * height > validated_limit * MP and not benchmark_mode:
+        raise PresetUnsupportedError(f"Preset '{preset_name}' is validated only up to {validated_limit} MP on this deployment")
+    preset, steps = effective_preset(preset_name, width, height, profile=profile)
     return profile, preset, steps
 
 
@@ -429,19 +520,18 @@ def validate_request_preset(preset_name, width, height, env=None):
 # Capabilities (served by the Modal proxy; never starts a GPU container)
 # ---------------------------------------------------------------------------
 
-def advertised_presets(profile, enabled=None):
-    """Presets shown to clients: technical support ∩ validated status. Candidate
-    presets only appear once their profile has been promoted (status flip)."""
-    allowed = set(profile["enabled_presets"] if enabled is None else enabled)
-    validated = profile.get("validated_presets", {})
-    return [p for p in profile["enabled_presets"] if p in allowed and p in validated
-            and (p in BASE_PRESET_IDS or profile.get("status") == "validated")]
-
-
-def capabilities(profile, model_manifest_id=None, enabled=None):
+def capabilities(profile, model_manifest_id=None, enabled=None, experimental=None):
+    """Advertised preset list. Validated recipes carry
+    validation_status="validated" with their validated area limit; experimental
+    opt-ins carry validation_status="experimental" with the technical limit —
+    they must never look like validated recipes."""
+    if experimental is None:
+        experimental = resolve_experimental_presets()
     presets = []
-    for pid in advertised_presets(profile, enabled):
+    for pid in advertised_presets(profile, enabled, experimental):
         preset = MOSS_PRESETS[pid]
+        is_experimental = pid not in profile.get("validated_presets", {}) or not (
+            pid in BASE_PRESET_IDS or profile.get("status") == "validated")
         entry = {
             "id": pid,
             "label": preset["label"],
@@ -451,15 +541,11 @@ def capabilities(profile, model_manifest_id=None, enabled=None):
             "cfg": preset["cfg"],
             "sampler": preset["sampler"],
             "scheduler": preset["scheduler"],
-            "max_area_mp": profile["validated_presets"].get(pid),
+            "validation_status": "experimental" if is_experimental else "validated",
+            "max_area_mp": preset_area_limit(pid, profile),
         }
         if preset.get("steps_policy"):
             entry["steps_policy"] = preset["steps_policy"]
-            if preset["steps_policy"] == "rapid":
-                entry["area_policy_mp"] = {k: v for k, v in {"4": 1, "6": 2, "8": 4}.items()
-                                           if entry["max_area_mp"] is None or v <= entry["max_area_mp"]}
-            else:
-                entry["max_area_mp"] = 1
         presets.append(entry)
     return {
         "schema_version": 1,
@@ -469,7 +555,7 @@ def capabilities(profile, model_manifest_id=None, enabled=None):
         "presets": presets,
         "restrictions": {
             "width_height_multiple": 16,
-            "rapid_area_policy_mp": {"4": 1, "6": 2, "8": 4},
+            "rapid_max_area_mp": 1,
             "draft3_max_area_mp": 1,
             "lora_directory": "user/",
         },

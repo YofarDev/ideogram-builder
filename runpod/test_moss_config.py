@@ -14,6 +14,7 @@ from moss_config import (
     advertised_presets,
     generation_metadata,
     resolve_enabled_presets,
+    resolve_experimental_presets,
     resolve_profile,
     validate_request_preset,
 )
@@ -132,14 +133,31 @@ def test_validate_request_preset_returns_effective_steps():
     assert steps == 25 and preset["cfg"] == 2.5
 
 
-def test_rapid_area_policy():
+def test_rapid_v1_hard_one_megapixel_limit():
+    """v1 Rapid: exactly 4 steps with a hard technical 1 MP limit — the old
+    6/8-step area ladder is unreachable without a separately declared profile."""
     assert effective_preset("Rapid", 1024, 1024)[1] == 4
     assert effective_preset("Rapid", 768, 1024)[1] == 4          # 0.75 MP
-    assert effective_preset("Rapid", 1536, 1024)[1] == 6         # 1.5 MP
-    assert effective_preset("Rapid", 2048, 2048)[1] == 8         # 4 MP boundary
-    with pytest.raises(PresetUnsupportedError) as exc:
-        effective_preset("Rapid", 4096, 4096)
-    assert "2048×2048 (4 MP)" in str(exc.value)
+    assert effective_preset("Rapid", 512, 512)[1] == 4
+    with pytest.raises(PresetUnsupportedError, match="above the limit"):
+        effective_preset("Rapid", 1024, 1040)                    # 1,064,960 px — just over
+    with pytest.raises(PresetUnsupportedError):
+        effective_preset("Rapid", 1536, 1024)                    # 1.5 MP
+    with pytest.raises(PresetUnsupportedError):
+        effective_preset("Rapid", 2048, 2048)                    # 4 MP
+
+
+def test_rapid_technical_limit_holds_for_every_profile():
+    """The technical limit applies to production, preview and benchmark paths
+    alike; a declared profile may LOWER it via preset_area_limits, never raise it."""
+    for pid in ("rapid-auto-int8-cu128", "resident-highvram-int8-adapters"):
+        profile = resolve_profile({"MOSS_RUNTIME_PROFILE": pid})
+        with pytest.raises(PresetUnsupportedError):
+            effective_preset("Rapid", 2048, 2048, profile=profile)
+    lowered = dict(resolve_profile({}), preset_area_limits={"Rapid": 0.5})
+    with pytest.raises(PresetUnsupportedError, match="0.5 MP"):
+        effective_preset("Rapid", 1024, 1024, profile=lowered)
+    assert effective_preset("Rapid", 512, 512, profile=lowered)[1] == 4
 
 
 def test_draft3_one_megapixel_limit():
@@ -153,7 +171,9 @@ def test_unsupported_size_message_is_actionable():
     with pytest.raises(PresetUnsupportedError) as exc:
         effective_preset("Draft3", 2048, 2048)
     message = str(exc.value)
-    assert "1024×1024 (1 MP)" in message and "Reduce the canvas size" in message
+    assert "supports up to 1 MP" in message
+    assert "2048×2048 (4.00 MP)" in message
+    assert "reduce the canvas size" in message.lower()
 
 
 # --- capabilities ---------------------------------------------------------------
@@ -171,16 +191,60 @@ def test_capabilities_only_advertise_validated_profile_presets():
     assert advertised_presets(candidate) == list(BASE_PRESET_IDS)
 
 
-def test_rapid_area_policy_published_in_capabilities_when_promoted():
+def test_rapid_advertisement_requires_validated_or_experimental():
     import copy
     from moss_config import RUNTIME_PROFILES
+
+    # Promoted: Rapid validated at its 1 MP bucket → validated advertisement.
     promoted = copy.deepcopy(RUNTIME_PROFILES["resident-highvram-int8-adapters"])
     promoted["status"] = "validated"
-    promoted["validated_presets"].update(Rapid=4, Draft3=1)
+    promoted["validated_presets"].update(Rapid=1)
     caps = capabilities(promoted)
     by_id = {p["id"]: p for p in caps["presets"]}
-    assert by_id["Rapid"]["area_policy_mp"] == {"4": 1, "6": 2, "8": 4}
-    assert by_id["Draft3"]["max_area_mp"] == 1
+    assert by_id["Rapid"]["validation_status"] == "validated"
+    assert by_id["Rapid"]["max_area_mp"] == 1
+
+    # Experimental opt-in: advertised but explicitly NOT validated, technical limit only.
+    candidate = copy.deepcopy(RUNTIME_PROFILES["rapid-auto-int8-cu128"])
+    caps = capabilities(candidate, experimental=("Rapid",))
+    by_id = {p["id"]: p for p in caps["presets"]}
+    assert [p["validation_status"] for p in caps["presets"] if p["id"] == "Rapid"] == ["experimental"]
+    assert by_id["Rapid"]["max_area_mp"] == 1
+    assert by_id["Rapid"]["steps"] == 4 and by_id["Rapid"]["cfg"] == 1.0
+    # Without the opt-in the candidate stays hidden even though technically supported.
+    assert "Rapid" not in {p["id"] for p in capabilities(candidate)["presets"]}
+    # Unknown experimental names are rejected at parse time.
+    with pytest.raises(ProfileError, match="unknown presets"):
+        resolve_experimental_presets({"MOSS_EXPERIMENTAL_PRESETS": "Rapid,Jetpack"})
+
+
+def test_validate_request_preset_uses_availability_calculation():
+    """HTTP gate = same advertisement calculation as capabilities; benchmark
+    mode may execute technical candidates; the technical 1 MP limit applies to
+    both paths."""
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-auto-int8-cu128"}
+
+    # No experimental opt-in → Rapid rejected over the request API…
+    with pytest.raises(PresetUnsupportedError, match="not advertised"):
+        validate_request_preset("Rapid", 1024, 1024, dict(env))
+    # …but executable in benchmark mode…
+    profile, preset, steps = validate_request_preset(
+        "Rapid", 1024, 1024, {**env, "MOSS_BENCHMARK_MODE": "true"})
+    assert steps == 4 and preset["adapter"] == "rapid4"
+    # …and the technical 1 MP limit holds even in benchmark mode.
+    with pytest.raises(PresetUnsupportedError, match="above the limit"):
+        validate_request_preset("Rapid", 2048, 2048, {**env, "MOSS_BENCHMARK_MODE": "true"})
+
+    # With the explicit opt-in the same request is served normally.
+    profile, preset, steps = validate_request_preset(
+        "Rapid", 1024, 1024, {**env, "MOSS_EXPERIMENTAL_PRESETS": "Rapid"})
+    assert steps == 4
+
+    # Baseline production behaviour unchanged: base presets validated, candidates hidden.
+    profile, preset, steps = validate_request_preset("Fast", 1024, 1024, {})
+    assert steps == 25
+    with pytest.raises(PresetUnsupportedError, match="not enabled"):
+        validate_request_preset("Rapid", 1024, 1024, {})
 
 
 # --- metadata and deployment settings -------------------------------------------

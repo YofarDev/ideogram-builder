@@ -122,13 +122,20 @@ def test_rapid_wiring_four_steps_no_slg():
     assert SLG_NODE_ID not in wf and SPECTRUM_NODE_ID not in wf
 
 
-def test_rapid_area_steps_reach_the_sampler():
-    wf, info = build("Rapid", width=2048, height=2048)
-    assert wf[KSAMPLER_NODE_ID]["inputs"]["steps"] == 8
-    assert info["effective_steps"] == 8
+def test_rapid_exact_one_megapixel_graph_is_four_steps():
+    """The v1 Rapid recipe: precisely 4 sampler steps at the 1 MP bucket."""
+    wf, info = build("Rapid", width=1024, height=1024)
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["steps"] == 4
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["cfg"] == 1.0
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["sampler_name"] == "euler"
+    assert info["effective_steps"] == 4
 
 
-def test_rapid_beyond_four_mp_rejected():
+def test_rapid_beyond_one_megapixel_rejected_everywhere():
+    with pytest.raises(PresetUnsupportedError, match="above the limit"):
+        build("Rapid", width=1024, height=1040)   # just over 1 MP
+    with pytest.raises(PresetUnsupportedError):
+        build("Rapid", width=2048, height=2048)
     with pytest.raises(PresetUnsupportedError):
         build("Rapid", width=4096, height=4096)
 

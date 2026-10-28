@@ -70,10 +70,10 @@ def test_capability_allowlist_and_independent_resolution_promotion(monkeypatch):
     profile['validated_presets']['Rapid'] = 1
     caps = config.capabilities(profile, enabled=('Fast', 'Rapid'))
     assert [p['id'] for p in caps['presets']] == ['Fast', 'Rapid']
-    assert caps['presets'][1]['area_policy_mp'] == {'4': 1}
-    assert caps['presets'][1]['max_area_mp'] == 1
+    assert caps['presets'][1]['validation_status'] == 'validated'
+    assert caps['presets'][1]['max_area_mp'] == 1  # technical limit binds even when validated
     monkeypatch.setitem(config.RUNTIME_PROFILES, profile['profile_id'], profile)
-    with pytest.raises(config.PresetUnsupportedError, match='validated only up to 1'):
+    with pytest.raises(config.PresetUnsupportedError, match='supports up to 1 MP'):
         config.validate_request_preset('Rapid', 1536, 1024, {'MOSS_RUNTIME_PROFILE': profile['profile_id']})
     assert config.capabilities(config.resolve_profile({}), enabled=('Fast',))['presets'][0]['id'] == 'Fast'
     assert len(config.capabilities(config.resolve_profile({}), enabled=('Fast',))['presets']) == 1
@@ -83,7 +83,10 @@ def test_bf16_and_merged_fp32_reference_graphs_have_correct_loaders():
     template = json.loads((Path(__file__).parent / 'workflow_template_moss.json').read_text())
     for pid, dit, adapter in [('bf16-adapters', 'dit_bf16', 'adapter_rapid4'),
                                ('rapid-fp32-reference', 'dit_rapid4_fp32', None)]:
-        profile, preset, steps = config.validate_request_preset('Rapid', 1024, 1024, {'MOSS_RUNTIME_PROFILE': pid})
+        # Reference profiles are measured in benchmark mode: Rapid is a
+        # technical candidate there, not an advertised recipe.
+        profile, preset, steps = config.validate_request_preset(
+            'Rapid', 1024, 1024, {'MOSS_RUNTIME_PROFILE': pid, 'MOSS_BENCHMARK_MODE': 'true'})
         needed = moss_assets.required_asset_keys(profile, ['Rapid'])
         assert dit in needed
         assert ('adapter_rapid4' in needed) == bool(adapter)
