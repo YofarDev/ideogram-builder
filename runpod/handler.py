@@ -100,8 +100,14 @@ def _get_object_info():
     return _OBJECT_INFO
 
 
+# Unique per server process (module import = container start), stable across
+# that worker's jobs, changes on a real restart. The hostname alone ("modal")
+# is shared by every Modal container and cannot group samples per worker.
+_WORKER_BOOT_ID = f"{uuid.uuid4().hex[:12]}-{os.getpid()}"
+
+
 def _worker_instance_id():
-    return os.environ.get("HOSTNAME") or os.uname().nodename
+    return f"{os.environ.get('HOSTNAME') or os.uname().nodename}-{_WORKER_BOOT_ID}"
 
 
 def _load_template(key):

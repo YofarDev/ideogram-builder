@@ -18,11 +18,21 @@ COMFY_DIR = os.environ.get("COMFY_DIR", "/comfyui")
 def _module_version(name):
     try:
         module = __import__(name)
-        return getattr(module, "__version__", "unknown")
     except ImportError:
         return None
     except Exception as e:  # noqa: BLE001
         return f"import-error: {e}"
+    version = getattr(module, "__version__", None)
+    if version in (None, "unknown", ""):
+        # Some distributions (e.g. comfy-kitchen) expose no __version__; the
+        # installed package metadata is the truthful source in that case.
+        try:
+            import importlib.metadata
+
+            version = importlib.metadata.version(name)
+        except Exception:  # noqa: BLE001
+            version = "unknown"
+    return version
 
 
 def _git_revision(path):

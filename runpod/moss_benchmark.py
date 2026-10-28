@@ -96,20 +96,46 @@ def compile_fixture_layout(fixture, width, height):
 
 
 def build_jobs(fixtures, seeds, configs, cached_prompt=False):
-    """One job per (config, fixture, seed). cached_prompt=True repeats the same
-    fixture text across measured runs so text-encode caching engages after the
-    first run; the default rotates prompts and varies JSON whitespace to bust
-    the encoder-node cache without changing the parsed layout. Seeds always
-    vary so the complete image result is never cached."""
+    """One job per (config, fixture, seed), ordered seed-major with a rotating
+    config offset per seed: counterbalanced so no preset systematically runs
+    first (cache/GPU-drift bias) while same-preset steady-state repeats remain
+    within each config block. Preset-switch costs are reported separately via
+    the `switched` flag computed at execution time.
+
+    prompt_variant is unique per (config, seed) — trailing JSON whitespace is
+    ignored by the parser (parsed layout preserved) but changes the encoder
+    node's input hash, so the positive encoder really executes for every
+    measured request, including across presets sharing a fixture+seed.
+    cached_prompt runs keep the input identical (variant 0) so warm prompts
+    demonstrate real cache hits."""
     jobs = []
-    for config in configs:
-        order = ((f, seed) for f in fixtures for seed in seeds) if cached_prompt else ((f, seed) for seed in seeds for f in fixtures)
-        for f, seed in order:
-            width, height = f["dims"]
-            jobs.append({"config": config, "fixture_id": f["id"], "seed": seed,
-                         "width": width, "height": height,
-                         "case": "cached-prompt" if cached_prompt else "new-prompt",
-                         "prompt_variant": 0 if cached_prompt else seeds.index(seed) + 1})
+    if cached_prompt:
+        # Cache-hit case: keep each (config, fixture) prompt grouped so warm
+        # prompts demonstrate real text-encode cache hits across repeated seeds.
+        for config in configs:
+            for f in fixtures:
+                for seed in seeds:
+                    width, height = f["dims"]
+                    jobs.append({"config": config, "config_index": configs.index(config),
+                                 "fixture_id": f["id"], "seed": seed,
+                                 "width": width, "height": height,
+                                 "case": "cached-prompt", "prompt_variant": 0})
+        return jobs
+    # Fresh-prompt comparison: seed-major with a rotating config offset per
+    # seed (counterbalanced preset order), each measured request a unique
+    # encoder input via prompt_variant.
+    for seed_index, seed in enumerate(seeds):
+        rotated = configs[seed_index % len(configs):] + configs[:seed_index % len(configs)]
+        for config in rotated:
+            for f in fixtures:
+                width, height = f["dims"]
+                jobs.append({
+                    "config": config, "config_index": configs.index(config),
+                    "fixture_id": f["id"], "seed": seed,
+                    "width": width, "height": height,
+                    "case": "new-prompt",
+                    "prompt_variant": 1 + configs.index(config) + seed_index * len(configs),
+                })
     return jobs
 
 
@@ -216,7 +242,7 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                   cached_prompt=False, out_dir="bench-out", warmup=True,
                   max_jobs=None, max_minutes=None, dry_run=False,
                   regression_stop_pct=DEFAULT_REGRESSION_STOP_PCT, save_images=True, runner=None, endpoints=None,
-                  loras=None, width=None, height=None):
+                  loras=None, width=None, height=None, ocr=False):
     """Execute the matrix and write artifacts. Returns the summary dict."""
     import moss_config
 
@@ -277,7 +303,8 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
     if mode == "http" and len(profiles) > 1 and not endpoints and runner is None:
         raise ValueError("Multiple HTTP profiles require a profile-to-endpoint map of isolated deployments")
     results_path = out / "results.jsonl"
-    if results_path.exists():
+    warmups_path = out / "warmups.jsonl"
+    if results_path.exists() or warmups_path.exists():
         raise ValueError("Output already contains results; use a fresh run directory")
     started = time.monotonic()
     executed = 0
@@ -285,6 +312,7 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
     warm_samples = {}
     warmed = set()
     stop_reason = None
+    last_executed_config = None
     execute = runner or (run_http if mode == "http" else run_internal)
 
     def run(job):
@@ -334,12 +362,27 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                 stop_reason = f"warmup failed: {error}"
                 break
             warmed.add(warm_key)
+            # First-use cost is evidence too — persisted separately from the
+            # measured population, never silently discarded.
+            warm_result = warm_body.get("result") or {}
+            with open(warmups_path, "a") as f:
+                f.write(json.dumps({
+                    "profile": job["config"]["profile"], "preset": job["config"]["preset"],
+                    "fixture_id": job["fixture_id"], "width": job["width"], "height": job["height"],
+                    "seed": warm_job["seed"], "status": warm_body.get("status"),
+                    "latency_ms": warm_body.get("latency_ms"),
+                    "metrics": warm_result.get("metrics"),
+                    "generation": warm_result.get("generation"),
+                    "recorded_at": time.time(),
+                }) + "\n")
         tag = f"{job['config']['profile']}-{job['config']['preset']}-{job['fixture_id']}-{job['seed']}"
         print(f"[run] {tag} [{job['case']}] …")
         try:
             body = run(job)
         except Exception as e:  # noqa: BLE001
             body = {"status": "error", "error": str(e)}
+        switched = last_executed_config is not None and last_executed_config != (job["config"]["profile"], job["config"]["preset"])
+        last_executed_config = (job["config"]["profile"], job["config"]["preset"])
 
         executed += 1
         result = body.get("result") or {}
@@ -352,6 +395,7 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
             "width": job["width"],
             "height": job["height"],
             "case": job["case"],
+            "switched": switched,
             "status": body.get("status"),
             "error": error,
             "latency_ms": body.get("latency_ms"),
@@ -396,8 +440,12 @@ def run_benchmark(*, mode="http", endpoint=None, token=None, profiles=("baseline
                         stop_reason = f"regression: {key} recent median {recent:.0f}ms vs reference {reference:.0f}ms"
                         break
 
+    records = _read_jsonl(results_path)
+    review = write_review_sheet(out, records, ocr=ocr)
     summary = summarize(results_path)
     summary["stop_reason"] = stop_reason or "completed all jobs"
+    summary["switched_jobs"] = sum(1 for r in records if r.get("switched"))
+    summary["review_sheet"] = str(review)
     summary_text = render_summary(summary)
     (out / "summary.md").write_text(summary_text)
     print(summary_text)
@@ -487,6 +535,111 @@ def render_summary(summary):
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Quality evidence: review sheet, optional OCR transcription and CER
+# ---------------------------------------------------------------------------
+
+def _levenshtein(a, b):
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        current = [i]
+        for j, cb in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb)))
+        previous = current
+    return previous[-1]
+
+
+def character_error_rate(expected, observed):
+    """CER in [0, ∞) against the fixture's expected string, normalized
+    (casefold, whitespace collapsed). Returns None when either side is empty."""
+    normalize = lambda s: " ".join((s or "").casefold().split())  # noqa: E731
+    expected, observed = normalize(expected), normalize(observed)
+    if not expected:
+        return None
+    return _levenshtein(expected, observed) / len(expected)
+
+
+def _ocr_transcriber():
+    """Optional OCR: only used when the dependency is installed AND requested;
+    the exact package + version is recorded with every transcription so scores
+    are attributable. No silent fallbacks."""
+    try:
+        from rapidocr_onnxruntime import RapidOCR  # noqa: PLC0415
+        import importlib.metadata
+
+        version = importlib.metadata.version("rapidocr_onnxruntime")
+    except Exception:
+        return None
+    engine = RapidOCR()
+
+    def transcribe(image_path):
+        result, _elapsed = engine(str(image_path))
+        text = " ".join((line[1] or "") for line in (result or []))
+        return text.strip()
+
+    return transcribe, version
+
+
+def write_review_sheet(out_dir, records, ocr=False):
+    """Human review sheet beside the run artifacts: per completed measured
+    image, the expected text, a blank observed column, and — when OCR was
+    enabled and available — a machine transcription with CER. Presence of PNG
+    bytes is never treated as quality evidence; unmeasured stays unmeasured."""
+    out_dir = Path(out_dir)
+    ocr_entry = _ocr_transcriber() if ocr else None
+    ocr_info = {"enabled": ocr, "available": bool(ocr_entry)}
+    if ocr_entry:
+        ocr_info["package"] = "rapidocr_onnxruntime"
+        ocr_info["version"] = ocr_entry[1]
+    elif ocr:
+        ocr_info["note"] = "rapidocr_onnxruntime not installed — transcription left for manual review"
+
+    fixtures = _FIXTURES_BY_ID or {}
+    lines = [
+        "# MOSS quality review sheet",
+        "",
+        f"- OCR: {ocr_info}",
+        "- Transcribe observed text manually where OCR is unavailable; numeric errors column is for digit substitutions.",
+        "",
+        "| image | profile | preset | fixture | seed | expected text | observed | numeric errors | faces/hands | naturalness | CER |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    ocr_records = []
+    for record in records:
+        if record.get("status") != "completed":
+            continue
+        fixture = fixtures.get(record["fixture_id"]) or {}
+        expected = " · ".join(fixture.get("expected_text", [])) or "—"
+        image_path = (record.get("image_files") or ["—"])[0]
+        observed, cer = "", ""
+        if ocr_entry and record.get("image_files"):
+            try:
+                observed = ocr_entry[0](image_path)
+                scores = [character_error_rate(e, observed) for e in fixture.get("expected_text", [])]
+                scores = [s for s in scores if s is not None]
+                cer = f"{min(scores):.3f}" if scores else "n/a"
+                ocr_records.append({"image": str(image_path), "observed": observed, "cer": cer})
+            except Exception as error:  # noqa: BLE001 — OCR must never fail the sheet
+                observed = f"OCR error: {error}"
+        lines.append(
+            f"| {Path(str(image_path)).name} | {record['profile']} | {record['preset']} "
+            f"| {record['fixture_id']} | {record['seed']} | {expected} | {observed or ' '} "
+            f"| | | | {cer or ' '} |")
+    sheet = out_dir / "review-sheet.md"
+    sheet.write_text("\n".join(lines) + "\n")
+    if ocr_records:
+        with open(out_dir / "ocr.jsonl", "w") as f:
+            for entry in ocr_records:
+                f.write(json.dumps(entry) + "\n")
+    return sheet
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="MOSS benchmark runner")
     parser.add_argument("--mode", choices=["http", "internal"], default="http")
@@ -508,6 +661,8 @@ def main(argv=None):
     parser.add_argument("--max-minutes", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--regression-stop-pct", type=float, default=DEFAULT_REGRESSION_STOP_PCT)
+    parser.add_argument("--ocr", action="store_true",
+                        help="Transcribe saved images with rapidocr_onnxruntime (version recorded) and compute CER")
     args = parser.parse_args(argv)
 
     if args.mode == "http" and not (args.endpoint or args.endpoints) and not args.dry_run:
@@ -531,6 +686,7 @@ def main(argv=None):
         max_minutes=args.max_minutes,
         dry_run=args.dry_run,
         regression_stop_pct=args.regression_stop_pct,
+        ocr=args.ocr,
     )
     return 0
 

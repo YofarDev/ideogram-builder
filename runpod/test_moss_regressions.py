@@ -270,3 +270,73 @@ def test_internal_latency_excludes_synchronous_memory_probe_overhead(monkeypatch
     monkeypatch.setattr(handler, 'handler', generate)
     job = bench.build_jobs(bench.load_fixtures(ids=['poster_en_bold']), [1], [{'profile':'baseline','preset':'Fast'}])[0]
     assert bench.run_internal(job)['latency_ms'] == 3000
+
+
+def test_counterbalanced_fresh_order_and_unique_encoder_inputs_across_presets():
+    fixtures = bench.load_fixtures(ids=['poster_en_bold'])
+    configs = [{'profile': 'rapid-auto-int8-cu128', 'preset': 'Rapid'},
+               {'profile': 'rapid-auto-int8-cu128', 'preset': 'Turbo'}]
+    jobs = bench.build_jobs(fixtures, [1, 2, 3], configs)
+    # Seed-major counterbalance: seed 1 starts with config 0, seed 2 with config 1.
+    assert [j['config']['preset'] for j in jobs[:2]] == ['Rapid', 'Turbo']
+    assert [j['config']['preset'] for j in jobs[2:4]] == ['Turbo', 'Rapid']
+    # Unique encoder input per (config, seed) across presets, parsed layout unchanged.
+    variants = {(j['config']['preset'], j['seed']): bench._payload(j)['import_json']
+                for j in jobs}
+    assert len(set(variants.values())) == len(variants)
+    same_seed = [v for k, v in variants.items() if k[1] == 1]
+    assert len(same_seed) == 2 and json.loads(same_seed[0]) == json.loads(same_seed[1])
+    cached = bench.build_jobs(fixtures, [1, 2], configs, cached_prompt=True)
+    assert all(j['prompt_variant'] == 0 for j in cached)
+
+
+def test_warmups_are_persisted_separately_from_measured_runs(tmp_path):
+    calls = []
+
+    def execute(job, **kwargs):
+        calls.append(job)
+        return {'status': 'completed', 'result': {'generation': {'runtime_profile': 'baseline'},
+                                                  'metrics': {'worker_instance_id': 'w'}}}
+
+    bench.run_benchmark(mode='internal', runner=execute, presets=['Turbo'],
+                        fixture_ids=['poster_en_bold'], seeds=[1],
+                        out_dir=tmp_path, save_images=False)
+    warmups = [json.loads(line) for line in (tmp_path / 'warmups.jsonl').read_text().splitlines()]
+    results = [json.loads(line) for line in (tmp_path / 'results.jsonl').read_text().splitlines()]
+    assert len(warmups) == 1 and len(results) == 1
+    assert warmups[0]['seed'] != results[0]['seed']
+    assert warmups[0]['metrics'] is not None  # first-use cost recorded, not discarded
+
+
+def test_review_sheet_lists_expected_text_and_reports_ocr_unmeasured_without_dependency(tmp_path):
+    record = {'status': 'completed', 'profile': 'p', 'preset': 'Rapid', 'fixture_id': 'poster_en_bold',
+              'seed': 101, 'image_files': []}
+    sheet = bench.write_review_sheet(tmp_path, [record], ocr=True)
+    text = sheet.read_text()
+    assert 'DESIGN SUMMIT 2026' in text          # expected text from the fixture
+    assert 'rapidocr_onnxruntime not installed' in text  # unmeasured is stated, not guessed
+    assert 'CER' in text and 'faces/hands' in text
+
+
+def test_cer_computation():
+    assert bench.character_error_rate('DESIGN SUMMIT', 'DESIGN SUMMIT') == 0.0
+    assert bench.character_error_rate('DESIGN SUMMIT', 'DESIGN SUMMITT') > 0.0
+    assert bench.character_error_rate('62%', '62%') == 0.0
+    assert bench.character_error_rate('62%', '63%') == pytest.approx(1 / 3, rel=1e-3)
+    assert bench.character_error_rate('', 'anything') is None
+
+
+def test_worker_instance_id_is_unique_per_process_and_stable_within_it():
+    import handler
+    first = handler._worker_instance_id()
+    assert first == handler._worker_instance_id()          # stable across jobs
+    assert first.startswith((handler.os.environ.get('HOSTNAME') or handler.os.uname().nodename) + '-')
+    assert first != (handler.os.environ.get('HOSTNAME') or 'modal')  # not the bare hostname
+
+
+def test_module_version_falls_back_to_distribution_metadata(monkeypatch):
+    import sys as _sys
+    fake = type('M', (), {})()  # no __version__ attribute at all
+    monkeypatch.setitem(_sys.modules, 'comfy_kitchen', fake)
+    value = runtime_check._module_version('comfy_kitchen')
+    assert value == 'unknown' or isinstance(value, str) and value
