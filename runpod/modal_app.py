@@ -116,14 +116,67 @@ if _RUNTIME_BUILD == "cu130":
     }
 
 # Same image RunPod builds: ComfyUI, KJNodes, rgthree, 4 Ideogram-4 models, LoRAs, handler.py.
-COMFY_IMAGE = modal.Image.from_dockerfile(
-    "runpod/Dockerfile",
-    context_dir=str(REPO_ROOT),
+# Deploy-time cached-image reuse (plan 2026-10-28 §1): MOSS_CACHED_IMAGE_ID /
+# IDEOGRAM_CACHED_IMAGE_ID name previously built immutable images; only the
+# small source overlay is re-baked on top via add_local_file(copy=True), so a
+# Python-only change costs no multi-GB weights download or reinstall. The IDs
+# are workspace-specific — they are never hard-coded as source defaults; empty
+# means a full Dockerfile build (the reproducible path for dependency/model
+# changes). A requested ID that does not exist fails deploy/run loudly
+# (Image.from_id raises), which is the intended clear failure.
+IDEOGRAM_CACHED_IMAGE_ID = (os.environ.get("IDEOGRAM_CACHED_IMAGE_ID") or "").strip()
+MOSS_CACHED_IMAGE_ID = (os.environ.get("MOSS_CACHED_IMAGE_ID") or "").strip()
+
+# Source overlays mirroring the Dockerfiles' COPY lists COMPLETELY: every file
+# the image ships from the repo is re-layered, so stale copies baked into a
+# cached image cannot shadow the new sources. test_modal_moss_lifecycle.py
+# asserts this coverage against the Dockerfiles themselves.
+IDEOGRAM_OVERLAY_FILES = (
+    ("runpod/handler.py", "/handler.py"),
+    ("runpod/workflow_template_lora_turbo.json", "/workflow_template_turbo.json"),
+    ("runpod/workflow_template_lora.json", "/workflow_template_lora.json"),
 )
+MOSS_OVERLAY_FILES = (
+    ("runpod/handler.py", "/handler.py"),
+    ("runpod/workflow_template_moss.json", "/workflow_template_moss.json"),
+    ("runpod/moss_config.py", "/moss_config.py"),
+    ("runpod/moss_workflow.py", "/moss_workflow.py"),
+    ("runpod/moss_assets.py", "/moss_assets.py"),
+    ("runpod/comfy_metrics.py", "/comfy_metrics.py"),
+    ("runpod/moss_benchmark.py", "/moss_benchmark.py"),
+    ("runpod/moss_benchmark_worker.py", "/moss_benchmark_worker.py"),
+    ("runpod/moss_cache.py", "/moss_cache.py"),
+    ("runpod/moss_memory.py", "/moss_memory.py"),
+    ("runpod/runtime_check.py", "/runtime_check.py"),
+    ("runpod/moss-models.json", "/moss-models.json"),
+    ("runpod/moss-runtime.lock.json", "/moss-runtime.lock.json"),
+    ("runpod/benchmarks/moss/fixtures.json", "/benchmarks/moss/fixtures.json"),
+    ("runpod/custom_nodes/moss_runtime/__init__.py", "/comfyui/custom_nodes/moss_runtime/__init__.py"),
+)
+
+
+def _worker_image(cached_image_id, dockerfile, overlay_files, *, build_args=None):
+    """Cached immutable weights/dependency base + this checkout's sources.
+
+    With cached_image_id set, Image.from_id supplies the heavy layers and only
+    the overlay is built. Otherwise the full Dockerfile path is used. Overlay
+    order matches the Dockerfile so later sources win."""
+    if cached_image_id:
+        image = modal.Image.from_id(cached_image_id)
+        print(f"[image] reusing cached image {cached_image_id} with a "
+              f"{len(overlay_files)}-file source overlay")
+    else:
+        image = modal.Image.from_dockerfile(
+            dockerfile, context_dir=str(REPO_ROOT), build_args=build_args or {})
+    for source, remote in overlay_files:
+        image = image.add_local_file(REPO_ROOT / source, remote, copy=True)
+    return image
+
+
+COMFY_IMAGE = _worker_image(IDEOGRAM_CACHED_IMAGE_ID, "runpod/Dockerfile", IDEOGRAM_OVERLAY_FILES)
 # MOSS-Image twin: pinned ComfyUI + rgthree + Spectrum, MOSS models, helper modules, same handler.
-MOSS_IMAGE = modal.Image.from_dockerfile(
-    "runpod/Dockerfile.moss",
-    context_dir=str(REPO_ROOT),
+MOSS_IMAGE = _worker_image(
+    MOSS_CACHED_IMAGE_ID, "runpod/Dockerfile.moss", MOSS_OVERLAY_FILES,
     build_args=_MOSS_BUILD_ARGS,
 ).env(_MOSS_ENV)
 # Lightweight proxy that terminates HTTP, checks the token, then calls into the
@@ -641,3 +694,107 @@ def moss_benchmark_main(
         print(summary["report"])
     else:
         print(json.dumps(summary, indent=2, default=str))
+
+
+# --- Cached-image verification (plan 2026-10-28 §1) -----------------------------
+# Run BEFORE deploying with MOSS_CACHED_IMAGE_ID / IDEOGRAM_CACHED_IMAGE_ID to
+# prove the referenced images exist in this workspace and contain the expected
+# weights/runtime layout. With the ID env vars unset these probes build the
+# full Dockerfile images — set the IDs to probe the cached path cheaply.
+
+@app.function(image=MOSS_IMAGE, timeout=300)
+def moss_image_probe() -> dict:
+    required = [
+        "/handler.py", "/moss_config.py", "/moss_workflow.py", "/moss_assets.py",
+        "/comfy_metrics.py", "/moss_benchmark.py", "/moss_cache.py", "/moss_memory.py",
+        "/runtime_check.py", "/moss-models.json", "/moss-runtime.lock.json",
+        "/workflow_template_moss.json", "/benchmarks/moss/fixtures.json",
+        "/comfyui/custom_nodes/moss_runtime/__init__.py",
+        "/comfyui/models/diffusion_models/moss_image_sft_int8_convrot.safetensors",
+        "/comfyui/models/text_encoders/qwen3.5_9b_w4a8_gptq.safetensors",
+        "/comfyui/models/vae/flux2-vae_small.safetensors",
+        "/comfyui/models/loras/moss/control/moss_sft_dmd8.safetensors",
+    ]
+    missing = [p for p in required if not Path(p).exists()]
+    if missing:
+        raise RuntimeError(f"MOSS image is missing expected files: {missing}")
+    return {"ok": True, "checked": len(required),
+            "runtime_profile": os.environ.get("MOSS_RUNTIME_PROFILE", "")}
+
+
+@app.function(image=COMFY_IMAGE, timeout=300)
+def ideogram_image_probe() -> dict:
+    required = [
+        "/handler.py", "/workflow_template_turbo.json", "/workflow_template_lora.json",
+        "/comfyui/models/diffusion_models/ideogram4_int8_convrot.safetensors",
+        "/comfyui/models/text_encoders/qwen3vl_8b_fp8_scaled.safetensors",
+        "/comfyui/models/vae/flux2-vae.safetensors",
+    ]
+    missing = [p for p in required if not Path(p).exists()]
+    if missing:
+        raise RuntimeError(f"Ideogram image is missing expected files: {missing}")
+    return {"ok": True, "checked": len(required)}
+
+
+@app.local_entrypoint()
+def verify_cached_images(skip_ideogram: bool = False):
+    """Cheap existence/contents check for the cached worker images.
+
+        MOSS_CACHED_IMAGE_ID=im-… IDEOGRAM_CACHED_IMAGE_ID=im-… \
+            modal run runpod/modal_app.py::verify_cached_images
+    """
+    moss = moss_image_probe.remote()
+    print(f"MOSS image OK: {moss}")
+    if not skip_ideogram:
+        print(f"Ideogram image OK: {ideogram_image_probe.remote()}")
+
+
+@app.local_entrypoint()
+def record_deployment_manifest(
+    moss_image_id: str = "", ideogram_image_id: str = "", app_name: str = "", out: str = "",
+):
+    """Write the non-secret deployment manifest: workspace, source revision,
+    image IDs, build selection and configuration pins. Workspace-specific IDs
+    live ONLY here, never as source defaults.
+
+        modal run runpod/modal_app.py::record_deployment_manifest \
+            --moss-image-id im-… --ideogram-image-id im-… --app-name ideogram-builder-rapid-preview
+    """
+    import subprocess
+
+    def _git(*args):
+        return subprocess.check_output(["git", *args], text=True, cwd=str(REPO_ROOT)).strip()
+
+    try:
+        workspace = subprocess.check_output(["modal", "profile", "current"], text=True).strip()
+    except Exception:
+        workspace = "unknown"
+    manifest = {
+        "recorded_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "workspace": workspace,
+        "app_name": app_name or _MOSS_ENV["MOSS_APP_NAME"],
+        "source_revision": _git("rev-parse", "HEAD"),
+        "source_dirty": bool(_git("status", "--porcelain")),
+        "build_selection": {
+            "moss_image_id": moss_image_id or None,
+            "ideogram_image_id": ideogram_image_id or None,
+            "runtime_build": _RUNTIME_BUILD,
+            "rebuild_path": "unset MOSS_CACHED_IMAGE_ID/IDEOGRAM_CACHED_IMAGE_ID and deploy "
+                            "(full Dockerfile build; required for dependency/model changes)",
+        },
+        "runtime_profile": MOSS_PROFILE["profile_id"],
+        "profile_status": MOSS_PROFILE["status"],
+        "enabled_presets": list(MOSS_ENABLED_PRESETS),
+        "experimental_presets": [p.strip() for p in (_deploy_env.get("MOSS_EXPERIMENTAL_PRESETS") or "").split(",") if p.strip()],
+        "pins": {
+            "runtime_lock_id": _RUNTIME_LOCK["lock_id"],
+            "model_manifest_id": json.loads((RUNPOD_DIR / "moss-models.json").read_text())["manifest_id"],
+            "comfyui": _RUNTIME_LOCK["baseline_runtime"]["comfyui"]["revision"],
+            "rgthree": _RUNTIME_LOCK["baseline_runtime"]["rgthree"]["revision"],
+        },
+    }
+    dest = Path(out) if out else RUNPOD_DIR.parent / "docs" / "deploy" / f"{time.strftime('%Y-%m-%d')}-{manifest['app_name']}.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"deployment manifest written to {dest}")
+    print(json.dumps(manifest, indent=2))

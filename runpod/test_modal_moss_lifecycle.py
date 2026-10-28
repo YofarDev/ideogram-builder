@@ -113,3 +113,62 @@ def test_docker_context_includes_every_copied_runtime_file():
     for private in ('.git/config', '.config/llm-credentials.json', 'runpod/test_moss_config.py',
                     'runpod/custom_nodes/moss_runtime/__pycache__/module.pyc', 'node_modules/module.js'):
         assert ignored(Path(private)), f'Unnecessary/private context file included: {private}'
+
+
+def test_source_overlays_cover_every_dockerfile_copy_target():
+    """The cached-image overlay must re-layer EVERY repo file the Dockerfiles
+    COPY — otherwise stale copies inside a reused image shadow the new sources
+    (plan 2026-10-28 §1). Directory COPYs expand to all included files."""
+    import shlex
+    root = Path(__file__).resolve().parent.parent
+    m = load_app()
+    overlays = {name: dict(getattr(m, name)) for name in ('IDEOGRAM_OVERLAY_FILES', 'MOSS_OVERLAY_FILES')}
+    ideogram_sources = set(overlays['IDEOGRAM_OVERLAY_FILES'])
+    moss_sources = set(overlays['MOSS_OVERLAY_FILES'])
+    for filename, covered in (('Dockerfile', ideogram_sources), ('Dockerfile.moss', moss_sources)):
+        for line in (root/'runpod'/filename).read_text().splitlines():
+            if not line.startswith('COPY '):
+                continue
+            source = shlex.split(line)[1]
+            path = root/source
+            if path.is_dir():
+                files = {str(p.relative_to(root)) for p in path.rglob('*')
+                         if p.is_file() and p.suffix != '.pyc'}
+                assert files, f'{filename}: COPY directory {source} expanded to nothing'
+                assert files <= covered, f'{filename}: overlay misses directory files: {sorted(files - covered)}'
+            else:
+                assert source in covered, f'{filename}: overlay misses COPY source {source}'
+    # The MOSS runtime custom node must keep its importable package file.
+    assert 'runpod/custom_nodes/moss_runtime/__init__.py' in moss_sources
+
+
+def test_cached_image_ids_drive_from_id_with_full_overlay(monkeypatch):
+    """MOSS_CACHED_IMAGE_ID/IDEOGRAM_CACHED_IMAGE_ID switch the worker images to
+    Image.from_id + the complete source overlay; unset falls back to the
+    Dockerfile builds. Workspace IDs stay out of source defaults."""
+    recorded = {'from_id': [], 'dockerfile': []}
+
+    def fake_from_id(image_id):
+        recorded['from_id'].append(image_id)
+        return modal.Image.debian_slim()
+
+    original_from_dockerfile = modal.Image.from_dockerfile
+
+    def fake_from_dockerfile(dockerfile, **kwargs):
+        recorded['dockerfile'].append(dockerfile)
+        return original_from_dockerfile(dockerfile, **kwargs)
+
+    monkeypatch.setattr(modal.Image, 'from_id', staticmethod(fake_from_id))
+    monkeypatch.setattr(modal.Image, 'from_dockerfile', staticmethod(fake_from_dockerfile))
+    monkeypatch.setenv('MOSS_CACHED_IMAGE_ID', 'im-moss-cached')
+    monkeypatch.setenv('IDEOGRAM_CACHED_IMAGE_ID', 'im-ideogram-cached')
+    m = load_app()
+    assert recorded['from_id'] == ['im-ideogram-cached', 'im-moss-cached']
+    assert recorded['dockerfile'] == []
+    # With no IDs the default is the reproducible full build; never hard-coded.
+    monkeypatch.delenv('MOSS_CACHED_IMAGE_ID')
+    monkeypatch.delenv('IDEOGRAM_CACHED_IMAGE_ID')
+    recorded['from_id'].clear()
+    load_app()
+    assert recorded['from_id'] == []
+    assert set(recorded['dockerfile']) == {'runpod/Dockerfile', 'runpod/Dockerfile.moss'}
