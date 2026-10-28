@@ -107,7 +107,7 @@ def analyze(data, partial=False):
                          for f in fixtures if (ps:=[p for p in pairs if p['fixture']==f])}}
         if pairs:
             with (HERE/f'paired-Rapid-vs-{baseline}.csv').open('w') as out:
-                writer=csv.DictWriter(out,fieldnames=list(pairs[0]));writer.writeheader();writer.writerows(pairs)
+                writer=csv.DictWriter(out,fieldnames=list(pairs[0]),lineterminator='\n');writer.writeheader();writer.writerows(pairs)
     result={'data_directory':str(data),'measured_records':len(records),'warmup_records':len(warmups),
       'first_warmup_per_preset':{p:next((r for r in warmups if r['preset']==p),None) for p in ('Rapid','Turbo','Fast')},
       'statuses':dict(collections.Counter(r['status'] for r in records)),
