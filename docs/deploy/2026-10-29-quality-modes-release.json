@@ -1,0 +1,117 @@
+{
+  "recorded_at": "2026-10-29T16:38:18+0100",
+  "workspace": "yofarcorp",
+  "app_name": "ideogram-builder",
+  "source_revision": "c6213e6e4a43802dd6f81eaa2e739b7ba3b0ecf4",
+  "source_dirty": false,
+  "build_selection": {
+    "moss_image_id": "im-C6CYVuLZL3PDP7CmANZGPp",
+    "ideogram_image_id": "im-jAh6cs2wwMnYugf5Zhz6Qs",
+    "runtime_build": "baseline",
+    "comfyui_build": "baseline",
+    "rebuild_path": "unset MOSS_CACHED_IMAGE_ID/IDEOGRAM_CACHED_IMAGE_ID and deploy (full Dockerfile build; required for dependency/model changes)"
+  },
+  "runtime_profile": "rapid-hires-auto-int8-cu128",
+  "profile_status": "validated",
+  "enabled_presets": [
+    "Fast",
+    "Quality",
+    "Turbo",
+    "Rapid"
+  ],
+  "experimental_presets": [],
+  "pins": {
+    "runtime_lock_id": "moss-runtime-2026-10-27b",
+    "model_manifest_id": "moss-models-2026-10-27b",
+    "comfyui": "7cebca52227c63b4180ceed448cbd7ad22903b6d",
+    "rgthree": "d7297b42f0fa78bec1c0411478f887423c249502"
+  },
+  "deployment_tag": "git-c6213e6",
+  "deployment_url": "https://modal.com/apps/yofarcorp/main/deployed/ideogram-builder",
+  "endpoint_url": "https://yofarcorp--ideogram-builder-web-app.us-east.modal.run",
+  "deployed_moss_image_id": "im-5mg6si8M3ujVNjHhK8R5Lj",
+  "tests": {
+    "backend": 241,
+    "frontend": 513
+  },
+  "smoke": {
+    "artifact_directory": "../../output/release-c6213e6/",
+    "passed": true,
+    "checks": [
+      {
+        "name": "oversize-rejection",
+        "status": "completed",
+        "latency_s": 159.4,
+        "error": "Preset 'Rapid' supports up to 4 MP; requested 2048\u00d72064 (4.03 MP) is above the limit. Keep the selected recipe and reduce the canvas size.",
+        "generation": null
+      },
+      {
+        "name": "layout-enhancement-rejection",
+        "status": "completed",
+        "latency_s": 1.7,
+        "error": "Enhance Caption supports plain captions only; disable it for layout JSON.",
+        "generation": null
+      },
+      {
+        "name": "rapid-caption",
+        "status": "completed",
+        "latency_s": 56.2,
+        "error": null,
+        "generation": {
+          "schema_version": 1,
+          "runtime_profile": "rapid-hires-auto-int8-cu128",
+          "preset": "Rapid",
+          "preset_id": "Rapid",
+          "effective_steps": 4,
+          "cfg": 1.0,
+          "sampler": "euler",
+          "scheduler": "simple",
+          "negative_guidance_active": false,
+          "negative_prompt_suppressed": true,
+          "prompt_upsampler": false,
+          "adapter": "rapid4",
+          "spectrum": false,
+          "compile_backend": "off",
+          "memory_mode": "auto",
+          "dit_format": "int8_convrot",
+          "encoder_format": "w4a8",
+          "warmup": false,
+          "slg": null,
+          "merged_adapter": null,
+          "model_manifest_id": "moss-models-2026-10-27b",
+          "first_generation_in_worker": true
+        }
+      },
+      {
+        "name": "rapid-enhanced-caption",
+        "status": "completed",
+        "latency_s": 74.1,
+        "error": null,
+        "generation": {
+          "schema_version": 1,
+          "runtime_profile": "rapid-hires-auto-int8-cu128",
+          "preset": "Rapid",
+          "preset_id": "Rapid",
+          "effective_steps": 4,
+          "cfg": 1.0,
+          "sampler": "euler",
+          "scheduler": "simple",
+          "negative_guidance_active": false,
+          "negative_prompt_suppressed": true,
+          "prompt_upsampler": true,
+          "adapter": "rapid4",
+          "spectrum": false,
+          "compile_backend": "off",
+          "memory_mode": "auto",
+          "dit_format": "int8_convrot",
+          "encoder_format": "w4a8",
+          "warmup": false,
+          "slg": null,
+          "merged_adapter": null,
+          "model_manifest_id": "moss-models-2026-10-27b",
+          "first_generation_in_worker": false
+        }
+      }
+    ]
+  }
+}
