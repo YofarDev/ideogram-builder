@@ -505,6 +505,20 @@ def test_moss_flow_rapid_unsupported_size_is_actionable(moss_flow, monkeypatch):
     assert "not advertised" in result["error"]
 
 
+@pytest.mark.parametrize("width,height,steps", [(1024, 1024, 4), (1536, 1024, 6), (2048, 2048, 8)])
+def test_moss_flow_hires_rapid_records_actual_steps(moss_flow, monkeypatch, width, height, steps):
+    monkeypatch.setenv("MOSS_RUNTIME_PROFILE", "rapid-hires-auto-int8-cu128")
+    monkeypatch.setenv("MOSS_EXPERIMENTAL_PRESETS", "Rapid")
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="A detailed caption", preset="Rapid",
+                         width=width, height=height)
+    assert "error" not in result
+    assert result["generation"]["runtime_profile"] == "rapid-hires-auto-int8-cu128"
+    assert result["generation"]["effective_steps"] == steps
+    assert result["generation"]["adapter"] == "rapid4"
+    assert result["generation"]["cfg"] == 1
+
+
 def test_moss_flow_keeps_partial_metrics_on_execution_error(moss_flow, monkeypatch):
     messages = [
         {"type": "executing", "data": {"node": "10", "prompt_id": "pid1"}},
@@ -591,3 +605,84 @@ def test_moss_flow_reconnect_marks_metrics_incomplete(moss_flow, monkeypatch):
     # The sampler interval that completed before the drop is still reported.
     assert result["metrics"]["observed_node_wall_ms"].get("sampler") is not None
 
+
+
+# --- 2026-10-29: enhance_caption passthrough + CFG-1 negative suppression ------
+
+
+def test_legacy_turbo_builder_blanks_negative():
+    """Legacy fallback builder: CFG-1 Turbo never uses the negative branch."""
+    wf = build_moss(preset="Turbo")
+    assert wf["8"]["inputs"]["text"] == ""
+    wf_fast = build_moss(preset="Fast")
+    assert wf_fast["8"]["inputs"]["text"] == "N"
+
+
+def test_moss_flow_turbo_blanks_negative_and_records_it(moss_flow, monkeypatch):
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Turbo", seed=1,
+                         width=1024, height=1024, negative_prompt="blurry, nsfw")
+    assert "error" not in result
+    assert result["generation"]["negative_prompt_suppressed"] is True
+    assert result["generation"]["negative_guidance_active"] is False
+
+
+def test_moss_flow_fast_keeps_negative(moss_flow, monkeypatch):
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=1,
+                         width=1024, height=1024, negative_prompt="blurry")
+    assert result["generation"]["negative_prompt_suppressed"] is False
+
+
+def test_moss_flow_enhance_caption_queues_upsampler(moss_flow, monkeypatch):
+    queued = {}
+    monkeypatch.setattr(handler, "queue_workflow",
+                        lambda wf, cid: (queued.update(workflow=wf), {"prompt_id": "pid1"})[1])
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=7,
+                         width=1024, height=1024, enhance_caption=True)
+    assert "error" not in result
+    wf = queued["workflow"]
+    assert wf["15"]["class_type"] == "TextGenerate"
+    assert wf["15"]["inputs"]["prompt"] == "P"
+    assert wf["15"]["inputs"]["sampling_mode.seed"] == 7
+    assert wf["7"]["inputs"]["text"] == ["15", 0]
+    assert result["generation"]["prompt_upsampler"] is True
+
+
+def test_moss_flow_enhance_caption_off_by_default(moss_flow, monkeypatch):
+    queued = {}
+    monkeypatch.setattr(handler, "queue_workflow",
+                        lambda wf, cid: (queued.update(workflow=wf), {"prompt_id": "pid1"})[1])
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=7,
+                         width=1024, height=1024)
+    assert "15" not in queued["workflow"]
+    assert queued["workflow"]["7"]["inputs"]["text"] == "P"
+    assert result["generation"]["prompt_upsampler"] is False
+
+
+def test_enhanced_layout_request_is_rejected_before_queue(moss_flow, monkeypatch):
+    def unexpected_queue(*args):
+        pytest.fail("A structured layout must not be queued for caption rewriting")
+    monkeypatch.setattr(handler, "queue_workflow", unexpected_queue)
+    result = run_handler(model="moss", import_json={"summary": {"caption": "Fox"}, "items": []},
+                         preset="Fast", seed=7, width=1024, height=1024, enhance_caption=True)
+    assert "plain captions only" in result["error"]
+
+
+def test_enhancer_validates_dynamic_inputs_against_deployed_schema(moss_flow, monkeypatch):
+    schema = json.loads((Path(__file__).parent / "fixtures/textgenerate-object-info.json").read_text())
+    monkeypatch.setattr(handler, "_get_object_info", lambda: schema)
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="A fox in snow", preset="Fast", seed=7,
+                         width=1024, height=1024, enhance_caption=True)
+    assert "error" not in result
+
+
+def test_enhancer_reports_missing_node_before_queue(moss_flow, monkeypatch):
+    monkeypatch.setattr(handler, "_get_object_info", lambda: {})
+    monkeypatch.setattr(handler, "queue_workflow", lambda *args: pytest.fail("Missing enhancer must not queue"))
+    result = run_handler(model="moss", import_json="A fox", preset="Fast", seed=7,
+                         width=1024, height=1024, enhance_caption=True)
+    assert "TextGenerate" in result["error"] and "not available" in result["error"]

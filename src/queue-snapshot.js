@@ -16,6 +16,7 @@ export function buildSnapshot(model = state.model) {
         // MOSS-only; empty for Ideogram so its payload stays unchanged
         negativePrompt: isMoss ? (document.getElementById('moss-negative')?.value ?? '') : '',
         promptFormat: isMoss ? state.moss.promptMode : 'layout',
+        enhanceCaption: isMoss && state.moss.promptMode === 'caption' && !!state.moss.enhanceCaption,
         width: state.canvas.width,
         height: state.canvas.height,
         preset: isMoss ? state.moss.preset : state.preset,
@@ -49,6 +50,7 @@ export function generationMeta(snapshot, serverSeed, generation) {
         model: snapshot.model || 'ideogram',
         negativePrompt: snapshot.negativePrompt ?? '',
         promptFormat: snapshot.promptFormat || 'layout',
+        enhanceCaption: snapshot.enhanceCaption ?? false,
         ...(snapshot.model === 'moss' ? {
             mossPreset: snapshot.preset,
             ...(generation ? { generation } : {}),

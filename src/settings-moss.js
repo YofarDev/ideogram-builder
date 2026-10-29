@@ -7,9 +7,43 @@ import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { ideogramGlobalsToMoss, mossGlobalsToIdeogram } from './prompt-convert.js';
 import { fetchCapabilities } from './modal.js';
-import { setCapabilities, getCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage } from './moss-presets.js';
+import { setCapabilities, getCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage, presetIgnoresNegative, presetLabel } from './moss-presets.js';
 
 const MOSS_INPUTS = ['moss-caption', 'moss-meta', 'moss-canvas', 'moss-negative'];
+
+/**
+ * CFG-1 presets (Rapid/Turbo/Draft β) ignore the negative branch entirely, so
+ * the field is disabled with a hint instead of silently eating keystrokes.
+ * Idempotent; call whenever the selected preset or model can have changed.
+ */
+export function refreshNegativePromptUI() {
+  if (state.model !== 'moss') return;
+  const field = document.getElementById('moss-negative');
+  const hint = document.getElementById('moss-negative-hint');
+  if (!field) return;
+  const ignored = presetIgnoresNegative(state.moss.preset);
+  field.disabled = ignored;
+  field.title = ignored
+    ? `“${presetLabel(state.moss.preset)}” samples at CFG 1 — the negative prompt has no effect.`
+    : '';
+  if (hint) hint.hidden = !ignored;
+}
+
+export function refreshEnhanceCaptionUI() {
+  if (state.model !== 'moss') return;
+  const box = document.getElementById('moss-enhance-caption');
+  const hint = document.getElementById('moss-enhance-hint');
+  const captionMode = state.moss.promptMode === 'caption';
+  if (box) box.disabled = !captionMode;
+  if (hint) hint.textContent = captionMode
+    ? 'Optional — expands the caption before generating.'
+    : 'Available in Caption mode. Layout coordinates are kept unchanged.';
+}
+
+function refreshMossControls() {
+  refreshNegativePromptUI();
+  refreshEnhanceCaptionUI();
+}
 
 function readIdeogramGlobals() {
   const art = document.getElementById('art_style')?.value || '';
@@ -30,6 +64,7 @@ function setPromptMode(mode) {
   document.body.dataset.mossPrompt = mode;
   const radio = document.querySelector(`input[name="moss_prompt_mode"][value="${mode}"]`);
   if (radio) radio.checked = true;
+  refreshEnhanceCaptionUI();
   emit('state:changed');
 }
 
@@ -130,13 +165,24 @@ export function initSettingsMoss() {
     radio.addEventListener('change', () => {
       state.moss.preset = radio.value;
       localStorage.setItem('ideogram_moss_preset', radio.value);
+      refreshNegativePromptUI();
     });
   });
 
+  // Optional on-model caption upsampling (server TextGenerate on the same
+  // Qwen encoder). Off by default — rewriting can add unwanted content.
+  document.getElementById('moss-enhance-caption')?.addEventListener('change', (e) => {
+    state.moss.enhanceCaption = e.target.checked;
+  });
+
   on('model:changed', seedGlobals);
+  on('model:changed', refreshMossControls);
+  on('moss:settings-restored', refreshMossControls);
+  on('state:changed', refreshEnhanceCaptionUI);
   on('backend:changed', applyPresetCapabilities);
   on('config:changed', applyPresetCapabilities);
   applyPresetCapabilities();
+  refreshMossControls();
 
   on('state:loaded', ({ moss }) => {
     if (!moss) return;
@@ -146,6 +192,12 @@ export function initSettingsMoss() {
     if (moss.negative !== undefined) {
       document.getElementById('moss-negative').value = moss.negative;
     }
+    if (moss.enhance !== undefined) {
+      state.moss.enhanceCaption = !!moss.enhance;
+      const box = document.getElementById('moss-enhance-caption');
+      if (box) box.checked = state.moss.enhanceCaption;
+    }
+    refreshMossControls();
   });
 }
 

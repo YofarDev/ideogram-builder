@@ -4,8 +4,10 @@ import pytest
 import moss_config
 from moss_config import (
     BASE_PRESET_IDS,
+    BENCHMARK_PRESET_IDS,
     CANDIDATE_PRESET_IDS,
     MOSS_PRESETS,
+    RUNTIME_PROFILES,
     ProfileError,
     PresetUnsupportedError,
     capabilities,
@@ -133,18 +135,14 @@ def test_validate_request_preset_returns_effective_steps():
     assert steps == 25 and preset["cfg"] == 2.5
 
 
-def test_rapid_v1_hard_one_megapixel_limit():
-    """v1 Rapid: exactly 4 steps with a hard technical 1 MP limit — the old
-    6/8-step area ladder is unreachable without a separately declared profile."""
-    assert effective_preset("Rapid", 1024, 1024)[1] == 4
-    assert effective_preset("Rapid", 768, 1024)[1] == 4          # 0.75 MP
-    assert effective_preset("Rapid", 512, 512)[1] == 4
-    with pytest.raises(PresetUnsupportedError, match="above the limit"):
-        effective_preset("Rapid", 1024, 1040)                    # 1,064,960 px — just over
-    with pytest.raises(PresetUnsupportedError):
-        effective_preset("Rapid", 1536, 1024)                    # 1.5 MP
-    with pytest.raises(PresetUnsupportedError):
-        effective_preset("Rapid", 2048, 2048)                    # 4 MP
+@pytest.mark.parametrize("width,height,steps", [
+    (512, 512, 4), (768, 1024, 4), (1024, 1024, 4),
+    (1024, 1040, 6), (1536, 1024, 6), (2048, 1024, 6),
+    (2064, 1024, 8), (2048, 2048, 8),
+])
+def test_rapid_area_step_boundaries(width, height, steps):
+    assert effective_preset("Rapid", width, height)[1] == steps
+    assert moss_config.steps_for_area("rapid", width, height) == steps
 
 
 def test_rapid_technical_limit_holds_for_every_profile():
@@ -153,11 +151,34 @@ def test_rapid_technical_limit_holds_for_every_profile():
     for pid in ("rapid-auto-int8-cu128", "resident-highvram-int8-adapters"):
         profile = resolve_profile({"MOSS_RUNTIME_PROFILE": pid})
         with pytest.raises(PresetUnsupportedError):
-            effective_preset("Rapid", 2048, 2048, profile=profile)
+            effective_preset("Rapid", 2048, 2064, profile=profile)
+    legacy = resolve_profile({"MOSS_RUNTIME_PROFILE": "rapid-auto-int8-cu128"})
+    with pytest.raises(PresetUnsupportedError, match="1 MP"):
+        effective_preset("Rapid", 1536, 1024, profile=legacy)
     lowered = dict(resolve_profile({}), preset_area_limits={"Rapid": 0.5})
     with pytest.raises(PresetUnsupportedError, match="0.5 MP"):
         effective_preset("Rapid", 1024, 1024, profile=lowered)
     assert effective_preset("Rapid", 512, 512, profile=lowered)[1] == 4
+    raised = dict(legacy, preset_area_limits={"Rapid": 8})
+    with pytest.raises(PresetUnsupportedError, match="4 MP"):
+        effective_preset("Rapid", 4096, 2048, profile=raised)
+    with pytest.raises(PresetUnsupportedError, match="4 MP"):
+        moss_config.steps_for_area("rapid", 2048, 2064)
+
+
+def test_hires_permanent_capabilities_and_requests_agree():
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-hires-auto-int8-cu128"}
+    profile = resolve_profile(env)
+    caps = capabilities(profile, experimental=())
+    rapid = next(p for p in caps["presets"] if p["id"] == "Rapid")
+    assert rapid["max_area_mp"] == caps["restrictions"]["rapid_max_area_mp"] == 4
+    assert rapid["validation_status"] == "validated"
+    assert "6 steps" in rapid["blurb"] and "8 steps" in rapid["blurb"]
+    for width, height, expected in ((1024, 1024, 4), (1536, 1024, 6), (2048, 2048, 8)):
+        _, preset, steps = validate_request_preset("Rapid", width, height, env)
+        assert steps == expected and preset["adapter"] == "rapid4"
+    with pytest.raises(PresetUnsupportedError, match="4 MP"):
+        validate_request_preset("Rapid", 2048, 2064, env)
 
 
 def test_draft3_one_megapixel_limit():
@@ -303,3 +324,132 @@ def test_deployment_settings_defaults_and_validation():
         deployment_settings({"MOSS_SNAPSHOT_MODE": "always"})
     with pytest.raises(ProfileError):
         deployment_settings({"MOSS_MIN_CONTAINERS": "4"})
+
+
+# --- 2026-10-29 quality modes: Poster / Quality30 / vae_full profile ------------
+# Sources: docs/research/2026-10-29-moss-inference-guide.md §4/§8 (Reddit
+# typography recipes: res-family sampler, CFG 3.5–4, SLG layer 22/24; the
+# 30-step iteration-speed report) and §3 (4 MP recipe uses the full FLUX.2 VAE).
+
+
+def test_poster_candidate_recipe():
+    """Poster β — typography-tuned candidate from the good-text reports:
+    res_multistep/simple (ComfyUI's res-family; the report's 'res_2s' is not
+    a ComfyUI sampler name), CFG 3.75 inside the reported 3.5–4 band, 25
+    steps, SLG layer 22 over the full range."""
+    assert "Poster" in CANDIDATE_PRESET_IDS
+    p = MOSS_PRESETS["Poster"]
+    assert p["steps"] == 25 and p["cfg"] == 3.75
+    assert p["sampler"] == "res_multistep" and p["scheduler"] == "simple"
+    assert p["slg"] == (0.0, 1.0) and p["slg_layers"] == "22"
+    assert p["adapter"] is None and p["spectrum"] is False
+    assert p["tier"] == "final"
+
+
+def test_poster_slg_layer_set_benchmark_control():
+    """PosterSLG22-24 isolates the community lettering claim (layer sets 22
+    vs 22+24) from the rest of the Poster recipe."""
+    assert "PosterSLG22-24" in BENCHMARK_PRESET_IDS
+    ctrl = MOSS_PRESETS["PosterSLG22-24"]
+    base = MOSS_PRESETS["Poster"]
+    assert ctrl["slg_layers"] == "22,24"
+    for key in ("steps", "cfg", "sampler", "scheduler", "slg", "adapter"):
+        assert ctrl[key] == base[key]
+
+
+def test_base_presets_have_no_slg_layers_override():
+    """The frozen Fast/Quality/Turbo dicts stay byte-identical; layer '22'
+    remains the builder default when slg_layers is absent."""
+    for pid in BASE_PRESET_IDS:
+        assert "slg_layers" not in MOSS_PRESETS[pid]
+
+
+def test_quality30_candidate_recipe():
+    """Quality30 β — Quality's recipe at 30 steps (community report: limited
+    perceived quality loss from 50 → 30)."""
+    assert "Quality30" in CANDIDATE_PRESET_IDS
+    p = MOSS_PRESETS["Quality30"]
+    q = MOSS_PRESETS["Quality"]
+    assert p["steps"] == 30
+    for key in ("cfg", "sampler", "scheduler", "slg", "adapter", "spectrum"):
+        assert p[key] == q[key]
+    assert p["tier"] == "final"
+
+
+def test_rapid_hires_vae_full_profile():
+    """rapid-hires-vae-full: the shipped 4/6/8-step Rapid policy on the cu128
+    INT8 baseline with the full FLUX.2 VAE (the community 4 MP recipe's
+    decoder). Candidate until visually validated; warm twin auto-declared."""
+    prof = RUNTIME_PROFILES["rapid-hires-vae-full-auto-int8-cu128"]
+    assert prof["status"] == "candidate"
+    assert prof["vae_asset"] == "vae_full"
+    assert prof["dit_format"] == "int8_convrot" and prof["encoder_format"] == "w4a8"
+    assert prof["preset_area_limits"] == {"Rapid": 4}
+    assert set(prof["enabled_presets"]) == set(BASE_PRESET_IDS + ("Rapid",))
+    warm = RUNTIME_PROFILES["rapid-hires-vae-full-auto-int8-cu128-warm"]
+    assert warm["warmup"] is True and warm["vae_asset"] == "vae_full"
+    # Baseline profiles stay on the small VAE.
+    assert RUNTIME_PROFILES["baseline"]["vae_asset"] == "vae_small"
+
+
+def test_candidate_profile_advertises_new_presets_via_experimental_opt_in():
+    """Poster/Quality30 ride the existing candidate-preset machinery: enabled
+    on an adapter profile, advertised only with explicit experimental opt-in."""
+    env = {"MOSS_RUNTIME_PROFILE": "resident-highvram-int8-adapters",
+           "MOSS_EXPERIMENTAL_PRESETS": "Poster,Quality30"}
+    profile, enabled = moss_config.resolve_enabled_presets(env)
+    assert "Poster" in enabled and "Quality30" in enabled
+    ids = [p["id"] for p in moss_config.capabilities(profile, experimental=("Poster", "Quality30"))["presets"]]
+    assert "Poster" in ids and "Quality30" in ids
+    # Without the opt-in they are enabled but not advertised.
+    plain = moss_config.capabilities(profile)["presets"]
+    assert "Poster" not in [p["id"] for p in plain]
+
+
+def test_documented_quality_mode_trial_preserves_runtime_and_accepts_candidates():
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-hires-quality-modes-auto-int8-cu128",
+           "MOSS_EXPERIMENTAL_PRESETS": "Rapid,Poster,Quality30"}
+    profile, enabled = resolve_enabled_presets(env)
+    caps = capabilities(profile, enabled=enabled, experimental=resolve_experimental_presets(env))
+    assert {p["id"] for p in caps["presets"]} == set(BASE_PRESET_IDS) | {"Rapid", "Poster", "Quality30"}
+    assert all(p["validation_status"] == "experimental" for p in caps["presets"] if p["id"] in CANDIDATE_PRESET_IDS)
+    production = RUNTIME_PROFILES["rapid-hires-auto-int8-cu128"]
+    for key in ("memory_mode", "dit_format", "encoder_format", "compile_backend", "requires_cuda13", "vae_asset"):
+        assert profile[key] == production[key]
+    for name, steps in (("Poster", 25), ("Quality30", 30), ("Rapid", 4)):
+        assert validate_request_preset(name, 1024, 1024, env)[2] == steps
+    assert "Poster" not in [p["id"] for p in capabilities(profile, experimental=())["presets"]]
+    benchmark = {**env, "MOSS_BENCHMARK_MODE": "true"}
+    assert validate_request_preset("PosterSLG22-24", 1024, 1024, benchmark)[2] == 25
+
+
+def test_documented_full_vae_trial_requires_explicit_rapid_opt_in():
+    env = {"MOSS_RUNTIME_PROFILE": "rapid-hires-vae-full-auto-int8-cu128",
+           "MOSS_EXPERIMENTAL_PRESETS": "Rapid"}
+    profile, enabled = resolve_enabled_presets(env)
+    caps = capabilities(profile, enabled=enabled, experimental=resolve_experimental_presets(env))
+    rapid = next(p for p in caps["presets"] if p["id"] == "Rapid")
+    assert rapid["validation_status"] == "experimental" and rapid["max_area_mp"] == 4
+    assert validate_request_preset("Rapid", 2048, 2048, env)[2] == 8
+
+
+def test_poster_slg_benchmark_control_only_in_benchmark_mode():
+    env = {"MOSS_RUNTIME_PROFILE": "resident-highvram-int8-adapters",
+           "MOSS_BENCHMARK_MODE": "true"}
+    _profile, enabled = moss_config.resolve_enabled_presets(env)
+    assert "PosterSLG22-24" in enabled
+    env2 = {k: v for k, v in env.items() if k != "MOSS_BENCHMARK_MODE"}
+    _p2, enabled2 = moss_config.resolve_enabled_presets(env2)
+    assert "PosterSLG22-24" not in enabled2
+
+
+def test_generation_metadata_records_negative_suppression():
+    """CFG-1 presets never use the negative branch; metadata must say so."""
+    turbo = MOSS_PRESETS["Turbo"]
+    meta = moss_config.generation_metadata(
+        RUNTIME_PROFILES["baseline"], turbo, 8, first_generation_in_worker=True)
+    assert meta["negative_prompt_suppressed"] is True
+    fast_meta = moss_config.generation_metadata(
+        RUNTIME_PROFILES["baseline"], MOSS_PRESETS["Fast"], 25,
+        first_generation_in_worker=True)
+    assert fast_meta["negative_prompt_suppressed"] is False

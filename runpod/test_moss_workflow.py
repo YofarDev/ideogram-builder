@@ -24,6 +24,7 @@ from moss_workflow import (
     build_warmup_workflow,
     stage_map,
     validate_accelerator_nodes,
+    validate_graph,
 )
 
 TEMPLATE = json.loads((Path(__file__).resolve().parent / "workflow_template_moss.json").read_text())
@@ -131,13 +132,22 @@ def test_rapid_exact_one_megapixel_graph_is_four_steps():
     assert info["effective_steps"] == 4
 
 
-def test_rapid_beyond_one_megapixel_rejected_everywhere():
-    with pytest.raises(PresetUnsupportedError, match="above the limit"):
-        build("Rapid", width=1024, height=1040)   # just over 1 MP
-    with pytest.raises(PresetUnsupportedError):
-        build("Rapid", width=2048, height=2048)
+@pytest.mark.parametrize("width,height,steps", [(1024, 1040, 6), (1536, 1024, 6),
+                                               (2048, 1024, 6), (2048, 2048, 8)])
+def test_rapid_hires_workflow_uses_resolved_steps(width, height, steps):
+    wf, info = build("Rapid", width=width, height=height)
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["steps"] == info["effective_steps"] == steps
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["cfg"] == 1
+    assert wf[ADAPTER_NODE_ID]["inputs"]["lora_name"] == "moss/control/rapid4.safetensors"
+    assert wf["9"]["inputs"]["width"] == width
+    assert wf["9"]["inputs"]["height"] == height
+
+
+def test_rapid_beyond_four_megapixels_rejected():
     with pytest.raises(PresetUnsupportedError):
         build("Rapid", width=4096, height=4096)
+    with pytest.raises(PresetUnsupportedError):
+        build("Rapid", width=2048, height=2064)
 
 
 def test_draft3_three_steps_and_limit():
@@ -314,3 +324,120 @@ def test_warmup_workflow_marks_and_warms_adapter():
 def test_warmup_without_adapter():
     wf = build_warmup_workflow(TEMPLATE, profile=resolve_profile({}), assets=ASSETS)
     assert ADAPTER_NODE_ID not in wf
+
+
+# --- 2026-10-29 quality modes: SLG layer sets, negative blanking, upsampler ----
+
+
+def test_poster_slg_layer_set_and_sampler():
+    wf, info = build("Poster")
+    assert wf["10"]["inputs"]["sampler_name"] == "res_multistep"
+    assert wf["10"]["inputs"]["cfg"] == 3.75 and wf["10"]["inputs"]["steps"] == 25
+    assert wf["6"]["inputs"]["single_layers"] == "22"
+    assert wf["6"]["inputs"]["start_percent"] == 0.0 and wf["6"]["inputs"]["end_percent"] == 1.0
+    assert info["sampler"] == "res_multistep"
+
+
+def test_poster_slg_benchmark_control_uses_layer_set():
+    wf, _info = build("PosterSLG22-24")
+    assert wf["6"]["inputs"]["single_layers"] == "22,24"
+    assert wf["10"]["inputs"]["sampler_name"] == "res_multistep"
+
+
+def test_base_presets_keep_default_layer_twenty_two():
+    wf, _info = build("Fast")
+    assert wf["6"]["inputs"]["single_layers"] == "22"
+
+
+def test_negative_blanket_at_cfg_one():
+    """Rapid/Turbo/Draft3 run at CFG 1 where the negative branch contributes
+    nothing — the text must be blanked so a long UI negative is never encoded,
+    and the info block records the suppression."""
+    for name in ("Turbo", "Rapid", "Draft3"):
+        wf, info = build(name)
+        assert wf["8"]["inputs"]["text"] == "", name
+        assert info["negative_suppressed"] is True, name
+    wf, info = build("Fast")
+    assert wf["8"]["inputs"]["text"] == "N"
+    assert info["negative_suppressed"] is False
+
+
+UPSAMPLER_NODE_ID = "15"
+
+
+def test_caption_upsampler_inserts_textgenerate():
+    from moss_workflow import MOSS_UPSAMPLER_SYSTEM_PROMPT
+    wf, info = build("Fast", enhance_prompt=True)
+    node = wf[UPSAMPLER_NODE_ID]
+    assert node["class_type"] == "TextGenerate"
+    assert node["inputs"]["clip"] == ["2", 0]
+    assert node["inputs"]["prompt"] == "P"
+    assert node["inputs"]["max_length"] == 4096
+    assert node["inputs"]["system_prompt"] == MOSS_UPSAMPLER_SYSTEM_PROMPT
+    assert "prompt engineer for an image generation model" in node["inputs"]["system_prompt"]
+    assert node["inputs"]["sampling_mode"] == "on"
+    assert node["inputs"]["sampling_mode.temperature"] == 0.7
+    assert node["inputs"]["sampling_mode.top_k"] == 64
+    assert node["inputs"]["sampling_mode.seed"] == 5
+    # The generated caption replaces the raw prompt at the positive encode.
+    assert wf["7"]["inputs"]["text"] == [UPSAMPLER_NODE_ID, 0]
+    # The negative encode stays a plain string.
+    assert isinstance(wf["8"]["inputs"]["text"], str)
+    assert info["prompt_upsampler"] is True
+
+
+def test_caption_upsampler_off_by_default():
+    wf, info = build("Fast")
+    assert UPSAMPLER_NODE_ID not in wf
+    assert wf["7"]["inputs"]["text"] == "P"
+    assert info["prompt_upsampler"] is False
+
+
+def test_caption_upsampler_available_for_rapid():
+    wf, info = build("Rapid", enhance_prompt=True)
+    assert wf[UPSAMPLER_NODE_ID]["class_type"] == "TextGenerate"
+    assert wf["7"]["inputs"]["text"] == [UPSAMPLER_NODE_ID, 0]
+    assert info["prompt_upsampler"] is True
+
+
+def test_validate_graph_accepts_optional_inputs():
+    """object_info schemas split required/optional; a node wiring an optional
+    input (TextGenerate.system_prompt) must validate, not trip the required-only
+    membership check."""
+    object_info = json.loads((Path(__file__).parent / "fixtures/textgenerate-object-info.json").read_text())
+    wf, _info = build("Fast", enhance_prompt=True)
+    upsampler_only = {UPSAMPLER_NODE_ID: wf[UPSAMPLER_NODE_ID]}
+    validate_graph(upsampler_only, object_info)  # must not raise
+    # And an unknown name on that node still fails.
+    bad = {UPSAMPLER_NODE_ID: {**wf[UPSAMPLER_NODE_ID],
+                               "inputs": {**wf[UPSAMPLER_NODE_ID]["inputs"], "not_a_real_input": 1}}}
+    with pytest.raises(GraphValidationError, match="not_a_real_input"):
+        validate_graph(bad, object_info)
+
+
+def test_validate_graph_rejects_nested_dynamic_combo_and_missing_children():
+    object_info = json.loads((Path(__file__).parent / "fixtures/textgenerate-object-info.json").read_text())
+    wf, _ = build("Fast", enhance_prompt=True)
+    node = wf[UPSAMPLER_NODE_ID]
+    node["inputs"]["sampling_mode"] = {"sampling_mode": "on", "seed": 5}
+    with pytest.raises(GraphValidationError, match="must select a DynamicCombo option"):
+        validate_graph({UPSAMPLER_NODE_ID: node}, object_info)
+    node["inputs"]["sampling_mode"] = "on"
+    del node["inputs"]["sampling_mode.seed"]
+    with pytest.raises(GraphValidationError, match="sampling_mode.seed.*missing"):
+        validate_graph({UPSAMPLER_NODE_ID: node}, object_info)
+
+
+@pytest.mark.parametrize("prompt", [
+    json.dumps({"summary": {"caption": "A fox"}, "items": [],
+                "bbox_coord_space": "abs_centralized", "bbox_format": "yxyx"}),
+    json.dumps({"summary": {"caption": "A fox"}, "items": [],
+                "bbox_coord_space": "abs", "bbox_format": "xyxy"}),
+    '[{"bbox": [0, 0, 10, 10]}]',
+])
+def test_enhancer_rejects_structured_prompts_without_changing_layout(prompt):
+    with pytest.raises(ValueError, match="plain captions only"):
+        build("Fast", prompt=prompt, enhance_prompt=True)
+    wf, info = build("Fast", prompt=prompt)
+    assert wf["7"]["inputs"]["text"] == prompt
+    assert info["prompt_upsampler"] is False

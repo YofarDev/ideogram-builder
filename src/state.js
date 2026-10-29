@@ -16,7 +16,7 @@ export const state = {
   photoArtMode: MODE_ARTSTYLE,
   model: MODEL_IDEOGRAM,
   // moss caption/meta/canvas/negative live in DOM inputs (same pattern as Ideogram fields)
-  moss: { promptMode: 'layout', preset: 'Fast' },
+  moss: { promptMode: 'layout', preset: 'Fast', enhanceCaption: false },
   preset: 'Default',
   workflow: 'turbo',
   turboStrength: 0.8,

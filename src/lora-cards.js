@@ -10,7 +10,7 @@ export function activeCard(entry) {
       <span class="lora-card-check" aria-hidden="true"></span>
       <span class="lora-card-name" title="${escapeHtml(entry.label)}">${escapeHtml(entry.label)}</span>
       <div class="lora-card-strength">
-        <input type="range" min="0" max="2" step="0.05" value="${str}"
+        <input type="range" min="-1" max="2" step="0.05" value="${str}"
                data-id="${entry.id}" class="lora-strength-range" aria-label="${escapeHtml(entry.label)} strength">
         <span class="lora-card-strength-value">${str.toFixed(2)}</span>
       </div>

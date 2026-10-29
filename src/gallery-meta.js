@@ -89,10 +89,15 @@ function restoreMossMeta(meta) {
         const neg = document.getElementById('moss-negative');
         if (neg) neg.value = meta.negativePrompt;
     }
+    // Pre-feature images were never enhanced. Do not inherit the last run.
+    state.moss.enhanceCaption = meta.enhanceCaption === true;
+    const box = document.getElementById('moss-enhance-caption');
+    if (box) box.checked = state.moss.enhanceCaption;
     if (meta.promptFormat) {
         state.moss.promptMode = meta.promptFormat;
         document.body.dataset.mossPrompt = meta.promptFormat;
         const r = document.querySelector(`input[name="moss_prompt_mode"][value="${meta.promptFormat}"]`);
         if (r) r.checked = true;
     }
+    emit('moss:settings-restored');
 }

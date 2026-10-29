@@ -1,5 +1,7 @@
 # Permanent Rapid release
 
+2026-10-29: production now supports Rapid through 4 MP with 4/6/8 steps; see the [high-resolution release](2026-10-29-rapid-hires.md). The original 1 MP profile documented below is retained for rollback.
+
 The user reviewed the image comparison and explicitly approved permanent availability on 2026-10-28: “rapid seems really good we can add it permanently.” This is a release decision based on user visual acceptance and the completed [108-image benchmark](rapid-benchmark-2026-10-28/README.md). It does not claim that formal human CER, annotated IoU or whole-suite usable-image-rate scores were collected.
 
 ## Release configuration

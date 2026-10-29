@@ -182,6 +182,7 @@ describe('queue', () => {
         model: 'ideogram',
         negativePrompt: '',
         promptFormat: 'layout',
+        enhanceCaption: false,
       },
     })
   })
@@ -227,6 +228,49 @@ describe('buildSnapshot model fields', () => {
     expect(captured.preset).toBe('Quality')
     expect(captured.negativePrompt).toBe('nsfw')
     expect(captured.promptFormat).toBe('caption')
+  })
+
+
+  it('moss snapshots carry the enhance-caption flag and ideogram ones do not', async () => {
+    let captured
+    const { mod, freshState } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      captured = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'caption', preset: 'Fast', enhanceCaption: true }
+    document.getElementById('json-output').value = 'A fox in snow'
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(captured.enhanceCaption).toBe(true)
+
+    let capturedIdeo
+    const { mod: mod2, freshState: fs2 } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      capturedIdeo = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    fs2.model = 'ideogram'
+    mod2.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(capturedIdeo.enhanceCaption).toBe(false)
+  })
+
+  it('never enhances queued layouts, including collections submitted from caption mode', async () => {
+    const runJob = okRunJob()
+    const { mod, freshState } = await loadQueueWithState({ runJob })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'caption', preset: 'Fast', enhanceCaption: true }
+    const layout = JSON.stringify({ summary: { caption: 'A fox' }, items: [],
+      bbox_coord_space: 'abs_centralized', bbox_format: 'yxyx' })
+    mod.enqueueImportJson(layout, { model: 'moss' })
+    await vi.waitFor(() => expect(runJob).toHaveBeenCalled())
+    expect(runJob.mock.calls[0][0]).toEqual(expect.objectContaining({
+      importJson: layout, enhanceCaption: false,
+    }))
   })
 
   it('ideogram snapshots use the UI preset and empty negativePrompt', async () => {
@@ -392,6 +436,19 @@ describe('preset availability guard', () => {
     expect(message).toContain('1.50 MP')
     expect(runJob).not.toHaveBeenCalled()
     expect(document.getElementById('queue-panel').children.length).toBe(0)
+  })
+
+  it.each([[1536, 1024], [2048, 1024], [2048, 2048]])('submits advertised high-resolution Rapid at %s×%s', async (width, height) => {
+    const runJob = okRunJob()
+    const { mod, freshState } = await loadQueueWithFreshState({ runJob })
+    const mossPresets = await import('../moss-presets.js')
+    mossPresets.setCapabilities({ presets: [{ id: 'Rapid', max_area_mp: 4 }] })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'caption', preset: 'Rapid' }
+    freshState.canvas = { width, height }
+    mod.enqueue()
+    await vi.waitFor(() => expect(runJob).toHaveBeenCalledTimes(1))
+    expect(runJob.mock.calls[0][0]).toMatchObject({ model: 'moss', preset: 'Rapid', width, height })
   })
 
   it('re-validates a queued moss job at dispatch when capabilities changed', async () => {

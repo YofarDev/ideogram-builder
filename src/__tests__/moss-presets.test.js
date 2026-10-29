@@ -115,6 +115,21 @@ describe('preset limits and snapshot guards', () => {
     expect(verdict.message).toContain('1.50 MP')
   })
 
+  it('accepts larger Rapid snapshots only when the deployment advertises them', async () => {
+    const mod = await importModule()
+    mod.setCapabilities({ presets: [{ id: 'Rapid', max_area_mp: 4 }, { id: 'Draft3', max_area_mp: 1 }] })
+    expect(mod.checkSnapshot(snap({ width: 1536 })).ok).toBe(true)
+    expect(mod.checkSnapshot(snap({ width: 2048 })).ok).toBe(true)
+    expect(mod.checkSnapshot(snap({ width: 2048, height: 2048 })).ok).toBe(true)
+    const verdict = mod.checkSnapshot(snap({ width: 2048, height: 2064 }))
+    expect(verdict.ok).toBe(false)
+    expect(verdict.message).toContain('up to 4 MP')
+    expect(mod.checkSnapshot(snap({ preset: 'Draft3', width: 1536 })).ok).toBe(false)
+    // Switching to the retained 1 MP deployment must restore its stricter gate.
+    mod.setCapabilities(CAPS_WITH_CANDIDATES)
+    expect(mod.checkSnapshot(snap({ width: 1536 })).ok).toBe(false)
+  })
+
   it('checkSnapshot rejects an unavailable preset using the snapshot itself', async () => {
     const mod = await importModule()
     mod.setCapabilities(CAPS_WITH_CANDIDATES)
@@ -163,5 +178,27 @@ describe('moss-presets ensurePresetUsable', () => {
     expect(mod.currentPresetUnavailable()).toBe(true)
     mod.setCapabilities(CAPS_WITH_CANDIDATES)
     expect(mod.currentPresetUnavailable()).toBe(false)
+  })
+})
+
+describe('2026-10-29 quality modes', () => {
+  it('ships Poster and Quality30 candidate info with cfg', async () => {
+    const mod = await importModule()
+    expect(mod.CANDIDATE_PRESETS).toContain('Poster')
+    expect(mod.CANDIDATE_PRESETS).toContain('Quality30')
+    expect(mod.PRESET_INFO.Poster.cfg).toBe(3.75)
+    expect(mod.PRESET_INFO.Poster.blurb).toMatch(/res_multistep/)
+    expect(mod.PRESET_INFO.Quality30.cfg).toBe(3.0)
+    expect(mod.PRESET_INFO.Quality30.blurb).toMatch(/30 steps/)
+  })
+
+  it('marks exactly the CFG-1 presets as ignoring the negative prompt', async () => {
+    const mod = await importModule()
+    for (const id of ['Turbo', 'Rapid', 'Draft3']) {
+      expect(mod.presetIgnoresNegative(id)).toBe(true)
+    }
+    for (const id of ['Fast', 'Quality', 'Poster', 'Quality30', 'FastSpectrum', 'QualitySpectrum']) {
+      expect(mod.presetIgnoresNegative(id)).toBe(false)
+    }
   })
 })

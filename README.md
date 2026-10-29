@@ -21,6 +21,7 @@ Visual prompt builder for [Ideogram4](https://ideogram.ai/) and [MOSS-Image](htt
 - **Vision / Image-to-JSON** — upload a reference image and auto-generate a prompt via vision LLM
 - **Two models** — Ideogram 4 and MOSS-Image workspaces share the canvas/boxes/palette; MOSS adds layout (centralized yxyx) and caption prompt formats, per-box tags and character boxes
 - **RunPod / Modal generation** — send prompts to a RunPod serverless endpoint or a Modal app; MOSS jobs route to their own endpoint/worker automatically
+- **Rapid at larger sizes** — Modal's Rapid preset automatically uses 4 steps up to 1 MP, 6 up to 2 MP, and 8 up to 4 MP. The canvas's actual pixel area determines the bucket; a 2048×2048 square uses 8 steps.
 - **AI prompt enhancer** — refine prompts via DeepSeek, Google, OpenRouter, or Mimo
 - **Gallery** — searchable image history saved on disk, model filters, cached previews, and original image downloads
 - **Settings** — mode toggle (freeform / grid), aspect ratio presets, box form fields

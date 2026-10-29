@@ -92,6 +92,7 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
                 ...(snapshot.model === 'moss' ? {
                     model: 'moss',
                     negative_prompt: snapshot.negativePrompt ?? '',
+                    enhance_caption: snapshot.enhanceCaption ?? false,
                 } : {}),
             }),
             signal,
@@ -177,6 +178,8 @@ export async function fetchCapabilities({ signal, refresh = false } = {}) {
     try {
         const resp = await fetch(`${baseUrl}/capabilities`, {
             headers: auth_token ? { 'Authorization': `Bearer ${auth_token}` } : {},
+            // Deployments can change supported sizes while the endpoint stays the same.
+            cache: 'no-store',
             signal,
         });
         if (!resp.ok) return null;

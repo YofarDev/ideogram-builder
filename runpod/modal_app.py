@@ -17,7 +17,7 @@ MOSS worker settings are SEPARATE from the Ideogram worker (GPU, launch args,
 memory policy, lifetime, warmup, snapshots) and are configured at deploy time:
 
     MOSS_GPU                   GPU for ComfyMoss only        (default IDEOGRAM_GPU)
-    MOSS_RUNTIME_PROFILE       named runtime profile         (default "rapid-auto-int8-cu128")
+    MOSS_RUNTIME_PROFILE       named runtime profile         (default "rapid-hires-auto-int8-cu128")
     MOSS_MEMORY_MODE           auto|highvram|gpu_only        (profile override)
     MOSS_DIT_FORMAT            int8_convrot|bf16             (profile override)
     MOSS_ENCODER_FORMAT        w4a8|int8_convrot|bf16        (profile override)
@@ -84,7 +84,7 @@ import moss_config  # noqa: E402  (runpod/ is this file's directory)
 
 _deploy_env = dict(os.environ)
 # Permanent production default; baseline remains an explicit rollback profile.
-_deploy_env.setdefault("MOSS_RUNTIME_PROFILE", "rapid-auto-int8-cu128")
+_deploy_env.setdefault("MOSS_RUNTIME_PROFILE", "rapid-hires-auto-int8-cu128")
 MOSS_PROFILE = moss_config.resolve_profile(_deploy_env)
 MOSS_DEPLOYMENT = moss_config.deployment_settings(_deploy_env)
 MOSS_ENABLED_PRESETS = moss_config.resolve_enabled_presets(_deploy_env)[1]
@@ -121,6 +121,23 @@ if _RUNTIME_BUILD == "cu130":
         "TORCH_INDEX": candidate["index"],
     }
 
+# ComfyUI revision candidate, orthogonal to the wheel set: the runtime lock's
+# policy is "never silently upgraded in place", so v0.43.1 (MOSS RoPE scaling,
+# color-depth control, edit-LoRA support, lower peak memory) is an explicit
+# MOSS_COMFYUI_BUILD=v0431 deploy that overrides the Dockerfile's baseline
+# ARG. Default keeps the validated baseline revision.
+_COMFYUI_BUILD = os.environ.get("MOSS_COMFYUI_BUILD", "baseline").strip()
+_COMFYUI_CANDIDATES = {
+    "v0431": _RUNTIME_LOCK["baseline_runtime"]["comfyui_v043_candidate"]["revision"],
+}
+if _COMFYUI_BUILD not in ("baseline", *_COMFYUI_CANDIDATES):
+    raise moss_config.ProfileError(
+        f"MOSS_COMFYUI_BUILD must be baseline or one of {', '.join(_COMFYUI_CANDIDATES)}")
+if _COMFYUI_BUILD != "baseline":
+    _MOSS_BUILD_ARGS["COMFY_REVISION"] = _COMFYUI_CANDIDATES[_COMFYUI_BUILD]
+_COMFYUI_REVISION = _MOSS_BUILD_ARGS.get("COMFY_REVISION", _RUNTIME_LOCK["baseline_runtime"]["comfyui"]["revision"])
+_MOSS_ENV["MOSS_COMFYUI_BUILD"] = _COMFYUI_BUILD
+
 # Same image RunPod builds: ComfyUI, KJNodes, rgthree, 4 Ideogram-4 models, LoRAs, handler.py.
 # Deploy-time cached-image reuse (plan 2026-10-28 §1): MOSS_CACHED_IMAGE_ID /
 # IDEOGRAM_CACHED_IMAGE_ID name previously built immutable images; only the
@@ -132,6 +149,10 @@ if _RUNTIME_BUILD == "cu130":
 # (Image.from_id raises), which is the intended clear failure.
 IDEOGRAM_CACHED_IMAGE_ID = (os.environ.get("IDEOGRAM_CACHED_IMAGE_ID") or "").strip()
 MOSS_CACHED_IMAGE_ID = (os.environ.get("MOSS_CACHED_IMAGE_ID") or "").strip()
+if MOSS_CACHED_IMAGE_ID and _COMFYUI_BUILD != "baseline":
+    raise moss_config.ProfileError(
+        "MOSS_COMFYUI_BUILD requires a full image rebuild; unset MOSS_CACHED_IMAGE_ID "
+        "so the requested ComfyUI revision cannot be bypassed by a cached image.")
 
 # Source overlays mirroring the Dockerfiles' COPY lists COMPLETELY: every file
 # the image ships from the repo is re-layered, so stale copies baked into a
@@ -791,6 +812,7 @@ def record_deployment_manifest(
             "moss_image_id": moss_image_id or None,
             "ideogram_image_id": ideogram_image_id or None,
             "runtime_build": _RUNTIME_BUILD,
+            "comfyui_build": _COMFYUI_BUILD,
             "rebuild_path": "unset MOSS_CACHED_IMAGE_ID/IDEOGRAM_CACHED_IMAGE_ID and deploy "
                             "(full Dockerfile build; required for dependency/model changes)",
         },
@@ -801,7 +823,7 @@ def record_deployment_manifest(
         "pins": {
             "runtime_lock_id": _RUNTIME_LOCK["lock_id"],
             "model_manifest_id": json.loads((RUNPOD_DIR / "moss-models.json").read_text())["manifest_id"],
-            "comfyui": _RUNTIME_LOCK["baseline_runtime"]["comfyui"]["revision"],
+            "comfyui": _COMFYUI_REVISION,
             "rgthree": _RUNTIME_LOCK["baseline_runtime"]["rgthree"]["revision"],
         },
     }

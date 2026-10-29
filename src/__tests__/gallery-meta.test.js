@@ -22,6 +22,7 @@ const DOM_HTML = `
     <input type="radio" name="moss_preset" value="Fast" checked>
     <input type="radio" name="moss_preset" value="Quality">
     <textarea id="moss-negative"></textarea>
+    <input type="checkbox" id="moss-enhance-caption">
     <input type="radio" name="moss_prompt_mode" value="layout" checked>
     <input type="radio" name="moss_prompt_mode" value="caption">
     <div id="lora-list"></div>
@@ -48,6 +49,15 @@ async function load() {
 }
 
 describe('restoreMeta (gallery)', () => {
+  it.each([undefined, false, true])('restores enhancement %s without inheriting the previous run', async saved => {
+    const { restoreMeta } = await load()
+    state.model = MODEL_MOSS
+    state.moss.enhanceCaption = true
+    document.getElementById('moss-enhance-caption').checked = true
+    restoreMeta({ model: 'moss', enhanceCaption: saved })
+    expect(state.moss.enhanceCaption).toBe(saved === true)
+    expect(document.getElementById('moss-enhance-caption').checked).toBe(saved === true)
+  })
   it('MOSS meta switches the model first (seed:false) then restores preset/negative/prompt mode', async () => {
     const { restoreMeta } = await load()
     const order = []

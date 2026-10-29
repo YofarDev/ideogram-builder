@@ -29,8 +29,11 @@
     },
     "comfyui_v043_candidate": {
       "repo": "comfyanonymous/ComfyUI",
-      "tag": "v0.43.0",
-      "policy": "Tested as a separate pinned candidate AFTER the baseline comparison; never silently upgraded in place."
+      "tag": "v0.43.1",
+      "revision": "086099f5d8886163ef77dc354f8382cb7431582a",
+      "resolved": "2026-10-29",
+      "policy": "Tested as a separate pinned candidate AFTER the baseline comparison; never silently upgraded in place. Selected via MOSS_COMFYUI_BUILD=v0431 (modal_app passes the COMFY_REVISION build arg; the Dockerfile default stays on the baseline). v0.43.1 over v0.43.0 for the follow-up fixes. Adds MOSS RoPE scaling, color-depth control, edit-LoRA support, lower peak memory. Revalidation required: comfy-kitchen version and CUDA backend gating move with the ComfyUI requirements; cu128/cu130 conclusions from the baseline pin do not carry over.",
+      "textgenerate_note": "TextGenerate (comfy_extras/nodes_textgen.py) powers the caption-only enhance_caption option and already exists at the baseline revision too. API DynamicCombo inputs use a selector string plus dotted child keys, not the nested execution dictionary."
     }
   },
   "optimization_nodes": {

@@ -87,6 +87,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `prompt:draft-changed` | none — persist manual prompt edits | prompt-draft | session |
 | `prompt:draft-restore` | `{ text }` — restore raw draft after editor state | session | json-builder |
 | `prompt:prepare` | mutable `{ ok }` — apply an editor draft before the generation snapshot | queue | json-builder |
+| `moss:settings-restored` | none — refresh enhancement and negative-field availability after restoring saved MOSS settings | session-moss, gallery-meta | settings-moss |
 | `image:saved` | `{ imageUrl, dataUrl }` — match an on-disk output to the current reference | gallery | canvas, session |
 | `overlay:changed` | none — persist reference opacity | canvas | session |
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |

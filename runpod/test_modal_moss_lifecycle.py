@@ -21,10 +21,14 @@ def test_default_deployment_keeps_rapid_permanent_and_baseline_rollback(monkeypa
     for key in ('MOSS_RUNTIME_PROFILE', 'MOSS_ENABLED_PRESETS', 'MOSS_EXPERIMENTAL_PRESETS'):
         monkeypatch.delenv(key, raising=False)
     app = load_app()
-    assert app._MOSS_ENV['MOSS_RUNTIME_PROFILE'] == 'rapid-auto-int8-cu128'
+    assert app._MOSS_ENV['MOSS_RUNTIME_PROFILE'] == 'rapid-hires-auto-int8-cu128'
     assert app._MOSS_ENV['MOSS_EXPERIMENTAL_PRESETS'] == ''
     assert 'Rapid' in app.MOSS_ENABLED_PRESETS
     assert 'Rapid' in moss_config.advertised_presets(app.MOSS_PROFILE)
+    assert app.MOSS_PROFILE['validated_presets']['Rapid'] == 4
+    monkeypatch.setenv('MOSS_RUNTIME_PROFILE', 'rapid-auto-int8-cu128')
+    legacy = load_app()
+    assert moss_config.preset_area_limit('Rapid', legacy.MOSS_PROFILE) == 1
     monkeypatch.setenv('MOSS_RUNTIME_PROFILE', 'baseline')
     app = load_app()
     assert app._MOSS_ENV['MOSS_RUNTIME_PROFILE'] == 'baseline'
@@ -187,3 +191,45 @@ def test_cached_image_ids_drive_from_id_with_full_overlay(monkeypatch):
     load_app()
     assert recorded['from_id'] == []
     assert set(recorded['dockerfile']) == {'runpod/Dockerfile', 'runpod/Dockerfile.moss'}
+
+
+# --- 2026-10-29: ComfyUI v0.43.1 build candidate (lock policy: opt-in, never in place) ---
+
+
+def test_comfyui_build_defaults_to_baseline_revision(monkeypatch):
+    monkeypatch.delenv('MOSS_COMFYUI_BUILD', raising=False)
+    app = load_app()
+    assert 'COMFY_REVISION' not in app._MOSS_BUILD_ARGS
+    assert app._MOSS_ENV['MOSS_COMFYUI_BUILD'] == 'baseline'
+    assert app._COMFYUI_REVISION == app._RUNTIME_LOCK['baseline_runtime']['comfyui']['revision']
+
+
+def test_comfyui_v0431_candidate_passes_pinned_revision(monkeypatch):
+    monkeypatch.setenv('MOSS_COMFYUI_BUILD', 'v0431')
+    app = load_app()
+    assert app._MOSS_BUILD_ARGS['COMFY_REVISION'] == '086099f5d8886163ef77dc354f8382cb7431582a'
+    assert app._MOSS_ENV['MOSS_COMFYUI_BUILD'] == 'v0431'
+    assert app._COMFYUI_REVISION == '086099f5d8886163ef77dc354f8382cb7431582a'
+
+
+def test_comfyui_build_rejects_unknown_value(monkeypatch):
+    monkeypatch.setenv('MOSS_COMFYUI_BUILD', 'v99')
+    with pytest.raises(Exception, match='MOSS_COMFYUI_BUILD'):
+        load_app()
+
+
+def test_comfyui_upgrade_rejects_cached_image_before_loading_it(monkeypatch):
+    monkeypatch.setenv('MOSS_COMFYUI_BUILD', 'v0431')
+    monkeypatch.setenv('MOSS_CACHED_IMAGE_ID', 'im-baseline')
+    monkeypatch.setattr(modal.Image, 'from_id',
+                        lambda *a, **kw: pytest.fail('Conflicting cached image must not be used'))
+    with pytest.raises(Exception, match='unset MOSS_CACHED_IMAGE_ID'):
+        load_app()
+
+
+def test_runtime_lock_resolves_v0431_candidate():
+    import json as _json
+    lock = _json.loads((Path(__file__).parent / 'moss-runtime.lock.json').read_text())
+    cand = lock['baseline_runtime']['comfyui_v043_candidate']
+    assert cand['tag'] == 'v0.43.1'
+    assert cand['revision'] == '086099f5d8886163ef77dc354f8382cb7431582a'

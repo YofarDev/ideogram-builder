@@ -383,8 +383,12 @@ def _build_workflow_v1(import_json, width, height, preset, seed, loras):
 
 def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
     """MOSS-Image workflow (workflow_template_moss.json). Prompt is the compiled
-    layout JSON or a plain caption; negative may be an empty string."""
+    layout JSON or a plain caption; negative may be an empty string. At CFG 1
+    the negative branch contributes nothing, so the text is blanked rather than
+    encoded-then-ignored."""
     settings = MOSS_PRESETS[preset]
+    if settings["cfg"] <= 1.0:
+        negative = ""
     seed = _resolve_seed(seed)
     wf = _load_template("moss")
     wf["7"]["inputs"]["text"] = prompt
@@ -439,6 +443,9 @@ def handler(job):
         # `workflow` is ignored for MOSS; the preset resolves server-side.
         preset = job_input.get("preset", "Fast")
         negative_prompt = job_input.get("negative_prompt", "")
+        # Optional on-model caption upsampling (official TextGenerate route on
+        # the same Qwen encoder); off by default — rewriting can add content.
+        enhance_caption = bool(job_input.get("enhance_caption", False))
         if moss_mods is not None:
             moss_config = moss_mods[0]
             try:
@@ -504,7 +511,8 @@ def handler(job):
                         prompt=import_json, negative=negative_prompt, width=width, height=height,
                         seed=seed_used, loras=resolved_loras, profile=moss_request["profile"],
                         assets=assets, adapter_ref=adapter_ref,
-                        spectrum_debug=os.environ.get("MOSS_BENCHMARK_MODE") == "true")
+                        spectrum_debug=os.environ.get("MOSS_BENCHMARK_MODE") == "true",
+                        enhance_prompt=enhance_caption)
                 except moss_assets.AssetError as e:
                     # A pinned candidate asset is missing (e.g. benchmark model
                     # not populated on the volume) — hard, readable failure,
@@ -517,6 +525,10 @@ def handler(job):
                 if object_info is not None:
                     try:
                         moss_workflow.validate_accelerator_nodes(workflow, object_info)
+                        if enhance_caption:
+                            moss_workflow.validate_graph(
+                                {moss_workflow.UPSAMPLER_NODE_ID: workflow[moss_workflow.UPSAMPLER_NODE_ID]},
+                                object_info)
                     except moss_workflow.GraphValidationError as e:
                         return {"error": str(e)}
                 global _MOSS_JOBS_IN_WORKER
@@ -672,6 +684,7 @@ def handler(job):
                 preset_id=preset,
                 model_manifest_id=moss_info.get("model_manifest_id"),
                 first_generation_in_worker=moss_info.get("first_generation_in_worker", False),
+                prompt_upsampler=moss_info.get("prompt_upsampler", False),
             )
         except Exception:  # noqa: BLE001 — metadata must never fail a result
             traceback.print_exc()

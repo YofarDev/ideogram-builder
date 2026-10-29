@@ -19,6 +19,7 @@ export function captureMossConfig() {
         meta: el('moss-meta')?.value || '',
         canvas: el('moss-canvas')?.value || '',
         negative: el('moss-negative')?.value || '',
+        enhance: !!(el('moss-enhance-caption')?.checked),
       },
     } : {}),
   };
@@ -45,6 +46,9 @@ export function restoreMoss(config) {
   set('moss-meta', m.meta);
   set('moss-canvas', m.canvas);
   set('moss-negative', m.negative);
+  state.moss.enhanceCaption = m.enhance === true;
+  const box = document.getElementById('moss-enhance-caption');
+  if (box) box.checked = state.moss.enhanceCaption;
 
   const pm = config.mossPromptMode === 'caption' ? 'caption' : 'layout';
   state.moss.promptMode = pm;
@@ -63,5 +67,6 @@ export function restoreMoss(config) {
       showToast(`Preset “${presetLabel(config.mossPreset)}” was saved in this session but is not available on the current backend — select a supported preset before generating.`, 'error', 5000);
     }
   }
+  emit('moss:settings-restored');
   return true;
 }

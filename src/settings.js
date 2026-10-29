@@ -77,7 +77,7 @@ export function initSettings() {
 
   // MOSS preset (Turbo β / Fast / Quality) — resolved server-side in handler.py
   const savedMossPreset = localStorage.getItem('ideogram_moss_preset');
-  if (['Turbo', 'Fast', 'Quality', 'Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum'].includes(savedMossPreset)) {
+  if (['Turbo', 'Fast', 'Quality', 'Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum', 'Poster', 'Quality30'].includes(savedMossPreset)) {
     state.moss.preset = savedMossPreset;
     const radio = document.querySelector(`input[name="moss_preset"][value="${savedMossPreset}"]`);
     if (radio) radio.checked = true;

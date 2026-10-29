@@ -1,0 +1,130 @@
+{
+  "TextGenerate": {
+    "input": {
+      "required": {
+        "clip": [
+          "CLIP",
+          {}
+        ],
+        "prompt": [
+          "STRING",
+          {}
+        ],
+        "max_length": [
+          "INT",
+          {}
+        ],
+        "sampling_mode": [
+          "COMFY_DYNAMICCOMBO_V3",
+          {
+            "options": [
+              {
+                "key": "on",
+                "inputs": {
+                  "required": {
+                    "temperature": [
+                      "FLOAT",
+                      {
+                        "default": 0.7
+                      }
+                    ],
+                    "top_k": [
+                      "INT",
+                      {
+                        "default": 64
+                      }
+                    ],
+                    "top_p": [
+                      "FLOAT",
+                      {
+                        "default": 0.95
+                      }
+                    ],
+                    "min_p": [
+                      "FLOAT",
+                      {
+                        "default": 0.05
+                      }
+                    ],
+                    "repetition_penalty": [
+                      "FLOAT",
+                      {
+                        "default": 1.05
+                      }
+                    ],
+                    "seed": [
+                      "INT",
+                      {
+                        "default": 0
+                      }
+                    ]
+                  },
+                  "optional": {
+                    "presence_penalty": [
+                      "FLOAT",
+                      {
+                        "default": 0.0
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "key": "off",
+                "inputs": {
+                  "required": {}
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "optional": {
+        "image": [
+          "IMAGE",
+          {}
+        ],
+        "video": [
+          "IMAGE",
+          {}
+        ],
+        "audio": [
+          "AUDIO",
+          {}
+        ],
+        "thinking": [
+          "BOOLEAN",
+          {}
+        ],
+        "use_default_template": [
+          "BOOLEAN",
+          {}
+        ],
+        "mtp": [
+          "COMBO",
+          {
+            "options": [
+              "auto",
+              "off",
+              "2",
+              "3",
+              "4",
+              "5",
+              "tree2s1",
+              "tree2s2",
+              "tree3s1",
+              "tree4s1m8"
+            ]
+          }
+        ],
+        "system_prompt": [
+          "STRING",
+          {
+            "forceInput": true
+          }
+        ]
+      }
+    },
+    "_source": "Comfy-Org/ComfyUI@086099f5d8886163ef77dc354f8382cb7431582a comfy_extras/nodes_textgen.py define_schema; presentation/range metadata omitted"
+  }
+}

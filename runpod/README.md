@@ -69,16 +69,31 @@ POST /run
     "height": 1024,
     "model": "moss",
     "negative_prompt": "nsfw, worst quality, bad anatomy, watermark, jpeg artifact",
+    "enhance_caption": false,
     "preset": "Fast"
   }
 }
 ```
 
-`model`, `negative_prompt` are MOSS-only (ignored for Ideogram). MOSS presets:
+`model`, `negative_prompt`, `enhance_caption` are MOSS-only (ignored for
+Ideogram). `enhance_caption: true` runs the official MOSS prompt upsampler —
+a `TextGenerate` pass on the same Qwen text encoder with the official
+enhancer system prompt — before sampling. This option supports plain captions
+only: structured JSON is rejected rather than rewritten without coordinates.
+The node exists at both the baseline pin and v0.43.1; no upgrade is needed
+just to enable it. The executed recipe records
+`prompt_upsampler` in `generation`. At CFG 1 (`Turbo`/`Rapid`/`Draft3`) the
+negative branch is unused and the negative text is blanked server-side
+(`negative_prompt_suppressed` in `generation`). MOSS presets:
 `Turbo` (8-step DMD LoRA, experimental), `Fast` (25 steps, default), `Quality`
-(50 steps). Candidate presets — `Rapid` (4-step adapter; 4/6/8 steps by area
-bucket), `Draft3` (3-step preview, ≤1024²), `FastSpectrum`, `QualitySpectrum`
-(feature-forecasting) — are only served by deployments whose runtime profile
+(50 steps). Modal's default `rapid-hires-auto-int8-cu128` profile also serves
+`Rapid`: 4 steps through 1 MP, 6 through 2 MP, and 8 through 4 MP (1 MP =
+1,048,576 pixels). It uses the same Rapid adapter, CFG 1 and Euler/simple at
+every size. The retained `rapid-auto-int8-cu128` profile limits Rapid to 1 MP.
+Candidate presets — `Draft3` (3-step preview, ≤1024²), `FastSpectrum`, `QualitySpectrum`
+(feature-forecasting), `Poster` (25 steps, res_multistep/simple, CFG 3.75,
+SLG 22 — text-forward scenes) and `Quality30` (Quality's recipe at 30 steps) —
+are only served by deployments whose runtime profile
 enables them; unsupported names return an actionable error. On Modal,
 `GET /capabilities` lists what the current deployment serves without starting
 a GPU container. MOSS `width`/`height` must be multiples of 16.

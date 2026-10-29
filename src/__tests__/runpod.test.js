@@ -193,3 +193,44 @@ describe('runJob moss routing', () => {
     expect(body.input).not.toHaveProperty('negative_prompt')
   })
 })
+
+describe('runpod enhance_caption', () => {
+  async function importModule() {
+    vi.resetModules()
+    return await import('../runpod.js')
+  }
+
+  it('sends enhance_caption inside input for moss snapshots', async () => {
+    global.fetch = mockFetchSequence([
+      { body: { runpod: { api_key: 'k', endpoint_id: 'ep-ideo', endpoints: { moss: 'ep-moss' } } } },
+      { body: { id: 'job-1' } },
+      { body: { status: 'COMPLETED', output: { images: [
+        { filename: 'moss.png', type: 'base64', data: 'AAAA' }
+      ]}}},
+      { body: new Blob() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', negativePrompt: '', enhanceCaption: true }))
+    const input = JSON.parse(global.fetch.mock.calls[1][1].body).input
+    expect(input.enhance_caption).toBe(true)
+    expect(input.model).toBe('moss')
+  })
+
+  it('omits enhance_caption for ideogram snapshots', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { id: 'job-1' } },
+      { body: { status: 'COMPLETED', output: { images: [
+        { filename: 'x.png', type: 'base64', data: 'AAAA' }
+      ]}}},
+      { body: new Blob() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot({}))
+    const input = JSON.parse(global.fetch.mock.calls[1][1].body).input
+    expect(input).not.toHaveProperty('enhance_caption')
+    expect(input).not.toHaveProperty('model')
+  })
+})

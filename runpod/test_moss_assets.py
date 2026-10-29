@@ -184,5 +184,40 @@ def test_populate_default_selects_volume_candidates_only(fake_roots):
     default_keys = {k for k, e in manifest["assets"].items()
                     if e["container_path"].startswith("/moss-models")}
     assert default_keys == {"dit_bf16", "enc_int8_convrot", "enc_bf16",
-                            "adapter_rapid4", "dit_rapid4_fp32", "adapter_draft3"}
+                            "adapter_rapid4", "dit_rapid4_fp32", "adapter_draft3",
+                            "vae_full"}
     assert "dit_int8_convrot" not in default_keys  # baseline is baked, never re-downloaded
+
+
+# --- 2026-10-29: full FLUX.2 VAE candidate asset -------------------------------
+
+
+def test_vae_full_asset_pinned():
+    """vae_full — the full FLUX.2 decoder used by the community 4 MP recipe;
+    volume candidate, never baked into the image."""
+    entry = load_manifest()["assets"]["vae_full"]
+    assert entry["role"] == "vae"
+    assert entry["repo"] == "Comfy-Org/MOSS-Image"
+    assert entry["repo_path"] == "vae/flux2-vae.safetensors"
+    assert entry["sha256"] == "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+    assert entry["container_path"] == "/moss-models/vae/flux2-vae.safetensors"
+    assert entry["workflow_ref"] == "flux2-vae.safetensors"
+
+
+def test_resolve_profile_assets_vae_full(fake_roots):
+    baked, volume = fake_roots
+    for rel in ("diffusion_models/moss_image_sft_int8_convrot.safetensors",
+                "text_encoders/qwen3.5_9b_w4a8_gptq.safetensors"):
+        _touch(baked / rel)
+    _touch(volume / "vae" / "flux2-vae.safetensors")
+    profile = resolve_profile({"MOSS_RUNTIME_PROFILE": "rapid-hires-vae-full-auto-int8-cu128"})
+    assets = resolve_profile_assets(profile)
+    assert assets["vae"] == "flux2-vae.safetensors"
+
+
+def test_required_asset_keys_include_vae_full():
+    profile = resolve_profile({"MOSS_RUNTIME_PROFILE": "rapid-hires-vae-full-auto-int8-cu128"})
+    keys = required_asset_keys(profile, tuple(profile["enabled_presets"]))
+    assert "vae_full" in keys
+    baseline = resolve_profile({})
+    assert "vae_full" not in required_asset_keys(baseline, tuple(baseline["enabled_presets"]))

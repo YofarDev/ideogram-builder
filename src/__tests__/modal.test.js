@@ -375,6 +375,7 @@ describe('modal fetchCapabilities', () => {
     const capsCall = global.fetch.mock.calls[1]
     expect(capsCall[0]).toBe('https://modal.example/capabilities')
     expect(capsCall[1].headers.Authorization).toBe('Bearer tok-xyz')
+    expect(capsCall[1].cache).toBe('no-store')
   })
 
   it('returns null on HTTP failure', async () => {
@@ -399,5 +400,33 @@ describe('modal fetchCapabilities', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
     const mod = await importModule()
     expect(await mod.fetchCapabilities()).toBeNull()
+  })
+})
+
+describe('modal runJob enhance_caption', () => {
+  it('sends enhance_caption for moss snapshots that asked for the upsampler', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'call-1' } },
+      { body: completedBody() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    const mod = await import('../modal.js')
+    await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', negativePrompt: '', enhanceCaption: true }))
+    const body = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(body.enhance_caption).toBe(true)
+  })
+
+  it('omits enhance_caption from ideogram bodies', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'call-1' } },
+      { body: completedBody() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    const mod = await import('../modal.js')
+    await mod.runJob(baseSnapshot({}))
+    const body = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(body).not.toHaveProperty('enhance_caption')
   })
 })

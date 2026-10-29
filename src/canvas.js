@@ -52,8 +52,10 @@ export function initCanvasEvents() {
 
   on('canvas:rebuild', (data) => {
     cancelPointer();
-    if (data?.oldWidth && state.boxes.length > 0) {
+    // Dimension edits preserve the workspace even when caption mode has no boxes.
+    if (data?.oldWidth) {
       resizeCanvas();
+      emit('state:changed');
     } else {
       initCanvas();
     }

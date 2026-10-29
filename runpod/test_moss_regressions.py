@@ -71,9 +71,9 @@ def test_capability_allowlist_and_independent_resolution_promotion(monkeypatch):
     caps = config.capabilities(profile, enabled=('Fast', 'Rapid'))
     assert [p['id'] for p in caps['presets']] == ['Fast', 'Rapid']
     assert caps['presets'][1]['validation_status'] == 'validated'
-    assert caps['presets'][1]['max_area_mp'] == 1  # technical limit binds even when validated
+    assert caps['presets'][1]['max_area_mp'] == 1  # this profile is only validated through 1 MP
     monkeypatch.setitem(config.RUNTIME_PROFILES, profile['profile_id'], profile)
-    with pytest.raises(config.PresetUnsupportedError, match='supports up to 1 MP'):
+    with pytest.raises(config.PresetUnsupportedError, match='validated only up to 1 MP'):
         config.validate_request_preset('Rapid', 1536, 1024, {'MOSS_RUNTIME_PROFILE': profile['profile_id']})
     assert config.capabilities(config.resolve_profile({}), enabled=('Fast',))['presets'][0]['id'] == 'Fast'
     assert len(config.capabilities(config.resolve_profile({}), enabled=('Fast',))['presets']) == 1

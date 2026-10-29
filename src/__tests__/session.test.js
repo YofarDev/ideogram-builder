@@ -456,7 +456,7 @@ describe('MOSS session (D1)', () => {
     expect(snap.config.model).toBe('moss')
     expect(snap.config.mossPreset).toBe('Quality')
     expect(snap.config.mossPromptMode).toBe('layout')
-    expect(snap.config.moss).toEqual({ caption: 'A fox in snow', meta: 'poster', canvas: '', negative: 'nsfw' })
+    expect(snap.config.moss).toEqual({ caption: 'A fox in snow', meta: 'poster', canvas: '', negative: 'nsfw', enhance: false })
   })
 
   it('captureSnapshot keeps the legacy shape when not in moss mode', () => {

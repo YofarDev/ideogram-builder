@@ -50,6 +50,7 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
                 ...(snapshot.model === 'moss' ? {
                     model: 'moss',
                     negative_prompt: snapshot.negativePrompt ?? '',
+                    enhance_caption: snapshot.enhanceCaption ?? false,
                 } : {}),
             }
         }),

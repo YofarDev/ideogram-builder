@@ -1489,6 +1489,14 @@
             margin-bottom: 5px;
         }
 
+        .field-hint {
+            display: block;
+            font-size: 11px;
+            color: var(--text-label);
+            margin-top: 4px;
+            opacity: 0.85;
+        }
+
         .input-group input[type="text"],
         .input-group input[type="url"],
         .input-group input[type="number"],
@@ -3532,6 +3540,12 @@
                         <div class="input-group">
                             <label for="moss-negative">Negative Prompt</label>
                             <textarea id="moss-negative" rows="2">nsfw, worst quality, bad anatomy, watermark, jpeg artifact</textarea>
+                            <span class="field-hint" id="moss-negative-hint" hidden>Preset runs at CFG 1 — the negative prompt is ignored.</span>
+                        </div>
+                        <div class="input-group">
+                            <label for="moss-enhance-caption" title="Expands plain captions before generating. Adds time and may add details; unavailable for layout JSON.">Enhance Caption</label>
+                            <input type="checkbox" id="moss-enhance-caption" aria-describedby="moss-enhance-hint" disabled>
+                            <span class="field-hint" id="moss-enhance-hint">Available in Caption mode. Layout coordinates are kept unchanged.</span>
                         </div>
                     </fieldset>
                     <fieldset class="panel-section">
@@ -3616,13 +3630,17 @@
                             <!-- Candidate presets: hidden until GET /capabilities
                                  advertises them for the deployed runtime profile. -->
                             <input type="radio" id="moss_preset_rapid" name="moss_preset" value="Rapid" data-candidate disabled>
-                            <label for="moss_preset_rapid" class="pill-label" data-candidate hidden title="4 steps · up to 1 MP">Rapid</label>
+                            <label for="moss_preset_rapid" class="pill-label" data-candidate hidden title="4 steps ≤1 MP · 6 steps ≤2 MP · 8 steps ≤4 MP">Rapid</label>
                             <input type="radio" id="moss_preset_draft3" name="moss_preset" value="Draft3" data-candidate disabled>
                             <label for="moss_preset_draft3" class="pill-label" data-candidate hidden title="3-step preview quality — 1024² max">Draft β</label>
                             <input type="radio" id="moss_preset_fastspectrum" name="moss_preset" value="FastSpectrum" data-candidate disabled>
                             <label for="moss_preset_fastspectrum" class="pill-label" data-candidate hidden title="Fast with feature-forecasting acceleration">Fast+ β</label>
                             <input type="radio" id="moss_preset_qualityspectrum" name="moss_preset" value="QualitySpectrum" data-candidate disabled>
                             <label for="moss_preset_qualityspectrum" class="pill-label" data-candidate hidden title="Quality with feature-forecasting acceleration">Quality+ β</label>
+                            <input type="radio" id="moss_preset_poster" name="moss_preset" value="Poster" data-candidate disabled>
+                            <label for="moss_preset_poster" class="pill-label" data-candidate hidden title="25 steps · res_multistep/simple · CFG 3.75 — text-forward scenes">Poster β</label>
+                            <input type="radio" id="moss_preset_quality30" name="moss_preset" value="Quality30" data-candidate disabled>
+                            <label for="moss_preset_quality30" class="pill-label" data-candidate hidden title="Quality recipe at 30 steps — lower cost">Quality 30 β</label>
                         </div>
                         <button id="btn-lora" type="button" class="btn btn-secondary lora-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="lora-panel" title="LoRAs — none active">
                             LoRA<span class="queue-badge" id="lora-badge" hidden aria-hidden="true">0</span>

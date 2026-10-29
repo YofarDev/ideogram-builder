@@ -29,3 +29,11 @@ it('still warns when known Modal capabilities exclude the saved recipe', () => {
   expect(state.moss.preset).toBe('Rapid')
   expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Rapid'), 'error', 5000)
 })
+
+it.each([undefined, false, true])('restores saved enhancement %s instead of inheriting it', saved => {
+  document.body.innerHTML = '<input type="checkbox" id="moss-enhance-caption" checked>'
+  state.moss.enhanceCaption = true
+  restoreMoss({ model: 'moss', moss: { enhance: saved } })
+  expect(state.moss.enhanceCaption).toBe(saved === true)
+  expect(document.getElementById('moss-enhance-caption').checked).toBe(saved === true)
+})

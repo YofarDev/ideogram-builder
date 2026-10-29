@@ -112,6 +112,20 @@
       "license": "apache-2.0",
       "notes": "Fixed for the initial comparison rounds; the larger flux2-vae stays out of scope until a profile wins."
     },
+    "vae_full": {
+      "role": "vae",
+      "format": "bf16",
+      "repo": "Comfy-Org/MOSS-Image",
+      "revision": "530a4c94f92c35ef6818b1b035a983fe9dcf5f54",
+      "repo_path": "vae/flux2-vae.safetensors",
+      "filename": "flux2-vae.safetensors",
+      "workflow_ref": "flux2-vae.safetensors",
+      "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3",
+      "size_bytes": 336211292,
+      "container_path": "/moss-models/vae/flux2-vae.safetensors",
+      "license": "apache-2.0",
+      "notes": "Full FLUX.2 decoder (the original release default is the small decoder to reduce spots). Volume candidate for the rapid-hires-vae-full profile — the community 4 MP recipe uses it. LFS oid resolved 2026-10-29 via /api/models/Comfy-Org/MOSS-Image/tree/main/vae."
+    },
     "adapter_dmd8": {
       "role": "distillation_adapter",
       "adapter": "dmd8",

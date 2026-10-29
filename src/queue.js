@@ -6,6 +6,7 @@ import { runJob } from './backend.js';
 import { renderQueue } from './queue-panel.js';
 import { buildSnapshot, generationMeta } from './queue-snapshot.js';
 import { ensurePresetUsable, checkSnapshot, getCapabilities } from './moss-presets.js';
+import { detectPromptFormat } from './prompt-convert.js';
 
 let queue = [];
 let isRunning = false;
@@ -18,6 +19,10 @@ function makeJob(importJson, model) {
     // Resolve all model-specific fields together. Quality and Turbo are names
     // in both models, so name membership cannot select the intended recipe.
     const snapshot = { ...buildSnapshot(model || state.model), importJson };
+    // Collections can submit a layout while the editor is in caption mode.
+    if (snapshot.model === 'moss' && detectPromptFormat(importJson) !== 'caption') {
+        snapshot.enhanceCaption = false;
+    }
     return {
         id: counter++,
         snapshot,
@@ -55,7 +60,10 @@ export function enqueue() {
     }
     const jsonText = document.getElementById('json-output').value;
     if (!jsonText.trim()) {
-        showToast('Create a prompt first — draw boxes and fill the settings, or load JSON.', 'error');
+        const message = state.model === 'moss' && state.moss.promptMode === 'caption'
+            ? 'Enter a MOSS caption before generating.'
+            : 'Create a prompt first — draw boxes and fill the settings, or load JSON.';
+        showToast(message, 'error');
         return;
     }
     if (!ensurePresetUsable(state.model)) return;

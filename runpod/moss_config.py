@@ -24,7 +24,7 @@ import os
 # optimized profiles — see advertised_presets()/capabilities().
 
 BASE_PRESET_IDS = ("Fast", "Quality", "Turbo")
-CANDIDATE_PRESET_IDS = ("Rapid", "Draft3", "FastSpectrum", "QualitySpectrum")
+CANDIDATE_PRESET_IDS = ("Rapid", "Draft3", "FastSpectrum", "QualitySpectrum", "Poster", "Quality30")
 
 MOSS_PRESETS = {
     "Fast": {
@@ -46,17 +46,15 @@ MOSS_PRESETS = {
         "blurb": "8 steps, DMD distillation",
     },
     # Rapid — akhaliq four-step adapter, v2.0 Euler-native release, strength 1,
-    # euler/simple, CFG 1, no SLG. v1 carries a hard technical 1 MP limit
-    # (max_area_mp): exactly four steps, never the six/eight-step ladder — those
-    # larger buckets stay unreachable until a separately declared profile lifts
-    # the limit. Quality is explicitly unvalidated: experimental until measured.
+    # euler/simple, CFG 1, no SLG. Larger canvases use the same adapter at
+    # six/eight steps. Profiles retain their own tested resolution limits.
     "Rapid": {
         "steps": 4, "cfg": 1.0, "sampler": "euler", "scheduler": "simple",
         "slg": None, "adapter": "rapid4", "spectrum": False,
         "label": "Rapid", "tier": "final",
-        "blurb": "4 steps · up to 1 MP",
+        "blurb": "4 steps ≤1 MP · 6 steps ≤2 MP · 8 steps ≤4 MP",
         "steps_policy": "rapid",
-        "max_area_mp": 1,
+        "max_area_mp": 4,
     },
     # Draft β — the separately trained three-step adapter. Never run the
     # four-step LoRA for three steps instead.
@@ -84,11 +82,33 @@ MOSS_PRESETS = {
         "label": "Quality+ β", "tier": "final",
         "blurb": "Quality with feature forecasting acceleration",
     },
+    # Poster β — typography-tuned recipe from the community good-text reports
+    # (guide §8): res-family sampler with CFG 3.5–4 and 25 steps; SLG layer 22
+    # (the official template notes 24/26 also help lettering — see the
+    # PosterSLG22-24 benchmark control). "res_2s" in the report is not a
+    # ComfyUI sampler name; res_multistep is the family member present at the
+    # pinned revision and also appears in the 5.5 MP character-render report.
+    "Poster": {
+        "steps": 25, "cfg": 3.75, "sampler": "res_multistep", "scheduler": "simple",
+        "slg": (0.0, 1.0), "slg_layers": "22", "adapter": None, "spectrum": False,
+        "label": "Poster β", "tier": "final",
+        "blurb": "25 steps · res_multistep · text-forward scenes",
+    },
+    # Quality30 β — Quality's recipe at 30 steps; the iteration-speed report
+    # measured limited perceived quality loss from 50 → 30 steps.
+    "Quality30": {
+        "steps": 30, "cfg": 3.0, "sampler": "euler", "scheduler": "simple",
+        "slg": (0.0, 1.0), "adapter": None, "spectrum": False,
+        "label": "Quality 30 β", "tier": "final",
+        "blurb": "30 steps · Quality recipe, lower cost",
+    },
 }
 
 # Benchmark-only SLG control isolates the range change from Spectrum itself.
-BENCHMARK_PRESET_IDS = ("FastFullSLG",)
+BENCHMARK_PRESET_IDS = ("FastFullSLG", "PosterSLG22-24")
 MOSS_PRESETS["FastFullSLG"] = {**MOSS_PRESETS["Fast"], "slg": (0.0, 1.0), "label": "Fast full SLG control"}
+# Benchmark-only lettering control: same Poster recipe, SLG layer set 22+24.
+MOSS_PRESETS["PosterSLG22-24"] = {**MOSS_PRESETS["Poster"], "slg_layers": "22,24", "label": "Poster SLG 22+24 control"}
 
 # Distillation adapters are mutually exclusive: the control-adapter slot hosts
 # exactly one adapter, and Rapid/Draft3 must never stack with Turbo's DMD8.
@@ -136,10 +156,8 @@ class PresetUnsupportedError(ValueError):
 
 
 def preset_area_limit(preset_name, profile=None):
-    """Hard technical area limit (MP) for a preset: the profile may only lower
-    it via its declared preset_area_limits — lifting the Rapid limit beyond its
-    technical value requires a NEW preset/profile declaration, never an env
-    override. Enforced for production AND benchmark requests alike."""
+    """Technical area limit (MP), narrowed by the selected runtime profile.
+    Enforced for production AND benchmark requests alike."""
     preset = MOSS_PRESETS.get(preset_name) or {}
     technical = preset.get("max_area_mp")
     if profile is not None:
@@ -152,8 +170,7 @@ def preset_area_limit(preset_name, profile=None):
 def steps_for_area(policy, width, height):
     """Effective step count for an area-based preset policy.
 
-    rapid: exactly 4 steps at ≤1 MP (the v1 hard limit; the 6/8-step buckets
-    below stay unreachable until a declared profile lifts preset_area_limits).
+    rapid: 4 steps ≤1 MP, 6 steps ≤2 MP, 8 steps ≤4 MP.
     draft3: 3 steps ≤1 MP. Raises PresetUnsupportedError beyond the supported
     area with an actionable message — never silently resizes a layout.
     """
@@ -161,10 +178,11 @@ def steps_for_area(policy, width, height):
     if policy == "rapid":
         if pixels <= 1 * MP:
             return 4
-        # Larger buckets (6 steps ≤2 MP, 8 steps ≤4 MP) exist only for a future
-        # declared profile that lifts preset_area_limits; the hard technical
-        # limit enforced in effective_preset makes this branch unreachable today.
-        limit = "2 MP" if pixels <= 2 * MP else "4 MP"
+        if pixels <= 2 * MP:
+            return 6
+        if pixels <= 4 * MP:
+            return 8
+        limit = "4 MP"
     elif policy == "draft3":
         if pixels <= 1 * MP:
             return 3
@@ -179,7 +197,7 @@ def steps_for_area(policy, width, height):
 
 
 def preset_label_for_policy(policy):
-    return {"rapid": "Rapid β", "draft3": "Draft β"}.get(policy, policy)
+    return {"rapid": "Rapid", "draft3": "Draft β"}.get(policy, policy)
 
 
 def effective_preset(preset_name, width, height, *, profile=None):
@@ -221,11 +239,14 @@ ASSET_BY_FORMAT = {
 def _profile(profile_id, *, description, status, memory_mode, dit_format,
              encoder_format, compile_backend="off", warmup=False,
              requires_cuda13=None, enabled_presets=BASE_PRESET_IDS,
-             merged_adapter=None, validated_presets=None):
+             merged_adapter=None, validated_presets=None, preset_area_limits=None,
+             vae_asset="vae_small"):
     if memory_mode not in MEMORY_MODES:
         raise ProfileError(f"profile {profile_id}: bad memory_mode")
     if dit_format not in DIT_FORMATS or encoder_format not in ENCODER_FORMATS:
         raise ProfileError(f"profile {profile_id}: bad format")
+    if vae_asset not in ("vae_small", "vae_full"):
+        raise ProfileError(f"profile {profile_id}: bad vae_asset '{vae_asset}'")
     if compile_backend not in COMPILE_BACKENDS:
         raise ProfileError(f"profile {profile_id}: bad compile backend")
     # Quantized formats dispatch through comfy-kitchen, whose CUDA backend is
@@ -244,8 +265,9 @@ def _profile(profile_id, *, description, status, memory_mode, dit_format,
         "warmup": bool(warmup),
         "requires_cuda13": bool(requires_cuda13),
         "enabled_presets": tuple(enabled_presets),
-        "vae_asset": "vae_small",
+        "vae_asset": vae_asset,
         "merged_adapter": merged_adapter,
+        "preset_area_limits": dict(preset_area_limits or {}),
         # Validation is per recipe and resolution, independently of whether a
         # runtime profile has passed its infrastructure gate. Values are MP.
         "validated_presets": {
@@ -276,6 +298,41 @@ RUNTIME_PROFILES = {
         requires_cuda13=False,
         enabled_presets=BASE_PRESET_IDS + ("Rapid",),
         validated_presets={"Rapid": 1},
+        preset_area_limits={"Rapid": 1},
+    ),
+    "rapid-hires-auto-int8-cu128": _profile(
+        "rapid-hires-auto-int8-cu128",
+        description="Rapid with 4/6/8 steps through 1/2/4 MP on the cu128 INT8 DiT + "
+                    "W4A8 encoder baseline; auto residency, no compile, no warmup.",
+        status="validated",
+        memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
+        requires_cuda13=False,
+        enabled_presets=BASE_PRESET_IDS + ("Rapid",),
+        preset_area_limits={"Rapid": 4},
+        validated_presets={"Rapid": 4},
+    ),
+    # Same runtime as production; recipes remain experimental until measured.
+    "rapid-hires-quality-modes-auto-int8-cu128": _profile(
+        "rapid-hires-quality-modes-auto-int8-cu128",
+        description="Production cu128 formats/residency with opt-in Poster and Quality30 trials.",
+        status="candidate",
+        memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
+        requires_cuda13=False,
+        enabled_presets=BASE_PRESET_IDS + ("Rapid", "Poster", "Quality30"),
+        preset_area_limits={"Rapid": 4},
+    ),
+    # Full decoder comparison; requires an explicit Rapid preview opt-in.
+    "rapid-hires-vae-full-auto-int8-cu128": _profile(
+        "rapid-hires-vae-full-auto-int8-cu128",
+        description="Rapid 4/6/8 steps through 4 MP with the full FLUX.2 VAE "
+                    "(community 4 MP recipe decoder); otherwise the cu128 "
+                    "INT8 + W4A8 baseline. Visual validation pending.",
+        status="candidate",
+        memory_mode="auto", dit_format="int8_convrot", encoder_format="w4a8",
+        requires_cuda13=False,
+        enabled_presets=BASE_PRESET_IDS + ("Rapid",),
+        preset_area_limits={"Rapid": 4},
+        vae_asset="vae_full",
     ),
     "resident-auto-int8": _profile(
         "resident-auto-int8",
@@ -546,7 +603,7 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
             "id": pid,
             "label": preset["label"],
             "tier": preset["tier"],
-            "blurb": preset["blurb"],
+            "blurb": "4 steps · up to 1 MP" if pid == "Rapid" and limit == 1 else preset["blurb"],
             "steps": preset["steps"],
             "cfg": preset["cfg"],
             "sampler": preset["sampler"],
@@ -565,7 +622,8 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
         "presets": presets,
         "restrictions": {
             "width_height_multiple": 16,
-            "rapid_max_area_mp": 1,
+            "rapid_max_area_mp": next((p["max_area_mp"] for p in presets if p["id"] == "Rapid"),
+                                      preset_area_limit("Rapid", profile)),
             "draft3_max_area_mp": 1,
             "lora_directory": "user/",
         },
@@ -574,7 +632,8 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
 
 def generation_metadata(profile, preset, effective_steps, *, preset_id="",
                        model_manifest_id=None, first_generation_in_worker,
-                       spectrum_enabled=None, compile_backend=None, adapter=None):
+                       spectrum_enabled=None, compile_backend=None, adapter=None,
+                       prompt_upsampler=None):
     """The `generation` block attached to results (schema v1). Records the
     recipe actually executed — numeric-behaviour changes must land here."""
     spectrum_enabled = preset["spectrum"] if spectrum_enabled is None else spectrum_enabled
@@ -590,6 +649,8 @@ def generation_metadata(profile, preset, effective_steps, *, preset_id="",
         "sampler": preset["sampler"],
         "scheduler": preset["scheduler"],
         "negative_guidance_active": preset["cfg"] > 1.0,
+        "negative_prompt_suppressed": preset["cfg"] <= 1.0,
+        "prompt_upsampler": bool(prompt_upsampler),
         "adapter": adapter,
         "spectrum": bool(spectrum_enabled),
         "compile_backend": compile_backend,

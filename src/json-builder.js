@@ -14,7 +14,12 @@ export function initJsonBuilder() {
   initPromptDraft();
   on('prompt:draft-restore', ({ text }) => restorePromptDraft(text));
   on('prompt:prepare', request => {
-    if (capturePromptDraft()) request.ok = applyJsonText(document.getElementById('json-output').value, null, { quiet: true });
+    if (capturePromptDraft()) {
+      request.ok = applyJsonText(document.getElementById('json-output').value, null, { quiet: true });
+    } else {
+      // Startup/session restore can fill the fields without publishing a prompt.
+      generateJSON();
+    }
   });
   on('canvas:reset', () => {
     document.getElementById('json-output').value = '';

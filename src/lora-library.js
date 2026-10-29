@@ -178,6 +178,26 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Yofardev/mil_moss_v1/resolve/main/mil_moss_v1_000001600.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
+  // SFT vertical-banding fixes (guide §10). Opt-in per request, SFT only.
+  // top64: strength 1 around ≤768², up to 1.5 at ~1024² (author guidance).
+  {
+    id: 'moss-destripe-top64',
+    label: 'SFT Destripe (top64, 1.9 MB) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/moss_sft_destripe_top64_bf16.safetensors',
+    source_url: 'https://huggingface.co/nynxz/MOSS-Image/resolve/59d3547a788ca6ebc4f5005a82d461904628df26/loras/moss_sft_destripe_top64_bf16.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.0 },
+  },
+  // Kijai block reversion, referenced by the official Comfy-Org template:
+  // negative −0.5 strength (the slider supports negatives for this reason).
+  {
+    id: 'moss-destripe-blocks',
+    label: 'SFT DeBand blocks 21–49 (Kijai) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/moss_image_sft_lora_blocks_21_to_49_rank_512_bf16.safetensors',
+    source_url: 'https://huggingface.co/Kijai/MOSS-image_experimental/resolve/9869b2855d0921c10ecee0011c88f7b961a736a6/loras/moss_image_sft_lora_blocks_21_to_49_rank_512_bf16.safetensors',
+    strengths: { positive: -0.5, unconditional: 0.0 },
+  },
 ];
 
 /** User-added entries: [{ id, label, filename, source_url, model, strengths }] */

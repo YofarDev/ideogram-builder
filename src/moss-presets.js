@@ -11,20 +11,29 @@ import { showToast } from './toast.js';
 import { emit } from './events.js';
 
 export const BASE_PRESETS = ['Fast', 'Quality', 'Turbo'];
-export const CANDIDATE_PRESETS = ['Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum'];
+export const CANDIDATE_PRESETS = ['Rapid', 'Draft3', 'FastSpectrum', 'QualitySpectrum', 'Poster', 'Quality30'];
 export const MOSS_PRESET_IDS = [...BASE_PRESETS, ...CANDIDATE_PRESETS];
 
 // UI copy; limits and status come from the server capabilities, not this
 // table. Availability remains capability-gated, including promoted Rapid.
+// `cfg` drives the negative-prompt availability hint (CFG 1 ignores it).
 export const PRESET_INFO = {
-    Fast: { label: 'Fast', blurb: '25 steps · balanced quality/speed' },
-    Quality: { label: 'Quality', blurb: '50 steps · maximum quality' },
-    Turbo: { label: 'Turbo β', blurb: '8 steps · DMD distillation' },
-    Rapid: { label: 'Rapid', blurb: '4 steps · up to 1 MP' },
-    Draft3: { label: 'Draft β', blurb: '3 steps, 1024² max · preview quality' },
-    FastSpectrum: { label: 'Fast+ β', blurb: 'Fast with feature-forecasting acceleration' },
-    QualitySpectrum: { label: 'Quality+ β', blurb: 'Quality with feature-forecasting acceleration' },
+    Fast: { label: 'Fast', blurb: '25 steps · balanced quality/speed', cfg: 2.5 },
+    Quality: { label: 'Quality', blurb: '50 steps · maximum quality', cfg: 3.0 },
+    Turbo: { label: 'Turbo β', blurb: '8 steps · DMD distillation', cfg: 1.0 },
+    Rapid: { label: 'Rapid', blurb: '4 steps ≤1 MP · 6 steps ≤2 MP · 8 steps ≤4 MP', cfg: 1.0 },
+    Draft3: { label: 'Draft β', blurb: '3 steps, 1024² max · preview quality', cfg: 1.0 },
+    FastSpectrum: { label: 'Fast+ β', blurb: 'Fast with feature-forecasting acceleration', cfg: 2.5 },
+    QualitySpectrum: { label: 'Quality+ β', blurb: 'Quality with feature-forecasting acceleration', cfg: 3.0 },
+    Poster: { label: 'Poster β', blurb: '25 steps · res_multistep · text-forward scenes', cfg: 3.75 },
+    Quality30: { label: 'Quality 30 β', blurb: '30 steps · Quality recipe, lower cost', cfg: 3.0 },
 };
+
+/** True when the preset samples at CFG 1, where the negative branch
+ * contributes nothing — the UI grays the field and the server blanks it. */
+export function presetIgnoresNegative(presetId) {
+    return (PRESET_INFO[presetId]?.cfg ?? 0) <= 1;
+}
 
 /** Capabilities entry for one preset (validation_status, max_area_mp, blurb). */
 export function presetMeta(presetId) {
@@ -36,8 +45,8 @@ export function validationStatus(presetId) {
     return presetMeta(presetId)?.validation_status || null;
 }
 
-/** Advertised pixel-limit in MP. Without capabilities, apply the known v1
- * technical limits conservatively (they bind server-side regardless). */
+/** Advertised pixel-limit in MP. Keep the legacy 1 MP limit when an older
+ * endpoint advertises Rapid without declaring its resolution support. */
 export function presetAreaLimitMp(presetId) {
     const meta = presetMeta(presetId);
     if (meta?.max_area_mp != null) return meta.max_area_mp;

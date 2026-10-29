@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-29",
+  "workspace": "yofarcorp",
+  "app_name": "ideogram-builder",
+  "deployment_tag": "rapid-hires-20261029",
+  "base_revision": "b3ac8b18bee82d8799b2b4ba2c9c3fd6a6d2c00f",
+  "source_dirty": true,
+  "source_sha256": {
+    "runpod/moss_config.py": "ede35871b33db186e903759690c6f145cf4718f7db73c826da6106e79337a090",
+    "runpod/modal_app.py": "b66f78542bbc022f33f5d0d1dd440c5c94c3c24521c888b1374faab293365044",
+    "runpod/moss_workflow.py": "85975086a9ba22b0e49482fbe4ad709cf487d968c2c5bfeb76bcc7f8aa0f9da2",
+    "runpod/handler.py": "4fdad3281e3efa23eaa5d8d09572c2633de62323838e4e210bbe6e0f2875ef3d",
+    "runpod/moss-models.json": "c88926930819f71b2baa7c78aea51aa698652b3532d54b47503d54de41dd7a59",
+    "runpod/moss-runtime.lock.json": "b8b54dc2449f9587641b7b6c6dff98d18c0c7f8f72f97fa33f9235a70d2e3caa",
+    "src/moss-presets.js": "5c676eab89786bdc50720b9a48b24ddda438758df92db506d8fcb5a7b4d2b1a0",
+    "src/modal.js": "a3e84c097e8be073ee966659d37b09f28ea02c061174b7233042a831d7161ce0",
+    "index.html": "938fa85c958fb3cf74b88b9aa815e8fa8764bda5b756e6f6e6657e1cc002c333"
+  },
+  "runtime_profile": "rapid-hires-auto-int8-cu128",
+  "runtime_build": "baseline",
+  "base_images": {
+    "moss": "im-C6CYVuLZL3PDP7CmANZGPp",
+    "ideogram": "im-jAh6cs2wwMnYugf5Zhz6Qs"
+  },
+  "preview_tag": "rapid-hires-preview-20261029",
+  "preview_smoke": "../../output/rapid-hires-preview-20261029/smoke-report.json",
+  "production_smoke": "../../output/rapid-hires-production-20261029/smoke-report.json",
+  "gui": {
+    "image": "output/img_20261029_073603_643941.png",
+    "metadata": "output/img_20261029_073603_643941.png.meta.json",
+    "width": 2048,
+    "height": 2048,
+    "steps": 8,
+    "preset": "Rapid",
+    "screenshot": "../../output/rapid-hires-production-20261029/gui-2048.jpg"
+  },
+  "tests": {
+    "backend": 203,
+    "frontend": 493,
+    "capability_cache_followup": 54
+  },
+  "validation_basis": "Seven real generations on preview and production plus a production GUI generation; bounded visual inspection of poster and photo samples, not a formal CER/IoU benchmark.",
+  "rollback_profile": "rapid-auto-int8-cu128",
+  "production_topology_note": "Two workers during concurrent GUI and API verification; a resident Turbo-to-Rapid adapter switch was witnessed. Original overstrict harness report retained."
+}
