@@ -97,7 +97,16 @@ describe('runJob', () => {
       { ok: false, status: 500, text: 'server error' },
     ])
     const mod = await importModule()
-    await expect(mod.runJob(baseSnapshot())).rejects.toThrow(/Submit failed \(500\)/)
+    await expect(mod.runJob(baseSnapshot())).rejects.toThrow(/server error \(500\)/)
+  })
+
+  it('submit 409 paused endpoint rejects with recovery sentence', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { ok: false, status: 409, text: JSON.stringify({ status: 409, title: 'Conflict', detail: 'Endpoint is paused (max_workers=0)' }) },
+    ])
+    const mod = await importModule()
+    await expect(mod.runJob(baseSnapshot())).rejects.toThrow(/paused or scaled to zero workers/)
   })
 
   it('calls onStatus with elapsed seconds during polling', async () => {

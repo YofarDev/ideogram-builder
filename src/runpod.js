@@ -58,8 +58,7 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
     });
 
     if (!submitResp.ok) {
-        const err = await submitResp.text();
-        throw new Error(`Submit failed (${submitResp.status}): ${err}`);
+        throw new Error(await submitError(submitResp));
     }
 
     const { id: jobId } = await submitResp.json();
@@ -80,6 +79,35 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
     const blob = await fetch(dataUrl).then(r => r.blob());
     const imageUrl = URL.createObjectURL(blob);
     return { dataUrl, imageUrl };
+}
+
+// Translate RunPod submit failures into sentences that name the problem and
+// the recovery; the raw JSON envelope never reaches the user. Failed jobs keep
+// their Retry button in the queue panel, so "retry from the queue" is real.
+async function submitError(resp) {
+    const raw = await resp.text();
+    let detail = raw;
+    try {
+        const body = JSON.parse(raw);
+        detail = body.detail || body.message || body.title || raw;
+    } catch { /* plain-text body */ }
+    const status = resp.status;
+    if (status === 401 || status === 403) {
+        return 'RunPod rejected the API key. Check runpod.api_key in ~/.config/llm-credentials.json, then retry from the queue.';
+    }
+    if (status === 404) {
+        return 'RunPod endpoint not found. Check the endpoint ID in ~/.config/llm-credentials.json, then retry from the queue.';
+    }
+    if (status === 409 && /paused|scale|max_workers/i.test(detail)) {
+        return 'The RunPod endpoint is paused or scaled to zero workers. Resume it in the RunPod console, then retry from the queue.';
+    }
+    if (status === 429) {
+        return 'RunPod is rate-limiting this endpoint. Wait a moment, then retry from the queue.';
+    }
+    if (status >= 500) {
+        return `RunPod had a server error (${status}). ${detail} Wait a moment, then retry from the queue.`;
+    }
+    return `Submit failed (${status}): ${detail}`;
 }
 
 async function pollStatus(baseUrl, headers, jobId, onStatus, signal) {
