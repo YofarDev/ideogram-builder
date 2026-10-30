@@ -198,6 +198,46 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Kijai/MOSS-image_experimental/resolve/9869b2855d0921c10ecee0011c88f7b961a736a6/loras/moss_image_sft_lora_blocks_21_to_49_rank_512_bf16.safetensors',
     strengths: { positive: -0.5, unconditional: 0.0 },
   },
+  {
+    id: 'urasawa-moss-v1',
+    label: 'Naoki Urasawa (v1) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'urasawa-moss-v1-400',
+    label: 'Naoki Urasawa (v1, 400 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1_000000400.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1_000000400.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'urasawa-moss-v1-800',
+    label: 'Naoki Urasawa (v1, 800 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1_000000800.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1_000000800.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'urasawa-moss-v1-1200',
+    label: 'Naoki Urasawa (v1, 1200 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1_000001200.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1_000001200.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
+  {
+    id: 'urasawa-moss-v1-1600',
+    label: 'Naoki Urasawa (v1, 1600 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1_000001600.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1_000001600.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
 ];
 
 /** User-added entries: [{ id, label, filename, source_url, model, strengths }] */
