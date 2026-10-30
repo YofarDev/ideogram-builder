@@ -7,6 +7,16 @@ export const MODEL_IDEOGRAM = 'ideogram';
 export const MODEL_MOSS = 'moss';
 export const MOSS_DEFAULT_NEGATIVE = 'nsfw, worst quality, bad anatomy, watermark, jpeg artifact';
 
+// A canvas narrower than this can't hold a bounding box. Writers of
+// state.canvas.width/height (imports, gallery meta, MOSS drafts, session
+// restore) must validate through validCanvasSize — a poison 2px width once
+// saved collapses the whole workspace to its padding on every reload.
+export const CANVAS_MIN_EDGE = 16;
+
+export function validCanvasSize(width, height) {
+  return [width, height].every(value => Number.isFinite(value) && value >= CANVAS_MIN_EDGE);
+}
+
 export const state = {
   canvas: { width: 768, height: 1152, scale: 1, maxDisplayHeight: 800 },
   boxes: [],

@@ -2,7 +2,7 @@
 // gallery.js (LOC limit). Model switch happens FIRST so json-builder renders
 // the right format; seed:false keeps D4 field seeding quiet.
 
-import { state } from './state.js';
+import { state, validCanvasSize } from './state.js';
 import { emit } from './events.js';
 import { restoreLorasFromMeta } from './lora.js';
 import { capabilitiesPending, isAvailable, presetLabel } from './moss-presets.js';
@@ -50,7 +50,7 @@ export function restoreMeta(meta) {
         const ts = document.getElementById('turbo-strength');
         if (ts) ts.value = meta.turboStrength;
     }
-    if (meta.width && meta.height) {
+    if (validCanvasSize(meta.width, meta.height)) {
         state.canvas.width = meta.width;
         state.canvas.height = meta.height;
         const dd = document.getElementById('dim-display');

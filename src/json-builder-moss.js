@@ -1,7 +1,7 @@
 // json-builder-moss.js — MOSS half of the JSON pane: layout/caption output and
 // the MOSS/draft/caption apply paths. Split from json-builder.js (same feature).
 
-import { state, syncBoxesFromDOM } from './state.js';
+import { state, syncBoxesFromDOM, validCanvasSize } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
 import { buildMossLayout, parseMoss } from './prompt-moss.js';
@@ -57,7 +57,8 @@ export function applyMossText(raw) {
 
   // A draft carries its own canvas size — resize first so boxes land right
   // (same events png-import uses).
-  if (dims && (dims.width !== state.canvas.width || dims.height !== state.canvas.height)) {
+  if (dims && validCanvasSize(dims.width, dims.height)
+    && (dims.width !== state.canvas.width || dims.height !== state.canvas.height)) {
     state.canvas.width = dims.width;
     state.canvas.height = dims.height;
     document.getElementById('dim-display').textContent = `${dims.width} × ${dims.height}`;

@@ -1,6 +1,6 @@
 // png-import.js — PNG drag-drop metadata extraction
 
-import { state } from './state.js';
+import { state, validCanvasSize } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
 import { detectPromptFormat } from './prompt-convert.js';
@@ -45,8 +45,12 @@ export async function importImage(file) {
       ? file.arrayBuffer().then(extractComfyUIMetadata).catch(() => null) : Promise.resolve(null);
     const [loaded, dataUrl, found] = await Promise.all([decoded, readImageData(file), metadata]);
     if (sequence !== importSequence) return;
-    state.canvas.width = loaded.naturalWidth || loaded.width;
-    state.canvas.height = loaded.naturalHeight || loaded.height;
+    if (!validCanvasSize(loaded.naturalWidth || loaded.width, loaded.naturalHeight || loaded.height)) {
+      showToast('That image is too small to use as a canvas — it loaded as a reference only.');
+    } else {
+      state.canvas.width = loaded.naturalWidth || loaded.width;
+      state.canvas.height = loaded.naturalHeight || loaded.height;
+    }
     document.getElementById('dim-display').textContent = `${state.canvas.width} × ${state.canvas.height}`;
     const aspect = document.getElementById('aspect-ratio');
     const value = `${state.canvas.width}x${state.canvas.height}`;

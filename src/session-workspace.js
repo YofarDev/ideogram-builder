@@ -1,5 +1,5 @@
 // Editing details belong to the session, separate from the generation prompt.
-import { state } from './state.js';
+import { state, validCanvasSize } from './state.js';
 import { emit } from './events.js';
 import { localImageUrl } from './reference-image.js';
 
@@ -19,7 +19,7 @@ const strings = value => Array.isArray(value) ? value.filter(item => typeof item
 
 export function restoreWorkspace(workspace) {
   if (!workspace || !Array.isArray(workspace.boxes)
-    || ![workspace.width, workspace.height].every(value => Number.isFinite(value) && value > 0)) return false;
+    || !validCanvasSize(workspace.width, workspace.height)) return false;
   const boxes = workspace.boxes.filter(box => box && ['x', 'y', 'w', 'h'].every(key => Number.isFinite(box[key])));
   // Reject a partial snapshot so the prompt's intact boxes remain available.
   if (boxes.length !== workspace.boxes.length) return false;
