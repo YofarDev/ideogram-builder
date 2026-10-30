@@ -8,7 +8,7 @@ export function renderDetail(item, p, els) {
       <div class="coll-detail coll-edit" id="coll-detail-${item.id}">
         <div class="coll-edit-main">
           <label class="coll-detail-subhead" for="coll-edit-${item.id}">Edit prompt</label>
-          <p class="coll-edit-hint" id="coll-edit-help-${item.id}">Cmd/Ctrl+Enter saves · Escape cancels. Generation uses the saved prompt.</p>
+          <p class="coll-edit-hint" id="coll-edit-help-${item.id}">Cmd/Ctrl+Enter saves, Escape cancels. Generation uses the saved prompt.</p>
           <textarea class="coll-edit-textarea" id="coll-edit-${item.id}" spellcheck="false" data-edit="${item.id}" aria-describedby="coll-edit-help-${item.id}" aria-errormessage="coll-edit-error-${item.id}" aria-keyshortcuts="Control+Enter Meta+Enter">${escapeHtml(draftFor(item))}</textarea>
           <p class="coll-edit-status" role="status">${hasDraft(item) ? 'Unsaved changes' : 'Matches saved prompt'}</p>
           <p class="coll-edit-error" id="coll-edit-error-${item.id}" role="alert" hidden></p>

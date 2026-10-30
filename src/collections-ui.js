@@ -75,7 +75,7 @@ function renderChips() {
   if (!wrap) return;
   wrap.innerHTML = collections.map(c =>
     `<button type="button" id="collection-chip-${c.id}" class="coll-chip${c.id === activeId ? ' active' : ''}" data-chip="${c.id}" role="tab" aria-controls="collection-panel" aria-selected="${c.id === activeId}" tabindex="${c.id === activeId ? 0 : -1}">${escapeHtml(c.name)}<span class="coll-chip-count">${c.items.length}</span></button>`
-  ).join('') + `<button class="coll-chip coll-chip-new" id="coll-chip-new" title="New collection" aria-label="New collection">+</button>`;
+  ).join('') + `<button class="coll-chip coll-chip-new" id="coll-chip-new">+ New collection</button>`;
   const panel = document.getElementById('collection-panel');
   if (panel) {
     if (activeId) panel.setAttribute('aria-labelledby', `collection-chip-${activeId}`);

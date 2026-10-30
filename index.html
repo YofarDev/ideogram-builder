@@ -112,7 +112,7 @@
 
         .toolbar-brand em {
             font-style: italic;
-            color: var(--text-muted);
+            color: var(--text-label);
         }
 
         .toolbar-section {
@@ -175,13 +175,14 @@
             font-family: var(--font-body);
             font-size: 12px;
             font-weight: 500;
-            color: var(--text-muted);
+            color: var(--text-label);
             background: var(--surface-2);
             padding: 4px 10px;
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             letter-spacing: 0.02em;
             white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .size-toggle {
@@ -326,11 +327,6 @@
             outline-offset: -2px;
         }
 
-        .pill-label:focus-visible {
-            outline: 2px solid var(--accent);
-            outline-offset: -2px;
-        }
-
         /* Main layout — three columns: settings | canvas | json */
         .main-content {
             display: flex;
@@ -407,8 +403,10 @@
         }
 
         #canvas-wrapper {
-            background-image: radial-gradient(circle, var(--accent-dim) 1px, transparent 1px);
-            background-size: 24px 24px;
+            /* Dots live inside the transform-scaled wrapper; dividing by
+               --canvas-scale keeps a constant 1.5px dot on screen at every fit */
+            background-image: radial-gradient(circle, var(--accent-dim) calc(0.75px / var(--canvas-scale, 1)), transparent calc(0.75px / var(--canvas-scale, 1)));
+            background-size: calc(24px / var(--canvas-scale, 1)) calc(24px / var(--canvas-scale, 1));
             background-color: var(--bg);
             position: relative;
             transform-origin: top left;
@@ -791,7 +789,7 @@
         /* Model chip on gallery cards (Ideogram / MOSS) */
         .gallery-card-model {
             display: inline-block;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.06em;
@@ -935,8 +933,7 @@
         .coll-chip-new {
             color: var(--accent);
             border-style: dashed;
-            font-size: 14px;
-            line-height: 1;
+            flex-shrink: 0;
         }
 
         .coll-head-actions { display: flex; gap: 4px; flex: 0 0 auto; }
@@ -1179,7 +1176,7 @@
             text-transform: capitalize;
         }
         .coll-detail-v { color: var(--text-muted); min-width: 0; }
-        .coll-detail-empty { color: var(--text-faint); font-style: italic; font-size: 11.5px; padding: 4px 0; }
+        .coll-detail-empty { color: var(--text-dim); font-style: italic; font-size: 11.5px; padding: 4px 0; }
 
         .coll-detail-main { min-width: 0; }
         .coll-detail-subhead {
@@ -1603,7 +1600,7 @@
             color: var(--text-muted);
             padding: 6px 2px 0;
         }
-        .lora-section-count { color: var(--text-faint); font-weight: 500; }
+        .lora-section-count { color: var(--text-dim); font-weight: 500; }
 
         .lora-card-list {
             display: flex;
@@ -2049,6 +2046,13 @@
             background: var(--accent-dim);
         }
 
+        /* Keyboard focus ring on the visible label — the radio itself is sr-only,
+           so :focus-visible must come from the input */
+        .pill-group input[type="radio"]:focus-visible + .pill-label {
+            outline: 2px solid var(--accent);
+            outline-offset: -2px;
+        }
+
         /* Model switch (Ideogram 4 / MOSS-Image) — MOSS accent is a green tint so
            the active model can't be missed; gold accent stays everywhere else. */
         body[data-model="moss"] .ideogram-only,
@@ -2070,6 +2074,9 @@
 
         body[data-moss-prompt="caption"] #canvas-wrapper .bounding-box { opacity: 0.35; }
 
+        /* Caption mode shows its own banner — the draw hint would stack on it */
+        body[data-moss-prompt="caption"] #canvas-wrapper.empty-state::after { display: none; }
+
         #caption-mode-banner {
             position: absolute;
             top: 10px;
@@ -2079,6 +2086,9 @@
             padding: 6px 14px;
             font-size: 12px;
             font-weight: 500;
+            /* .canvas-container sets line-height:0 to kill inline gaps — the
+               banner is real text and must opt back in or its lines collapse */
+            line-height: 1.4;
             color: var(--text);
             background: var(--surface-2);
             border: 1px solid var(--border-strong);
@@ -2096,7 +2106,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            color: var(--text-muted);
+            color: var(--text-label);
             background: var(--surface-2);
             border: 1px solid var(--hairline-strong);
             border-radius: 999px;
@@ -2131,7 +2141,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: var(--text-muted);
+            color: var(--text-label);
             margin-bottom: 10px;
             padding: 0;
         }
@@ -2283,6 +2293,9 @@
 
         /* Collapsed JSON section shrinks to just its header */
         .json-section.collapsed { flex: 0 0 auto; }
+        /* Expanded JSON stays usable even when Layers/Box Properties above are tall;
+           .right-sidebar scrolls, so the minimum never clips siblings */
+        .json-section:not(.collapsed) { min-height: 200px; }
         .json-header .card-toggle { font-size: 13px; }
 
         /* Layers Panel */
@@ -2304,7 +2317,7 @@
         .layer-count {
             font-size: 11px;
             font-weight: 500;
-            color: var(--text-dim);
+            color: var(--text-label);
             background: var(--surface-2);
             padding: 1px 8px;
             border-radius: 10px;
@@ -2571,12 +2584,11 @@
         }
 
         .vision-toolbar-label {
-            font-family: var(--font-body);
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 500;
             text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
+            letter-spacing: 0.06em;
+            color: var(--text-label);
             white-space: nowrap;
         }
 
@@ -2896,6 +2908,9 @@
         }
 
         .prompt-toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
             padding: 14px 20px;
             border-bottom: 1px solid var(--hairline);
             background: var(--surface);
@@ -2908,9 +2923,11 @@
         }
 
         .prompt-label {
-            font-family: var(--font-display);
-            font-size: 14px;
-            color: var(--text);
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-label);
             white-space: nowrap;
         }
 
@@ -2922,38 +2939,16 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 0 40px;
             margin-bottom: 0;
         }
 
         .prompt-ar-row label {
-            font-family: var(--font-display);
-            font-size: 13px;
-            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-label);
             white-space: nowrap;
-        }
-
-        .prompt-ar-row select {
-            font-family: var(--font-body);
-            font-size: 12px;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            padding: 4px 24px 4px 8px;
-            outline: none;
-            cursor: pointer;
-            appearance: none;
-            -webkit-appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5' viewBox='0 0 9 5'%3E%3Cpath d='M1 1l3.5 3L8 1' stroke='%238a7f73' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 7px center;
-            min-width: 160px;
-            transition: border-color 0.2s;
-        }
-
-        .prompt-ar-row select:focus {
-            border-color: var(--accent);
         }
 
         .prompt-body {
@@ -3021,7 +3016,7 @@
 
         .prompt-hints span {
             font-size: 11px;
-            color: var(--text-faint);
+            color: var(--text-dim);
             font-style: italic;
             letter-spacing: 0.01em;
         }
@@ -3073,6 +3068,8 @@
             .toolbar-section {
                 flex-wrap: wrap;
             }
+            /* Narrow screens need the cluster shrinkable again (320px fits) */
+            .canvas-controls .ar-group { flex-shrink: 1; }
         }
 
         @media (max-width: 600px) {
@@ -3160,7 +3157,7 @@
         }
         .queue-panel[hidden] { display: none; }
         .queue-panel:empty::before {
-            content: 'Queue is empty';
+            content: 'Nothing queued yet. Generate adds a job here.';
             color: var(--text-dim);
             font-size: 14px;
             padding: 14px 8px;
@@ -3308,7 +3305,7 @@
         .audit-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .audit-dismiss {
             width: 26px; height: 26px; padding: 0; border-radius: var(--radius-sm);
-            background: transparent; border: 1px solid transparent; color: var(--text-faint);
+            background: transparent; border: 1px solid transparent; color: var(--text-muted);
             font-size: 18px; line-height: 1; cursor: pointer;
             transition: color 0.15s, background 0.15s, border-color 0.15s;
         }
@@ -3364,7 +3361,7 @@
             border-color: var(--accent);
             box-shadow: 0 0 0 2px var(--accent-dim);
         }
-        .vision-json-input::placeholder { color: var(--text-faint); font-style: italic; }
+        .vision-json-input::placeholder { color: var(--text-dim); font-style: italic; }
 
         /* Layout polish: the top bar holds the workspace (tabs, model, backend);
            engine/speed pills live next to Generate. Nothing may clip at 1280px+. */
@@ -3388,7 +3385,12 @@
         }
         .gen-actions { display: flex; gap: 10px; flex-shrink: 0; margin-left: auto; }
         .gen-controls .lora-trigger { margin-left: auto; }
+        /* Generation clusters never break internally — wraps land between them */
+        .gen-controls .ar-group { flex-shrink: 0; }
+        /* Clusters never shrink on wide screens — wraps land between clusters
+           and the tier pills can't be clipped mid-group (shrink returns ≤900px). */
         #aspect-ratio { min-width: 0; }
+        .canvas-controls .ar-group { flex-shrink: 0; }
         .json-header .json-action-btn { padding: 6px 6px; }
 
         .style-mode-toggle { margin-bottom: 12px; }
@@ -3707,18 +3709,18 @@
                                 <label for="ai_moss_caption" class="pill-label">Caption</label>
                             </div>
                         </div>
-                    </div>
-                    <div class="prompt-ar-row">
-                        <label for="ai-aspect-ratio">Aspect Ratio</label>
-                        <select id="ai-aspect-ratio">
-                            <option value="1024x1024">1:1, Square</option>
-                            <option value="1152x864" selected>4:3, Classic</option>
-                            <option value="864x1152">3:4, Portrait</option>
-                            <option value="1280x720">16:9, Widescreen</option>
-                            <option value="720x1280">9:16, Tall</option>
-                            <option value="1152x768">3:2, Photo</option>
-                            <option value="768x1152">2:3, Photo Portrait</option>
-                        </select>
+                        <div class="prompt-ar-row">
+                            <label for="ai-aspect-ratio">Aspect Ratio</label>
+                            <select id="ai-aspect-ratio" class="ai-model-select">
+                                <option value="1024x1024">1:1, Square</option>
+                                <option value="1152x864" selected>4:3, Classic</option>
+                                <option value="864x1152">3:4, Portrait</option>
+                                <option value="1280x720">16:9, Widescreen</option>
+                                <option value="720x1280">9:16, Tall</option>
+                                <option value="1152x768">3:2, Photo</option>
+                                <option value="768x1152">2:3, Photo Portrait</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="prompt-body">
                         <div class="prompt-input-section">
@@ -3895,7 +3897,7 @@
                             </div>
                             <div class="vision-actions" id="vision-actions">
                                 <button id="btn-vision-process" class="btn btn-primary" disabled>Process Image</button>
-                                <input id="vision-instruction" type="text" class="vision-instruction-input" placeholder="e.g. find missing people · look for background text" style="display:none;">
+                                <input id="vision-instruction" type="text" class="vision-instruction-input" placeholder="e.g. find missing people, read background text" style="display:none;">
                                 <button id="btn-vision-find-more" class="btn" type="button" style="display:none;">Find missing</button>
                                 <span id="vision-status" class="vision-status" role="status" aria-live="polite"></span>
                             </div>
@@ -3924,7 +3926,7 @@
                     <button id="btn-add-layer" type="button" class="icon-btn" style="margin-left:auto;padding:4px 10px;" aria-label="Add new layer" title="Add new layer">+</button>
                 </div>
                 <div id="layers-list" class="layers-list" role="list" aria-label="Layers" aria-describedby="layers-help"></div>
-                <p class="layers-help" id="layers-help">↑↓ select · Alt+↑↓ reorder</p>
+                <p class="layers-help" id="layers-help">↑↓ to select, Alt+↑↓ to reorder</p>
             </div>
 
             <div class="panel collapsible" id="box-panel" style="display: none;">
@@ -3983,7 +3985,7 @@
                 <div class="json-header">
                     <button type="button" class="card-toggle" aria-expanded="false">
                         <span class="card-chevron" aria-hidden="true">&#9656;</span>
-                        Prompt
+                        Prompt JSON
                     </button>
                     <span id="json-format-chip" class="json-format-chip" aria-live="polite">Ideogram JSON</span>
                     <div class="json-header-actions">

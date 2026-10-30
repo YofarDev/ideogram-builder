@@ -51,6 +51,10 @@ Backwards-compatible aliases: `--border = --hairline`, `--border-strong = --hair
 - No gradient text, no side-stripe accents, no decorative glassmorphism.
 - Shadows are tinted toward bg, never neutral black.
 
+### Narrow exception: model-state green
+
+The active MOSS pill in the top-bar model switch fills `oklch(72% 0.09 145)` (green) with `oklch(20% 0.05 145)` text — a state signal so the active image model can't be missed, not a second accent. It appears nowhere else; every other emphasis stays gold.
+
 ## Typography
 
 - **Display:** DM Serif Display (italic available for the wordmark). Used for panel titles, tab labels, modal headings. Weight 400 only.
@@ -58,6 +62,8 @@ Backwards-compatible aliases: `--border = --hairline`, `--border-strong = --hair
 - **Mono:** DM Mono. 11.5px for JSON output. Weight 400.
 
 Hierarchy is carried by family swap (display vs body) and weight contrast (400 vs 500/600), not by scale alone.
+
+- **Toolbar control labels** (Seed, Str, AI Model, Aspect Ratio, Vision Model, Pipeline, Bbox): 11px, weight 500, uppercase, `letter-spacing: 0.06em`, `--text-label`. One treatment everywhere; never serif, never mixed sizes.
 
 ## Spacing
 

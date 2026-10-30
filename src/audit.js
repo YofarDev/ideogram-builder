@@ -143,7 +143,7 @@ function _cardSubject(s) {
   if (s.type === 'add_element') return s.element?.name || 'element'
   if (s.type === 'update_element') {
     const keys = s.patch ? Object.keys(s.patch).join(', ') : ''
-    return `Element #${s.index}${keys ? ' · ' + keys : ''}`
+    return `Element #${s.index}${keys ? ` (${keys})` : ''}`
   }
   if (s.type === 'update_field') return s.field
   return ''
