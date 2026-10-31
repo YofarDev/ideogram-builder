@@ -130,6 +130,14 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Yofardev/kiki_ghibli_style_moss/resolve/main/kiki_ghibli_style_moss.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
+  {
+    id: 'kiki-ghibli-style-moss-epoch20',
+    label: 'Kiki Ghibli Style — MOSS (epoch 20)',
+    model: 'moss',
+    filename: 'user/moss/kiki_ghibli_style_moss_epoch20.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/kiki_ghibli_style_moss_epoch20/resolve/main/kiki_ghibli_style_moss_epoch20.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
   // SFT vertical-banding fixes (guide §10). Opt-in per request, SFT only.
   // top64: strength 1 around ≤768², up to 1.5 at ~1024² (author guidance).
   {
