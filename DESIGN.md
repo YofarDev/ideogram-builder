@@ -104,7 +104,7 @@ Radio-backed toggle. Active label takes gold fill + `--on-accent` text. Group ha
 
 ### Toolbars
 - **Top bar = workspace**: brand, tabs (Editor · Assist · Collections · Gallery; single line, `white-space: nowrap`), output-folder icon, model switch, backend. Nothing generation-specific. **Assist** groups the three AI tools (Text → JSON, Image → JSON, JSON → Caption) behind `.assist-subtabs`; the top button remembers the last sub-tab.
-- **Editor toolbar = canvas + generation**, two `.toolbar-row`s: `.canvas-controls` (aspect, tier, dims, preview, then `.gen-actions` = Generate + Queue right-aligned) and `.gen-controls` (seed, engine pills, turbo strength, speed/MOSS preset, LoRA button right-aligned). Rows wrap (`flex-wrap`); Generate + Queue always wrap together, so they are never clipped.
+- **Editor toolbar = canvas + generation**, two `.toolbar-row`s: `.canvas-controls` (aspect, tier, preview, then `.gen-actions` = Generate + Queue right-aligned) and `.gen-controls` (seed, engine pills, turbo strength, speed/MOSS preset, LoRA button right-aligned). Rows wrap (`flex-wrap`); Generate + Queue always wrap together, so they are never clipped. Generate's label never changes (no mid-run reflow); the Queue badge carries the pending count. Cmd/Ctrl+Enter = Generate anywhere in the Editor except the JSON pane, where it means Apply.
 - **Popovers** (`.queue-panel`, `.lora-panel`) hang off the editor toolbar's bottom-right, close on outside click / Escape, never more than one open.
 - Pill groups never shrink (`flex-shrink: 0`). Verify at 1280px wide: nothing may clip.
 
@@ -113,7 +113,7 @@ Radio-backed toggle. Active label takes gold fill + `--on-accent` text. Group ha
 
 ### Sidebars
 - **Left = Prompt** (what to depict): Ideogram → Scene (description, background), Style (preset, photo/art, medium, style, aesthetics, lighting); MOSS → Scene (format, caption, meta, canvas, negative). Palette last. No generation parameters here.
-- **Right = Layers, Box Properties, Prompt JSON.**
+- **Right = Layers, Box Properties, Prompt JSON.** Layers + Box Properties scroll together in `.right-stack`; Prompt JSON docks below it, open by default, never shorter than 260px, so the output is always in view. Its header holds icon actions (Convert, Add to collection = bookmark-plus, Paste); its footer holds the format chip and the labeled Apply / Copy. An unapplied draft turns Apply and the chip gold. Collapsed cards persist in `localStorage.ideogram_collapsed_cards`.
 
 ### LoRA popover
 Active stack on top (click order = stack order; strength slider per entry), searchable library below (current model only; Enter picks the first match; user entries delete on hover). Toolbar button badges the active count; its tooltip lists active names. Built to scale to a long library: only the library scrolls.
@@ -122,7 +122,10 @@ Active stack on top (click order = stack order; strength slider per entry), sear
 1.5px hairline-hover border in default state, dimmed when another box is selected. Selected box gets 2px dashed accent border + glow. Handles: 8px corner indicators (non-interactive), 10px round resize handle with extended `::before` hit area for touch.
 
 ### Canvas
-Grid-dotted background (`radial-gradient` of `--accent-dim`) when empty; flat `--bg` when populated. CSS `transform: scale()` fits to viewport. `touch-action: none`, `user-select: none`.
+Grid-dotted background (`radial-gradient` of `--accent-dim`) when empty; flat `--bg` when populated. CSS `transform: scale()` fits to viewport. `touch-action: none`, `user-select: none`. Output size (`#dim-display`) is marked on the frame's 28px bottom strip in DM Mono, like a film rebate. The wrapper takes programmatic focus only, so it shows no focus ring.
+
+### Gallery cards
+Square thumbnail (click = load into editor), two-line prompt, then one footer line: model chip + short date (today → time, this year → "30 Oct", older adds year; full stamp in the tooltip) left, icon actions right (Add to collection = bookmark-plus, Download, Delete with confirm). Actions sit at `--text-dim` and lift to `--text-label` on card hover/focus.
 
 ### Toasts
 Bottom-right stack. 13px body, `--shadow-strong`, hairline-strong border. Three modifiers: default, `.toast-error`, `.toast-success`.

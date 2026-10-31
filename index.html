@@ -10,6 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
     <style>
         :root {
+            /* Native controls (checkboxes, number spinners, select popups) render dark */
+            color-scheme: dark;
+            accent-color: var(--accent);
             /* Neutrals — warm darkroom undertones (OKLCH, tinted toward accent hue) */
             --bg: oklch(14.5% 0.008 75);            /* deep warm black */
             --surface: oklch(21.5% 0.008 65);       /* panel base */
@@ -171,18 +174,20 @@
             color: var(--text-muted);
         }
 
+        /* Output size, marked on the canvas frame's bottom edge like a film
+           rebate — it describes the canvas, so it lives on it */
         .dim-display {
-            font-family: var(--font-body);
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-label);
-            background: var(--surface-2);
-            padding: 4px 10px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border);
-            letter-spacing: 0.02em;
+            position: absolute;
+            right: 16px;
+            bottom: 6px;
+            font-family: var(--font-mono);
+            font-size: 10.5px;
+            line-height: 16px;
+            color: var(--text-dim);
+            letter-spacing: 0.06em;
+            font-variant-numeric: tabular-nums;
             white-space: nowrap;
-            flex-shrink: 0;
+            pointer-events: none;
         }
 
         .size-toggle {
@@ -354,6 +359,8 @@
             overflow: hidden;
         }
 
+        /* Layers + Box Properties scroll in .right-stack; Prompt JSON docks
+           below it so the output never leaves the viewport */
         .right-sidebar {
             width: 320px;
             flex-shrink: 0;
@@ -361,8 +368,19 @@
             flex-direction: column;
             gap: 12px;
             min-height: 0;
+            overflow: hidden;
+        }
+
+        .right-stack {
+            flex: 0 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             overflow-y: auto;
         }
+
+        .right-stack > .panel { flex-shrink: 0; }
 
         /* Editor tab fills the center column as a flex column */
         #tab-editor {
@@ -394,7 +412,8 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 16px;
+            /* Bottom strip holds the .dim-display caption (canvas-core padY = 16 + 28) */
+            padding: 16px 16px 28px;
             overflow: hidden;
             line-height: 0;
             margin: auto;
@@ -418,6 +437,10 @@
         #canvas-wrapper.has-boxes {
             background-image: none;
         }
+
+        /* Focus lands here programmatically (Escape handling) and the canvas is
+           never a Tab stop, so the browser's blue ring is pure noise */
+        #canvas-wrapper:focus { outline: none; }
 
         #canvas-wrapper.empty-state {
             display: flex;
@@ -755,7 +778,14 @@
         .gallery-status.has-error { color: var(--text); }
         .gallery-more { display: block; margin: 20px auto; }
         .gallery-more[hidden] { display: none; }
-        .gallery-card-meta { gap: 8px; justify-content: space-between; }
+        /* One footer line: model chip + date left, actions right */
+        .gallery-card-meta {
+            gap: 8px;
+            flex-wrap: nowrap;
+            border-top: 1px solid var(--hairline);
+            padding-top: 4px;
+            min-height: 33px;
+        }
         .workspace-tabs { display: flex; align-items: center; flex-wrap: wrap; }
 
         .gallery-card.vision-sourced {
@@ -775,15 +805,19 @@
         }
 
         .gallery-card-info {
-            padding: 12px;
+            padding: 10px 8px 4px 12px;
             display: flex;
             flex-direction: column;
-            gap: 3px;
         }
 
         .gallery-card-date {
             font-size: 11px;
             color: var(--text-label);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
         }
 
         /* Model chip on gallery cards (Ideogram / MOSS) */
@@ -805,7 +839,7 @@
             color: var(--text);
             line-height: 1.5;
             min-height: 3em;
-            margin: 6px 0;
+            margin: 0 4px 8px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -823,12 +857,9 @@
         .gallery-card-actions {
             display: flex;
             align-items: center;
-            gap: 4px;
-            border-top: 1px solid var(--hairline);
-            padding-top: 8px;
+            margin-left: auto;
+            flex-shrink: 0;
         }
-
-        .gallery-card-actions .delete { margin-left: auto; }
         .gallery-card-btn svg { display: block; }
 
         .gallery-card-badge {
@@ -850,15 +881,19 @@
         .gallery-card-btn {
             background: none;
             border: none;
-            color: var(--text-label);
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
             cursor: pointer;
             font-size: 13px;
-            padding: 8px;
-            min-height: 32px;
-            min-width: 32px;
+            padding: 6px;
+            min-height: 28px;
+            min-width: 28px;
             line-height: 1;
-            transition: color 0.15s;
+            transition: color 0.15s, background 0.15s;
         }
+        .gallery-card:is(:hover, :focus-within) .gallery-card-btn { color: var(--text-label); }
+        .gallery-card-btn:hover { background: var(--accent-faint); }
+        .gallery-card-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
         .gallery-card-btn.download:hover {
             color: var(--accent);
@@ -2293,9 +2328,9 @@
 
         /* Collapsed JSON section shrinks to just its header */
         .json-section.collapsed { flex: 0 0 auto; }
-        /* Expanded JSON stays usable even when Layers/Box Properties above are tall;
-           .right-sidebar scrolls, so the minimum never clips siblings */
-        .json-section:not(.collapsed) { min-height: 200px; }
+        /* Expanded JSON fills whatever .right-stack leaves and never drops below
+           260px — the stack above scrolls instead */
+        .json-section:not(.collapsed) { flex: 1 0 260px; }
         .json-header .card-toggle { font-size: 13px; }
 
         /* Layers Panel */
@@ -3051,10 +3086,11 @@
                 flex-direction: column;
                 overflow: visible;
             }
-            .left-sidebar, .right-sidebar {
+            .left-sidebar, .right-sidebar, .right-stack {
                 width: 100%;
-                overflow-y: visible;
+                overflow: visible;
             }
+            .json-section:not(.collapsed) { flex: none; height: 320px; }
             .center-col {
                 overflow: visible;
             }
@@ -3421,6 +3457,27 @@
             font-weight: 500;
             font-size: 11px;
             padding: 2px 8px;
+            flex: 0 1 auto;
+            margin-right: auto;
+        }
+
+        /* Prompt JSON footer: format chip left, labeled actions right */
+        .json-footer {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px 10px 16px;
+            border-top: 1px solid var(--hairline);
+        }
+        .json-footer-btn { padding: 5px 12px; min-width: 64px; }
+        /* An unapplied draft promotes Apply to the accent */
+        .json-section.has-draft #btn-load-json {
+            color: var(--accent);
+            border-color: var(--hairline-hover);
+        }
+        .json-section.has-draft .json-format-chip {
+            color: var(--accent);
+            border-color: var(--hairline-hover);
         }
 
     </style>
@@ -3581,7 +3638,6 @@
                             <button class="size-btn ideogram-only" data-size="4" aria-pressed="false">4M</button>
                         </div>
                     </div>
-                        <span class="dim-display" id="dim-display" aria-live="polite">768 × 1152</span>
                     <div class="ar-group" id="opacity-group" style="display:none;">
                         <label for="overlay-opacity">Overlay</label>
                         <input type="range" id="overlay-opacity" min="0" max="100" value="40" style="width:70px;" aria-valuetext="40 percent">
@@ -3590,7 +3646,7 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     </button>
                     <div class="gen-actions">
-                        <button id="btn-generate-image" class="btn btn-primary gen-only" type="button">Generate</button>
+                        <button id="btn-generate-image" class="btn btn-primary gen-only" type="button" aria-keyshortcuts="Meta+Enter Control+Enter" title="Generate (Cmd/Ctrl+Enter)">Generate</button>
                         <button id="btn-queue" type="button" class="btn btn-secondary gen-only" aria-expanded="false" aria-haspopup="true" aria-controls="queue-panel" title="Generation queue">
                             Queue<span class="queue-badge" id="queue-badge" hidden aria-hidden="true">0</span>
                         </button>
@@ -3611,7 +3667,7 @@
                             <label for="workflow-classic" class="pill-label">Classic</label>
                         </div>
                         <div class="ar-group turbo-strength-group ideogram-only" id="turbo-strength-group">
-                            <label for="turbo-strength" title="Turbo distillation strength">Str</label>
+                            <label for="turbo-strength" title="Turbo distillation strength">Strength</label>
                             <input type="number" id="turbo-strength" min="0" max="2" step="0.05" value="0.8">
                         </div>
                         <div class="steps-toggle pill-group ideogram-only" id="steps-toggle" role="radiogroup" aria-label="Speed">
@@ -3682,6 +3738,7 @@
                 <div class="canvas-container">
                     <div id="canvas-wrapper" role="img" tabindex="-1" aria-label="Bounding box editor canvas. Drag to draw; Escape cancels. Edit boxes in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
                     <div id="caption-mode-banner" class="moss-only">Caption mode — boxes are ignored</div>
+                    <span class="dim-display" id="dim-display" aria-live="polite" title="Output size in pixels">768 × 1152</span>
                 </div>
             </div>
 
@@ -3916,6 +3973,7 @@
 
         <!-- RIGHT: Layers + Box Properties + Prompt JSON -->
         <div class="right-sidebar">
+            <div class="right-stack">
             <div class="panel collapsible" id="layers-panel">
                 <div class="panel-header">
                     <button type="button" class="card-toggle" aria-expanded="true">
@@ -3968,7 +4026,8 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <div id="box-colors" class="color-list"></div>
+                        <label id="box-colors-label">Colors</label>
+                        <div id="box-colors" class="color-list" role="group" aria-labelledby="box-colors-label"></div>
                     </div>
                     <div class="input-group" id="recaption-group">
                         <label for="recaption-instructions">Recaption Element (VLM)</label>
@@ -3980,29 +4039,23 @@
                     </div>
                 </div>
             </div>
+            </div>
 
-            <div class="json-section collapsible collapsed" id="json-section">
+            <div class="json-section collapsible" id="json-section">
                 <div class="json-header">
-                    <button type="button" class="card-toggle" aria-expanded="false">
+                    <button type="button" class="card-toggle" aria-expanded="true">
                         <span class="card-chevron" aria-hidden="true">&#9656;</span>
                         Prompt JSON
                     </button>
-                    <span id="json-format-chip" class="json-format-chip" aria-live="polite">Ideogram JSON</span>
                     <div class="json-header-actions">
-                        <button id="btn-convert-json" class="json-action-btn" aria-label="Convert to MOSS layout" title="Convert to MOSS layout">
+                        <button id="btn-convert-json" type="button" class="json-action-btn" aria-label="Convert to MOSS layout" title="Convert to MOSS layout">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                         </button>
-                        <button id="btn-add-to-collection" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                        <button id="btn-add-to-collection" type="button" class="json-action-btn" aria-label="Add current prompt to collection" title="Add to collection">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/><line x1="12" y1="7" x2="12" y2="13"/><line x1="9" y1="10" x2="15" y2="10"/></svg>
                         </button>
-                        <button id="btn-load-json" class="json-action-btn" aria-label="Apply JSON to editor" title="Apply JSON to editor">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        </button>
-                        <button id="btn-paste-json" class="json-action-btn" aria-label="Paste and apply JSON from clipboard" title="Paste & apply">
+                        <button id="btn-paste-json" type="button" class="json-action-btn" aria-label="Paste and apply JSON from clipboard" title="Paste &amp; apply">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
-                        </button>
-                        <button id="btn-copy-json" class="json-action-btn" aria-label="Copy JSON to clipboard" title="Copy JSON">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                         </button>
                     </div>
                 </div>
@@ -4011,6 +4064,11 @@
                 <div class="prompt-draft-notice" id="prompt-draft-notice" hidden>
                     <p role="status">Draft not applied to the editor.<br>Cmd/Ctrl+Enter applies.</p>
                     <button class="btn btn-secondary" id="btn-use-editor-prompt" type="button">Use editor prompt</button>
+                </div>
+                <div class="json-footer">
+                    <span id="json-format-chip" class="json-format-chip" aria-live="polite">Ideogram JSON</span>
+                    <button id="btn-load-json" type="button" class="btn btn-secondary json-footer-btn" aria-keyshortcuts="Meta+Enter Control+Enter" title="Apply JSON to editor (Cmd/Ctrl+Enter)">Apply</button>
+                    <button id="btn-copy-json" type="button" class="btn btn-secondary json-footer-btn" title="Copy JSON to clipboard">Copy</button>
                 </div>
             </div>
         </div>

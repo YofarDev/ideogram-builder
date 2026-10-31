@@ -74,10 +74,10 @@ function updateCard(row, job) {
 
 export function renderQueue(queue) {
     const panel = document.getElementById('queue-panel');
-    const generate = document.getElementById('btn-generate-image');
-    if (!panel || !generate) return;
+    if (!panel) return;
     const pending = queue.filter(job => ['queued', 'running', 'blocked'].includes(job.status)).length;
-    generate.textContent = pending ? `Generate (+${pending} pending)` : 'Generate';
+    // Generate keeps a fixed label (no toolbar reflow mid-run); the Queue badge carries the count
+    document.getElementById('btn-queue')?.setAttribute('aria-label', pending ? `Queue, ${pending} pending` : 'Queue');
     const badge = document.getElementById('queue-badge');
     if (badge) { badge.textContent = pending; badge.hidden = !pending; }
     panel.setAttribute('aria-label', queue.length ? 'Generation queue' : 'Generation queue is empty');

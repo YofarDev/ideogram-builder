@@ -15,6 +15,7 @@ function update() {
   const { record } = value;
   const notice = document.getElementById('prompt-draft-notice');
   if (notice) notice.hidden = !record.draft;
+  document.getElementById('json-section')?.classList.toggle('has-draft', record.draft);
   const chip = document.getElementById('json-format-chip');
   if (chip) {
     const label = record.draft ? 'Draft · not applied' : record.label;

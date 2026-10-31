@@ -13,6 +13,16 @@ export function describeItem(item) {
 
 const icon = path => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
 
+// Today → "20:03"; this year → "30 Oct"; older → "30 Oct 2025". Full stamp in the tooltip.
+function shortDate(date, now = new Date()) {
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  const options = { month: 'short', day: 'numeric' };
+  if (date.getFullYear() !== now.getFullYear()) options.year = 'numeric';
+  return date.toLocaleDateString(undefined, options);
+}
+
 export function buildGalleryCard(item, { load, remove }) {
   const { description, model, vision } = describeItem(item);
   const imageUrl = `/output/${encodeURIComponent(item.img)}`;
@@ -24,15 +34,15 @@ export function buildGalleryCard(item, { load, remove }) {
       <img src="/api/thumbnail?name=${encodeURIComponent(item.img)}&amp;v=${item.mtime}" alt="" loading="lazy" decoding="async" width="320" height="320">
     </button>
     <div class="gallery-card-info">
+      <div class="gallery-card-prompt">${escapeHtml(description)}</div>
       <div class="gallery-card-meta">
         <span class="gallery-card-model">${model === 'moss' ? 'MOSS' : 'Ideogram'}</span>
-        <time class="gallery-card-date" datetime="${date.toISOString()}">${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time>
-      </div>
-      <div class="gallery-card-prompt">${escapeHtml(description)}</div>
-      <div class="gallery-card-actions">
-        <button class="gallery-card-btn add-collection" type="button" title="Add prompt to collection" aria-label="Add prompt to collection">${icon('<path d="M12 5v14M5 12h14"/>')}</button>
-        <button class="gallery-card-btn download" type="button" title="Download original image" aria-label="Download image">${icon('<path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/>')}</button>
-        <button class="gallery-card-btn delete" type="button" title="Delete image" aria-label="Delete image">${icon('<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>')}</button>
+        <time class="gallery-card-date" datetime="${date.toISOString()}" title="${escapeHtml(date.toLocaleString())}">${escapeHtml(shortDate(date))}</time>
+        <div class="gallery-card-actions">
+          <button class="gallery-card-btn add-collection" type="button" title="Add prompt to collection" aria-label="Add prompt to collection">${icon('<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/><path d="M12 7v6M9 10h6"/>')}</button>
+          <button class="gallery-card-btn download" type="button" title="Download original image" aria-label="Download image">${icon('<path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/>')}</button>
+          <button class="gallery-card-btn delete" type="button" title="Delete image" aria-label="Delete image">${icon('<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>')}</button>
+        </div>
       </div>
     </div>`;
 

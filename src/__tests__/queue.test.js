@@ -3,6 +3,7 @@ import { state } from '../state.js'
 
 const DOM_HTML = `
   <button id="btn-generate-image">Generate</button>
+  <button id="btn-queue">Queue<span id="queue-badge" hidden>0</span></button>
   <textarea id="json-output">{"high_level_description":"test"}</textarea>
   <textarea id="moss-negative">nsfw</textarea>
   <div id="generate-status"></div>
@@ -56,9 +57,11 @@ describe('queue', () => {
     const mod = await loadQueue({ runJob: okRunJob() })
     mod.enqueue()
     expect(document.getElementById('queue-panel').children.length).toBe(1)
-    expect(document.getElementById('btn-generate-image').textContent).toContain('+1 pending')
+    expect(document.getElementById('btn-queue').getAttribute('aria-label')).toBe('Queue, 1 pending')
+    expect(document.getElementById('queue-badge').hidden).toBe(false)
+    expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
     await vi.waitFor(() => {
-      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+      expect(document.getElementById('btn-queue').getAttribute('aria-label')).toBe('Queue')
     })
     const card = document.querySelector('.queue-card')
     expect(card.querySelector('img.queue-thumb')).toBeTruthy()
@@ -125,7 +128,7 @@ describe('queue', () => {
     state.seed = 99
     mod.enqueue()
     await vi.waitFor(() => {
-      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+      expect(document.getElementById('btn-queue').getAttribute('aria-label')).toBe('Queue')
     })
     expect(runJob).toHaveBeenCalledTimes(2)
     expect(document.querySelectorAll('.queue-card').length).toBe(1)

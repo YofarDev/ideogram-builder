@@ -1243,7 +1243,13 @@ class Handler(SimpleHTTPRequestHandler):
         super().log_message(format, *args)
 
 
+class Server(ThreadingHTTPServer):
+    # socketserver's default listen backlog is 5; the ES-module graph fires ~25
+    # requests at once and macOS resets the overflow, leaving a half-loaded app.
+    request_queue_size = 128
+
+
 if __name__ == "__main__":
-    httpd = ThreadingHTTPServer(("", PORT), Handler)
+    httpd = Server(("", PORT), Handler)
     print(f"Ideogram Builder — http://localhost:{PORT}")
     httpd.serve_forever()

@@ -70,14 +70,36 @@ on('canvas:reset', () => {
 });
 
 // Collapsible cards — every .card-toggle toggles its nearest .collapsible card.
-// Prompt JSON starts collapsed; all other cards start expanded.
+// All cards start expanded; collapsed card ids persist across reloads.
+const COLLAPSED_KEY = 'ideogram_collapsed_cards';
+let collapsedCards;
+try { collapsedCards = new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY)) || []); }
+catch { collapsedCards = new Set(); }
 document.querySelectorAll('.card-toggle').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const card = btn.closest('.collapsible');
-    if (!card) return;
-    const collapsed = card.classList.toggle('collapsed');
+  const card = btn.closest('.collapsible');
+  if (!card) return;
+  const setCollapsed = (collapsed) => {
+    card.classList.toggle('collapsed', collapsed);
     btn.setAttribute('aria-expanded', String(!collapsed));
+  };
+  if (collapsedCards.has(card.id)) setCollapsed(true);
+  btn.addEventListener('click', () => {
+    const collapsed = !card.classList.contains('collapsed');
+    setCollapsed(collapsed);
+    if (!card.id) return;
+    collapsedCards[collapsed ? 'add' : 'delete'](card.id);
+    try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsedCards])); } catch { /* storage blocked */ }
   });
+});
+
+// Cmd/Ctrl+Enter queues a generation from anywhere in the Editor. The JSON
+// pane claims the chord first (Apply) and marks the event handled.
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.defaultPrevented || e.repeat) return;
+  const generate = document.getElementById('btn-generate-image');
+  if (!generate.offsetParent || generate.disabled) return;
+  e.preventDefault();
+  generate.click();
 });
 
 // Queue dropdown — toggled by the Queue button next to Generate; closes on

@@ -54,7 +54,8 @@ function applyCanvasScale() {
 
   const editor = document.getElementById('tab-editor');
   const toolbar = document.getElementById('editor-toolbar');
-  const padX = 32, padY = 32, gap = 12;
+  // padY: 16px top + 28px bottom strip for the size caption (see .canvas-container)
+  const padX = 32, padY = 44, gap = 12;
   const availW = Math.max(0, (editor ? editor.clientWidth : 0) - padX);
   const availH = Math.max(0, (editor ? editor.clientHeight : 0)
     - (toolbar ? toolbar.offsetHeight : 0) - gap - padY);
