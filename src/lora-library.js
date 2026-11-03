@@ -166,6 +166,14 @@ export const BUILTIN_LORAS = [
     source_url: 'https://huggingface.co/Yofardev/urasawa_moss_further_epoch12/resolve/main/urasawa_moss_further_epoch12.safetensors',
     strengths: { positive: 1.0, unconditional: 0.5 },
   },
+  {
+    id: 'urasawa-moss-v1',
+    label: 'Naoki Urasawa (v1 LoKr, 2000 steps) — MOSS',
+    model: 'moss',
+    filename: 'user/moss/urasawa_moss_v1.safetensors',
+    source_url: 'https://huggingface.co/Yofardev/urasawa_moss_v1/resolve/main/urasawa_moss_v1.safetensors',
+    strengths: { positive: 1.0, unconditional: 0.5 },
+  },
 ];
 
 /** User-added entries: [{ id, label, filename, source_url, model, strengths }] */
