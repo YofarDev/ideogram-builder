@@ -220,6 +220,40 @@
             color: var(--accent);
         }
 
+        /* Custom canvas size — revealed by the "Custom…" aspect-ratio entry.
+           The inputs share the seed field's treatment (same row family),
+           sized for four digits; spinners are useless at step 16. */
+        #custom-size-row input[type="number"] {
+            width: 64px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        #custom-size-row input[type="number"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+
+        #custom-size-row input[type="number"]::-webkit-outer-spin-button,
+        #custom-size-row input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        #custom-size-row > span {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
         /* Select */
         select {
             font-family: var(--font-body);
@@ -1839,6 +1873,22 @@
             outline: none;
         }
         .turbo-strength-group input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+
+        /* MOSS CFG override — sits right after the preset pills, same
+           treatment as turbo strength (its sibling in gen-controls); the
+           0.25 steps make the spinners useful, so they stay. */
+        #moss-cfg-group input[type="number"] {
+            width: 58px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--text);
+            background: var(--surface-2);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-sm);
+            padding: 6px 8px;
+            outline: none;
+        }
+        #moss-cfg-group input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 
         .preset-row {
             display: flex;
@@ -3630,7 +3680,7 @@
                             <option value="1280x720">16:9, Widescreen</option>
                             <option value="720x1280">9:16, Tall</option>
                             <option value="1152x768">3:2, Photo</option>
-                            <option value="custom">✏️ Custom…</option>
+                            <option value="custom">Custom…</option>
                         </select>
                         <div class="size-toggle" role="group" aria-label="Resolution tier">
                             <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
@@ -3641,9 +3691,9 @@
                     </div>
                     <div class="ar-group" id="custom-size-row" style="display:none;">
                         <label for="custom-width">Custom</label>
-                        <input type="number" id="custom-width" min="16" step="16" placeholder="832" title="Canvas width — multiples of 16">
+                        <input type="number" id="custom-width" aria-label="Custom width" min="16" step="16" placeholder="832" title="Canvas width — multiples of 16">
                         <span aria-hidden="true">×</span>
-                        <input type="number" id="custom-height" min="16" step="16" placeholder="1216" title="Canvas height — multiples of 16">
+                        <input type="number" id="custom-height" aria-label="Custom height" min="16" step="16" placeholder="1216" title="Canvas height — multiples of 16">
                     </div>
                     <div class="ar-group" id="opacity-group" style="display:none;">
                         <label for="overlay-opacity">Overlay</label>
