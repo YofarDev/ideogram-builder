@@ -25,8 +25,9 @@ export const state = {
   boxCounter: 0,
   photoArtMode: MODE_ARTSTYLE,
   model: MODEL_IDEOGRAM,
-  // moss caption/meta/canvas/negative live in DOM inputs (same pattern as Ideogram fields)
-  moss: { promptMode: 'layout', preset: 'Fast', enhanceCaption: false },
+  // moss caption/meta/canvas/negative live in DOM inputs (same pattern as Ideogram fields);
+  // cfg is the optional per-request CFG override (null = preset default)
+  moss: { promptMode: 'layout', preset: 'Fast', enhanceCaption: false, cfg: null },
   preset: 'Default',
   workflow: 'turbo',
   turboStrength: 0.8,

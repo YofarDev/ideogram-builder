@@ -3630,6 +3630,7 @@
                             <option value="1280x720">16:9, Widescreen</option>
                             <option value="720x1280">9:16, Tall</option>
                             <option value="1152x768">3:2, Photo</option>
+                            <option value="custom">✏️ Custom…</option>
                         </select>
                         <div class="size-toggle" role="group" aria-label="Resolution tier">
                             <button class="size-btn active" data-size="1" aria-pressed="true">1M</button>
@@ -3637,6 +3638,12 @@
                             <button class="size-btn" data-size="2" aria-pressed="false">2M</button>
                             <button class="size-btn ideogram-only" data-size="4" aria-pressed="false">4M</button>
                         </div>
+                    </div>
+                    <div class="ar-group" id="custom-size-row" style="display:none;">
+                        <label for="custom-width">Custom</label>
+                        <input type="number" id="custom-width" min="16" step="16" placeholder="832" title="Canvas width — multiples of 16">
+                        <span aria-hidden="true">×</span>
+                        <input type="number" id="custom-height" min="16" step="16" placeholder="1216" title="Canvas height — multiples of 16">
                     </div>
                     <div class="ar-group" id="opacity-group" style="display:none;">
                         <label for="overlay-opacity">Overlay</label>
@@ -3699,6 +3706,10 @@
                             <label for="moss_preset_poster" class="pill-label" data-candidate hidden title="25 steps · res_multistep/simple · CFG 3.75 — text-forward scenes">Poster β</label>
                             <input type="radio" id="moss_preset_quality30" name="moss_preset" value="Quality30" data-candidate disabled>
                             <label for="moss_preset_quality30" class="pill-label" data-candidate hidden title="Quality recipe at 30 steps — lower cost">Quality 30 β</label>
+                        </div>
+                        <div class="ar-group moss-only" id="moss-cfg-group">
+                            <label for="moss-cfg">CFG</label>
+                            <input type="number" id="moss-cfg" min="1" max="10" step="0.25" inputmode="decimal" placeholder="2.5">
                         </div>
                         <button id="btn-lora" type="button" class="btn btn-secondary lora-trigger" aria-expanded="false" aria-haspopup="dialog" aria-controls="lora-panel" title="LoRAs — none active">
                             LoRA<span class="queue-badge" id="lora-badge" hidden aria-hidden="true">0</span>

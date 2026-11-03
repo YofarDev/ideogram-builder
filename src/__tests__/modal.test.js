@@ -343,6 +343,29 @@ describe('modal runJob moss payload', () => {
     expect(body.negative_prompt).toBe('nsfw')
   })
 
+  it('carries the cfg override when set and omits it at the preset default', async () => {
+    global.fetch = mockFetchSequence([
+      { body: CONFIG_RESP },
+      { body: { call_id: 'call-1' } },
+      { body: completedBody() },
+    ])
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+
+    const mod = await importModule()
+    await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', cfg: 3.0 }))
+    let body = JSON.parse(global.fetch.mock.calls[1][1].body)
+    expect(body.cfg).toBe(3.0)
+
+    // getConfig caches /api/config — the second runJob goes straight to submit.
+    global.fetch = mockFetchSequence([
+      { body: { call_id: 'call-2' } },
+      { body: completedBody() },
+    ])
+    await mod.runJob(baseSnapshot({ model: 'moss', preset: 'Fast', cfg: null }))
+    body = JSON.parse(global.fetch.mock.calls[0][1].body)
+    expect(body).not.toHaveProperty('cfg')
+  })
+
   it('ideogram body carries no model key', async () => {
     global.fetch = mockFetchSequence([
       { body: CONFIG_RESP },

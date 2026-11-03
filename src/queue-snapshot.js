@@ -20,6 +20,8 @@ export function buildSnapshot(model = state.model) {
         width: state.canvas.width,
         height: state.canvas.height,
         preset: isMoss ? state.moss.preset : state.preset,
+        // MOSS-only optional CFG override (null = preset default)
+        cfg: isMoss ? (state.moss.cfg ?? null) : null,
         workflow: state.workflow,
         turboStrength: state.turboStrength,
         loras: state.loras.map(l => ({
@@ -53,6 +55,7 @@ export function generationMeta(snapshot, serverSeed, generation) {
         enhanceCaption: snapshot.enhanceCaption ?? false,
         ...(snapshot.model === 'moss' ? {
             mossPreset: snapshot.preset,
+            mossCfg: snapshot.cfg ?? null,
             ...(generation ? { generation } : {}),
         } : {}),
     };

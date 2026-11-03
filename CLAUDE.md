@@ -26,7 +26,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 
 | Module | Owns | Imports from |
 |--------|------|-------------|
-| `state.js` | All mutable state (boxes + tags, palette, canvas dims, mode, `model`, `moss` promptMode/preset) + `syncBoxesFromDOM()` | nothing |
+| `state.js` | All mutable state (boxes + tags, palette, canvas dims, mode, `model`, `moss` promptMode/preset/cfg) + `syncBoxesFromDOM()` | nothing |
 | `events.js` | Pub/sub event bus | nothing |
 | `canvas.js` | Canvas wrapper DOM, bounding boxes, pointer events, image overlay | state, events |
 | `canvas-pointer.js` | Bounded pointer gestures, cancellation, capture and commit lifecycle | state, events, canvas-core, toast |
@@ -38,7 +38,9 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `model.js` | Workspace switch (`#model-toggle`, Ideogram/MOSS), `model:set`/`model:changed` events, persistence | state, events |
 | `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll; moss → `runpod.endpoints.moss` | nothing |
 | `settings-box.js` | Box Properties form: type toggle (obj/text/character), text/desc/tags, X/Y/W/H (split of settings) | state, events |
+| `settings-custom-size.js` | Custom canvas size: "Custom…" aspect-ratio option + W×H inputs, ×16 validation, `canvas:custom-size` listener (split of settings) | state, events, toast |
 | `settings-moss.js` | MOSS fieldset: prompt format, caption/meta/canvas/negative, D4 seeding on model switch | state, events, toast, prompt-convert |
+| `settings-moss-cfg.js` | MOSS custom CFG override input: persistence, 1–10 validation, preset-default placeholder (split of settings-moss) | state, toast, moss-presets, settings-moss |
 | `prompt-moss.js` | Pure MOSS layout helpers: buildMossLayout/compileMoss/parseMoss/predicates (ComfyUI-matching maths) | nothing |
 | `prompt-convert.js` | Pure format detection, Ideogram↔MOSS global converters, full-document `ideogramToMoss` / `mossToIdeogram` | prompt-moss |
 | `lora-library.js` | LoRA library data: per-model built-ins + user entries in localStorage | nothing |
@@ -46,7 +48,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `lora-cards.js` | Pure HTML templates for LoRA popover cards (split of lora) | escape-html |
 | `lora-add.js` | "+ Add" LoRA form: URL or file upload (XHR progress) → `lora:added` | state, events, toast |
 | `gallery-meta.js` | Gallery card meta restore (model-first, MOSS preset/negative/prompt-mode) | state, events, lora |
-| `session-moss.js` | MOSS session capture/restore (model, moss inputs, prompt mode, preset) | state, events |
+| `session-moss.js` | MOSS session capture/restore (model, moss inputs, prompt mode, preset, custom cfg) | state, events |
 | `session-workspace.js` | Session canvas dimensions, boxes, palette and layer selection independent of prompt format | state, events |
 | `reference-image.js` | Local image-reference validation and lazy image loading for recaptioning | state |
 | `collections-io.js` | Collection file export/import with complete validation and variable/reference round trips | toast, collections-data, collections-records |
@@ -93,6 +95,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `canvas:reset` | none | canvas | json-builder (clear textarea) |
 | `canvas:rebuild` | none | png-import | canvas (calls initCanvas) |
 | `canvas:relayout` | none | app | canvas (calls resizeCanvas) |
+| `canvas:custom-size` | `{ width, height }` — select Custom… for a programmatic resize (persists + seeds inputs; caller owns the canvas) | json-builder-moss (drafts), gallery-meta (custom-size restore) | settings-custom-size |
 | `image:ready` | `{ imageUrl }` | runpod, png-import | canvas (overlay image), gallery (save to history) |
 | `runpod:loading` | none | runpod | (future: disable UI) |
 | `runpod:done` | none | runpod | (future: re-enable UI) |
@@ -109,7 +112,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `vision:find-more-results` | `{ elements }` | vision (Find missing) | audit (render as add_element cards) |
 
 
-> **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly. `queue:enqueue` payloads carry `{ importJson, model }` (collections pass each item's model); generation meta carries `model`, `negativePrompt`, `promptFormat`, `mossPreset`.
+> **Queue note:** `queue.js` reuses `image:ready`, `runpod:loading`, and `runpod:done` — no new events. The Generate button now enqueues via `queue.enqueue()` instead of calling runpod directly. `queue:enqueue` payloads carry `{ importJson, model }` (collections pass each item's model); generation meta carries `model`, `negativePrompt`, `promptFormat`, `mossPreset`, `mossCfg`.
 
 ## Editing Guide
 

@@ -35,6 +35,17 @@ export function presetIgnoresNegative(presetId) {
     return (PRESET_INFO[presetId]?.cfg ?? 0) <= 1;
 }
 
+/** The preset's default CFG (undefined for unknown presets). */
+export function presetCfg(presetId) {
+    return PRESET_INFO[presetId]?.cfg;
+}
+
+/** CFG that would actually sample: the request override when set, else the
+ * preset default. Drives negative-prompt availability in the UI. */
+export function effectiveCfg(presetId, cfgOverride) {
+    return cfgOverride ?? presetCfg(presetId) ?? 0;
+}
+
 /** Capabilities entry for one preset (validation_status, max_area_mp, blurb). */
 export function presetMeta(presetId) {
     return getCapabilities()?.presets?.find(p => p.id === presetId) || null;

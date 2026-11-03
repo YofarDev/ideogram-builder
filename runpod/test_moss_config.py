@@ -307,6 +307,34 @@ def test_generation_metadata_records_negative_guidance_semantics():
     assert fast_meta["spectrum"] is False
 
 
+def test_generation_metadata_records_cfg_override():
+    # Override wins and is recorded as such.
+    meta = generation_metadata(
+        resolve_profile({}), MOSS_PRESETS["Fast"], 25,
+        model_manifest_id="m1", first_generation_in_worker=False,
+        cfg_override=3.5,
+    )
+    assert meta["cfg"] == 3.5
+    assert meta["cfg_override"] == 3.5
+    assert meta["negative_guidance_active"] is True
+    assert meta["negative_prompt_suppressed"] is False
+    # No override: preset CFG recorded, override explicitly null.
+    base = generation_metadata(
+        resolve_profile({}), MOSS_PRESETS["Fast"], 25,
+        model_manifest_id="m1", first_generation_in_worker=False,
+    )
+    assert base["cfg"] == 2.5
+    assert base["cfg_override"] is None
+    # Guidance semantics follow the effective CFG, not the preset's.
+    suppressed = generation_metadata(
+        resolve_profile({}), MOSS_PRESETS["Fast"], 25,
+        model_manifest_id="m1", first_generation_in_worker=False,
+        cfg_override=1.0,
+    )
+    assert suppressed["negative_guidance_active"] is False
+    assert suppressed["negative_prompt_suppressed"] is True
+
+
 def test_deployment_settings_defaults_and_validation():
     settings = deployment_settings({})
     assert settings == {

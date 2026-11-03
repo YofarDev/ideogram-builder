@@ -381,13 +381,15 @@ def _build_workflow_v1(import_json, width, height, preset, seed, loras):
     return wf
 
 
-def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
+def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras, cfg_override=None):
     """MOSS-Image workflow (workflow_template_moss.json). Prompt is the compiled
     layout JSON or a plain caption; negative may be an empty string. At CFG 1
     the negative branch contributes nothing, so the text is blanked rather than
-    encoded-then-ignored."""
+    encoded-then-ignored. cfg_override (None = preset CFG) replaces the preset
+    CFG; steps/sampler/scheduler stay pinned to the preset."""
     settings = MOSS_PRESETS[preset]
-    if settings["cfg"] <= 1.0:
+    effective_cfg = settings["cfg"] if cfg_override is None else cfg_override
+    if effective_cfg <= 1.0:
         negative = ""
     seed = _resolve_seed(seed)
     wf = _load_template("moss")
@@ -398,7 +400,7 @@ def _build_workflow_moss(prompt, negative, width, height, preset, seed, loras):
     sampler = wf["10"]["inputs"]
     sampler["seed"] = seed
     sampler["steps"] = settings["steps"]
-    sampler["cfg"] = settings["cfg"]
+    sampler["cfg"] = effective_cfg
     sampler["sampler_name"] = settings["sampler"]
     sampler["scheduler"] = settings["scheduler"]
     if not settings["dmd"]:
@@ -439,6 +441,7 @@ def handler(job):
         return {"error": "'width' and 'height' must be positive integers"}
     moss_mods = _load_moss_modules() if model == "moss" else None
     moss_request = None
+    cfg_override = None
     if model == "moss":
         # `workflow` is ignored for MOSS; the preset resolves server-side.
         preset = job_input.get("preset", "Fast")
@@ -446,6 +449,16 @@ def handler(job):
         # Optional on-model caption upsampling (official TextGenerate route on
         # the same Qwen encoder); off by default — rewriting can add content.
         enhance_caption = bool(job_input.get("enhance_caption", False))
+        # Optional per-request CFG override: replaces the selected preset's
+        # CFG while steps/sampler/scheduler stay pinned to the preset. The
+        # range check also rejects NaN/inf (comparisons are False for both).
+        cfg_override = job_input.get("cfg")
+        if cfg_override is not None:
+            if isinstance(cfg_override, bool) or not isinstance(cfg_override, (int, float)):
+                return {"error": "'cfg' must be a number"}
+            cfg_override = float(cfg_override)
+            if not 1.0 <= cfg_override <= 10.0:
+                return {"error": "'cfg' must be between 1.0 and 10.0"}
         if moss_mods is not None:
             moss_config = moss_mods[0]
             try:
@@ -510,7 +523,7 @@ def handler(job):
                         template, preset_name=preset, preset=preset_with_steps,
                         prompt=import_json, negative=negative_prompt, width=width, height=height,
                         seed=seed_used, loras=resolved_loras, profile=moss_request["profile"],
-                        assets=assets, adapter_ref=adapter_ref,
+                        assets=assets, adapter_ref=adapter_ref, cfg_override=cfg_override,
                         spectrum_debug=os.environ.get("MOSS_BENCHMARK_MODE") == "true",
                         enhance_prompt=enhance_caption)
                 except moss_assets.AssetError as e:
@@ -547,7 +560,7 @@ def handler(job):
                 print(f"worker-ideogram4 - Workflow: moss, preset: {preset}, "
                       f"profile: {moss_request['profile']['profile_id']}, steps: {moss_request['effective_steps']}")
             else:
-                workflow = _build_workflow_moss(import_json, negative_prompt, width, height, preset, seed, resolved_loras)
+                workflow = _build_workflow_moss(import_json, negative_prompt, width, height, preset, seed, resolved_loras, cfg_override)
                 print(f"worker-ideogram4 - Workflow: moss (legacy builder), preset: {preset}")
             used_seed = seed_used
         else:
@@ -685,6 +698,7 @@ def handler(job):
                 model_manifest_id=moss_info.get("model_manifest_id"),
                 first_generation_in_worker=moss_info.get("first_generation_in_worker", False),
                 prompt_upsampler=moss_info.get("prompt_upsampler", False),
+                cfg_override=cfg_override,
             )
         except Exception:  # noqa: BLE001 — metadata must never fail a result
             traceback.print_exc()

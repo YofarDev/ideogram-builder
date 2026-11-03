@@ -7,21 +7,23 @@ import { on, emit } from './events.js';
 import { showToast } from './toast.js';
 import { ideogramGlobalsToMoss, mossGlobalsToIdeogram } from './prompt-convert.js';
 import { fetchCapabilities } from './modal.js';
-import { setCapabilities, getCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage, presetIgnoresNegative, presetLabel } from './moss-presets.js';
+import { setCapabilities, getCapabilities, availablePresets, currentPresetUnavailable, availabilityMessage, effectiveCfg, presetLabel } from './moss-presets.js';
+import { syncCfgPlaceholder, initMossCfgControls } from './settings-moss-cfg.js';
 
 const MOSS_INPUTS = ['moss-caption', 'moss-meta', 'moss-canvas', 'moss-negative'];
 
 /**
- * CFG-1 presets (Rapid/Turbo/Draft β) ignore the negative branch entirely, so
- * the field is disabled with a hint instead of silently eating keystrokes.
- * Idempotent; call whenever the selected preset or model can have changed.
+ * Effective CFG ≤ 1 ignores the negative branch entirely (CFG-1 presets like
+ * Rapid/Turbo/Draft β, or a custom CFG of 1), so the field is disabled with a
+ * hint instead of silently eating keystrokes. Idempotent; call whenever the
+ * selected preset, cfg override or model can have changed.
  */
 export function refreshNegativePromptUI() {
   if (state.model !== 'moss') return;
   const field = document.getElementById('moss-negative');
   const hint = document.getElementById('moss-negative-hint');
   if (!field) return;
-  const ignored = presetIgnoresNegative(state.moss.preset);
+  const ignored = effectiveCfg(state.moss.preset, state.moss.cfg) <= 1;
   field.disabled = ignored;
   field.title = ignored
     ? `“${presetLabel(state.moss.preset)}” samples at CFG 1 — the negative prompt has no effect.`
@@ -159,12 +161,16 @@ export function initSettingsMoss() {
   });
   document.body.dataset.mossPrompt = state.moss.promptMode;
 
+  // Optional CFG override (see settings-moss-cfg.js).
+  initMossCfgControls();
+
   // Selecting any preset pill clears the unavailable-recipe warning state —
   // the user made an explicit supported choice.
   document.querySelectorAll('input[name="moss_preset"]').forEach((radio) => {
     radio.addEventListener('change', () => {
       state.moss.preset = radio.value;
       localStorage.setItem('ideogram_moss_preset', radio.value);
+      syncCfgPlaceholder();
       refreshNegativePromptUI();
     });
   });
@@ -183,6 +189,7 @@ export function initSettingsMoss() {
   on('config:changed', applyPresetCapabilities);
   applyPresetCapabilities();
   refreshMossControls();
+  syncCfgPlaceholder();
 
   on('state:loaded', ({ moss }) => {
     if (!moss) return;

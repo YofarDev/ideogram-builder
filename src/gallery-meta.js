@@ -59,6 +59,10 @@ export function restoreMeta(meta) {
         if (ar) {
             const opt = Array.from(ar.options).find(o => o.value === `${meta.width}x${meta.height}`);
             if (opt) ar.value = opt.value;
+            else if (Array.from(ar.options).some(o => o.value === 'custom')) {
+                // Custom-sized generation: keep the dropdown honest via Custom…
+                emit('canvas:custom-size', { width: meta.width, height: meta.height });
+            }
         }
     }
     if (meta.photoArtMode !== undefined && model !== 'moss') {
@@ -89,6 +93,12 @@ function restoreMossMeta(meta) {
         const neg = document.getElementById('moss-negative');
         if (neg) neg.value = meta.negativePrompt;
     }
+    // Custom CFG — absent on pre-feature images; never inherit the last run.
+    // moss:settings-restored below refreshes negative availability for it.
+    state.moss.cfg = meta.mossCfg ?? null;
+    localStorage.setItem('ideogram_moss_cfg', state.moss.cfg !== null ? String(state.moss.cfg) : '');
+    const cfgInput = document.getElementById('moss-cfg');
+    if (cfgInput) cfgInput.value = state.moss.cfg !== null ? String(state.moss.cfg) : '';
     // Pre-feature images were never enhanced. Do not inherit the last run.
     state.moss.enhanceCaption = meta.enhanceCaption === true;
     const box = document.getElementById('moss-enhance-caption');

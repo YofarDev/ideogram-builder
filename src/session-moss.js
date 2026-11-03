@@ -13,6 +13,7 @@ export function captureMossConfig() {
     model: document.body.dataset.model === 'moss' ? MODEL_MOSS : 'ideogram',
     ...(document.body.dataset.model === 'moss' ? {
       mossPreset: document.querySelector('input[name="moss_preset"]:checked')?.value || 'Fast',
+      mossCfg: state.moss.cfg ?? null,
       mossPromptMode: document.body.dataset.mossPrompt === 'caption' ? 'caption' : 'layout',
       moss: {
         caption: el('moss-caption')?.value || '',
@@ -66,6 +67,14 @@ export function restoreMoss(config) {
     if (!capabilitiesPending() && !isAvailable(config.mossPreset)) {
       showToast(`Preset “${presetLabel(config.mossPreset)}” was saved in this session but is not available on the current backend — select a supported preset before generating.`, 'error', 5000);
     }
+  }
+
+  // Custom CFG — null clears back to the preset default (moss:settings-restored
+  // below refreshes the negative-prompt availability for the effective CFG).
+  if (config.mossCfg !== undefined) {
+    state.moss.cfg = config.mossCfg ?? null;
+    localStorage.setItem('ideogram_moss_cfg', state.moss.cfg !== null ? String(state.moss.cfg) : '');
+    set('moss-cfg', state.moss.cfg !== null ? String(state.moss.cfg) : '');
   }
   emit('moss:settings-restored');
   return true;

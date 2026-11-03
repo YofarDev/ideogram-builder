@@ -9,7 +9,10 @@ picks an advertised preset plus prompt/dimensions/seed/LoRAs; everything that
 changes numeric behaviour (formats, residency, compilation, warmup) is captured
 by a *named, immutable* runtime profile. Partial env overrides are only accepted
 when the resulting configuration matches another declared profile exactly, so
-undocumented combinations cannot be served by accident.
+undocumented combinations cannot be served by accident. A request may carry one
+deliberate exception: an optional CFG override that replaces the selected
+preset's CFG (range-checked by the handler) while steps/sampler/scheduler stay
+pinned to the preset; the effective CFG is recorded in generation metadata.
 """
 
 import copy
@@ -633,23 +636,27 @@ def capabilities(profile, model_manifest_id=None, enabled=None, experimental=Non
 def generation_metadata(profile, preset, effective_steps, *, preset_id="",
                        model_manifest_id=None, first_generation_in_worker,
                        spectrum_enabled=None, compile_backend=None, adapter=None,
-                       prompt_upsampler=None):
+                       prompt_upsampler=None, cfg_override=None):
     """The `generation` block attached to results (schema v1). Records the
-    recipe actually executed — numeric-behaviour changes must land here."""
+    recipe actually executed — numeric-behaviour changes must land here.
+    cfg_override is the request's optional CFG override (None = preset CFG);
+    guidance semantics follow the effective CFG."""
     spectrum_enabled = preset["spectrum"] if spectrum_enabled is None else spectrum_enabled
     compile_backend = profile["compile_backend"] if compile_backend is None else compile_backend
     adapter = preset["adapter"] if adapter is None else adapter
+    effective_cfg = preset["cfg"] if cfg_override is None else cfg_override
     return {
         "schema_version": 1,
         "runtime_profile": profile["profile_id"],
         "preset": preset.get("label", ""),
         "preset_id": preset_id,
         "effective_steps": effective_steps,
-        "cfg": preset["cfg"],
+        "cfg": effective_cfg,
+        "cfg_override": cfg_override,
         "sampler": preset["sampler"],
         "scheduler": preset["scheduler"],
-        "negative_guidance_active": preset["cfg"] > 1.0,
-        "negative_prompt_suppressed": preset["cfg"] <= 1.0,
+        "negative_guidance_active": effective_cfg > 1.0,
+        "negative_prompt_suppressed": effective_cfg <= 1.0,
         "prompt_upsampler": bool(prompt_upsampler),
         "adapter": adapter,
         "spectrum": bool(spectrum_enabled),

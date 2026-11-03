@@ -1,8 +1,8 @@
 import { state, MODE_PHOTO, MODE_ARTSTYLE } from './state.js';
 import { on, emit } from './events.js';
-import { showToast } from './toast.js';
 import { initRecaption } from './settings-recaption.js';
 import { initBoxForm } from './settings-box.js';
+import { CUSTOM_AR_VALUE, readCustomBase, syncCustomRow, initCustomSizeControls } from './settings-custom-size.js';
 
 function round16(v) {
   return Math.round(v / 16) * 16;
@@ -11,7 +11,12 @@ function round16(v) {
 function updateDimensions() {
   const sel = document.getElementById('aspect-ratio');
   const size = document.querySelector('.size-btn.active')?.dataset.size || '1';
-  const [baseW, baseH] = sel.value.split('x').map(Number);
+  let baseW, baseH;
+  if (sel.value === CUSTOM_AR_VALUE) {
+    ({ width: baseW, height: baseH } = readCustomBase());
+  } else {
+    [baseW, baseH] = sel.value.split('x').map(Number);
+  }
 
   const oldWidth = state.canvas.width;
   const oldHeight = state.canvas.height;
@@ -46,8 +51,11 @@ function updateDimensions() {
 export function initSettings() {
   document.getElementById('aspect-ratio').addEventListener('change', () => {
     localStorage.setItem('ideogram_aspect_ratio', document.getElementById('aspect-ratio').value);
+    syncCustomRow();
     updateDimensions();
   });
+
+  initCustomSizeControls();
 
   document.querySelectorAll('.size-btn').forEach(btn => {
     btn.addEventListener('click', () => {

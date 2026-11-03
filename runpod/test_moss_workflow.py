@@ -70,6 +70,32 @@ def test_loaders_point_at_profile_assets():
     assert wf["3"]["inputs"]["vae_name"] == "vae_test.safetensors"
 
 
+# --- optional CFG override -------------------------------------------------------
+
+
+def test_cfg_override_replaces_sampler_cfg_and_info():
+    wf, info = build("Fast", cfg_override=3.25)
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["cfg"] == 3.25
+    assert info["cfg"] == 3.25
+    assert info["cfg_override"] == 3.25
+    assert info["negative_guidance_active"] is True
+    assert info["negative_suppressed"] is False
+
+
+def test_cfg_override_one_blanks_negative():
+    wf, info = build("Fast", cfg_override=1.0)
+    assert wf[moss_workflow.NEGATIVE_NODE_ID]["inputs"]["text"] == ""
+    assert info["cfg"] == 1.0
+    assert info["negative_suppressed"] is True
+
+
+def test_cfg_override_none_keeps_preset_cfg():
+    wf, info = build("Fast")
+    assert wf[KSAMPLER_NODE_ID]["inputs"]["cfg"] == 2.5
+    assert info["cfg"] == 2.5
+    assert info["cfg_override"] is None
+
+
 def test_adapter_required_for_distilled_presets():
     with pytest.raises(ValueError, match="distillation adapter"):
         build("Rapid", adapter_ref=None)

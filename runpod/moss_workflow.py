@@ -236,7 +236,7 @@ def populate_user_loras(wf, loras):
 def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
                         width, height, seed, loras, profile, assets,
                         adapter_ref=None, spectrum_debug=False,
-                        enhance_prompt=False):
+                        enhance_prompt=False, cfg_override=None):
     """Build the complete workflow graph.
 
     template: parsed workflow_template_moss.json dict (deep-copied internally).
@@ -246,6 +246,8 @@ def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
     assets:   {"dit": filename, "encoder": filename, "vae": filename}.
     adapter_ref: workflow_ref of the preset's distillation adapter (required
                  when preset["adapter"] is set; resolution is moss_assets' job).
+    cfg_override: optional request CFG (None = preset CFG); steps/sampler/
+                 scheduler always stay pinned to the preset.
 
     Returns (workflow_dict, info_dict). info carries the recipe actually
     executed and the node->stage map for metrics.
@@ -263,8 +265,9 @@ def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
     configure_adapter(wf, {**preset, "adapter": None} if merged else preset, adapter_ref)
     populate_user_loras(wf, loras)
     configure_slg(wf, preset["slg"], preset.get("slg_layers", "22"))
+    effective_cfg = preset["cfg"] if cfg_override is None else cfg_override
     configure_sampler(wf, seed=seed, steps=preset.get("effective_steps", preset["steps"]),
-                      cfg=preset["cfg"], sampler=preset["sampler"], scheduler=preset["scheduler"])
+                      cfg=effective_cfg, sampler=preset["sampler"], scheduler=preset["scheduler"])
 
     # Chain: adapter slot -> loras -> SLG -> Spectrum -> compile -> KSampler.
     # Everything upstream of the sampler converges on wf[LORA_NODE_ID] or the
@@ -288,7 +291,7 @@ def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
 
     # CFG 1 removes the negative branch's contribution entirely; blank the
     # text so a long UI negative is never encoded just to be ignored.
-    negative_suppressed = preset["cfg"] <= 1.0
+    negative_suppressed = effective_cfg <= 1.0
     if negative_suppressed:
         negative = ""
 
@@ -312,10 +315,11 @@ def build_moss_workflow(template, *, preset_name, preset, prompt, negative,
         "preset_id": preset_name,
         "preset_label": preset["label"],
         "effective_steps": wf[KSAMPLER_NODE_ID]["inputs"]["steps"],
-        "cfg": preset["cfg"],
+        "cfg": effective_cfg,
+        "cfg_override": cfg_override,
         "sampler": preset["sampler"],
         "scheduler": preset["scheduler"],
-        "negative_guidance_active": preset["cfg"] > 1.0,
+        "negative_guidance_active": effective_cfg > 1.0,
         "negative_suppressed": negative_suppressed,
         "prompt_upsampler": bool(enhance_prompt),
         "adapter": preset["adapter"],

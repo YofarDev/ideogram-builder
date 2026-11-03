@@ -29,7 +29,12 @@ const DOM_HTML = `
   <select id="aspect-ratio">
     <option value="768x1152">2:3</option>
     <option value="1024x1024">1:1</option>
+    <option value="custom">Custom…</option>
   </select>
+  <div id="custom-size-row" style="display:none">
+    <input type="number" id="custom-width">
+    <input type="number" id="custom-height">
+  </div>
   <div id="dim-display"></div>
 `
 
@@ -53,8 +58,10 @@ beforeEach(() => {
 async function wireApp() {
   const { initModel } = await import('../model.js')
   const { initSettingsMoss } = await import('../settings-moss.js')
+  const { initCustomSizeControls } = await import('../settings-custom-size.js')
   initModel()
   initSettingsMoss()
+  initCustomSizeControls()
   initJsonBuilder()
 }
 
@@ -294,6 +301,26 @@ describe('applyJsonText format routing', () => {
     expect(state.canvas.height).toBe(1152)
     expect(document.getElementById('dim-display').textContent).toBe('768 × 1152')
     expect(rebuilds.length).toBe(1)
+  })
+
+  it('MOSS draft with a non-preset size selects Custom… and fills the inputs', async () => {
+    await wireApp()
+    state.model = MODEL_MOSS
+    const draft = JSON.stringify({
+      width: 832, height: 1216, bbox_coord_space: 'abs', bbox_format: 'xyxy',
+      summary: { caption: 'civitai poster' },
+      items: [{ label: 'object', caption: 'd', bbox: [0, 0, 416, 608] }],
+    })
+    applyViaLoadButton(draft)
+    expect(state.canvas.width).toBe(832)
+    expect(state.canvas.height).toBe(1216)
+    expect(document.getElementById('aspect-ratio').value).toBe('custom')
+    expect(document.getElementById('custom-width').value).toBe('832')
+    expect(document.getElementById('custom-height').value).toBe('1216')
+    expect(document.getElementById('custom-size-row').style.display).not.toBe('none')
+    expect(localStorage.getItem('ideogram_aspect_ratio')).toBe('custom')
+    expect(localStorage.getItem('ideogram_custom_width')).toBe('832')
+    expect(localStorage.getItem('ideogram_custom_height')).toBe('1216')
   })
 
   it('plain caption while MOSS fills #moss-caption and switches to caption mode', async () => {

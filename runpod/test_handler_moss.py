@@ -107,6 +107,36 @@ def test_moss_no_loras_disables_slot():
     assert wf["5"]["inputs"]["lora_1"] == {"on": False, "lora": "", "strength": 1.0}
 
 
+# --- optional CFG override --------------------------------------------------------
+
+
+def test_moss_cfg_override_applied_to_sampler():
+    wf = build_moss(cfg_override=3.0)
+    assert wf["10"]["inputs"]["cfg"] == 3.0
+
+
+def test_moss_cfg_override_blanks_negative_at_one():
+    wf = build_moss(negative="N", cfg_override=1.0)
+    assert wf["10"]["inputs"]["cfg"] == 1.0
+    assert wf["8"]["inputs"]["text"] == ""
+
+
+def test_moss_cfg_override_keeps_negative_above_one():
+    wf = build_moss(negative="N", cfg_override=4.0)
+    assert wf["8"]["inputs"]["text"] == "N"
+
+
+@pytest.mark.parametrize("cfg", ["3", True, 0.5, 10.5, float("nan"), float("inf")])
+def test_handler_rejects_bad_cfg(cfg, monkeypatch):
+    # Validation must fail before the handler contacts the ComfyUI server.
+    def boom(url, retries=0, delay=50):
+        raise AssertionError("check_server must not be reached")
+
+    monkeypatch.setattr(handler, "check_server", boom)
+    result = run_handler(model="moss", import_json="x", cfg=cfg)
+    assert "cfg" in result["error"]
+
+
 # --- Seed handling ------------------------------------------------------------
 
 
@@ -472,6 +502,30 @@ def test_moss_flow_turbo_records_negative_guidance_inactive(moss_flow, monkeypat
                          width=1024, height=1024)
     assert result["generation"]["negative_guidance_active"] is False
     assert result["generation"]["adapter"] == "dmd8"
+
+
+def test_moss_flow_cfg_override_reaches_sampler_and_generation(moss_flow, monkeypatch):
+    import moss_workflow
+    captured = {}
+    monkeypatch.setattr(handler, "queue_workflow",
+                        lambda wf, cid: (captured.update(wf=wf), {"prompt_id": "pid1"})[1])
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=42,
+                         width=1024, height=1024, cfg=3.0)
+    assert "error" not in result
+    # The queued graph carries the override on the sampler node…
+    assert captured["wf"][moss_workflow.KSAMPLER_NODE_ID]["inputs"]["cfg"] == 3.0
+    # …and the generation block records what actually ran.
+    assert result["generation"]["cfg"] == 3.0
+    assert result["generation"]["cfg_override"] == 3.0
+
+
+def test_moss_flow_without_cfg_override_records_preset_cfg(moss_flow, monkeypatch):
+    _wire_ws(monkeypatch, metric_messages())
+    result = run_handler(model="moss", import_json="P", preset="Fast", seed=42,
+                         width=1024, height=1024)
+    assert result["generation"]["cfg"] == 2.5
+    assert result["generation"]["cfg_override"] is None
 
 
 def test_moss_flow_rapid_unsupported_size_is_actionable(moss_flow, monkeypatch):

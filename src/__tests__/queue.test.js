@@ -233,6 +233,33 @@ describe('buildSnapshot model fields', () => {
     expect(captured.promptFormat).toBe('caption')
   })
 
+  it('moss snapshots carry a custom cfg; ideogram snapshots stay null', async () => {
+    let captured
+    const { mod, freshState } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      captured = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    freshState.model = 'moss'
+    freshState.moss = { promptMode: 'caption', preset: 'Fast', cfg: 3.0 }
+    mod.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(captured.cfg).toBe(3.0)
+
+    let capturedIdeo
+    const { mod: mod2, freshState: fs2 } = await loadQueueWithState({ runJob: vi.fn(async (snap) => {
+      capturedIdeo = snap
+      return { dataUrl: 'data:image/png;base64,AA', imageUrl: 'blob:m' }
+    }) })
+    fs2.model = 'ideogram'
+    mod2.enqueue()
+    await vi.waitFor(() => {
+      expect(document.getElementById('btn-generate-image').textContent).toBe('Generate')
+    })
+    expect(capturedIdeo.cfg).toBe(null)
+  })
+
 
   it('moss snapshots carry the enhance-caption flag and ideogram ones do not', async () => {
     let captured

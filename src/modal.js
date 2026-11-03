@@ -93,6 +93,8 @@ export async function runJob(snapshot, { onStatus, signal } = {}) {
                     model: 'moss',
                     negative_prompt: snapshot.negativePrompt ?? '',
                     enhance_caption: snapshot.enhanceCaption ?? false,
+                    // Optional CFG override — omitted entirely at the preset default
+                    ...(snapshot.cfg !== null && snapshot.cfg !== undefined ? { cfg: snapshot.cfg } : {}),
                 } : {}),
             }),
             signal,

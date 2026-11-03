@@ -13,7 +13,15 @@ const DOM_HTML = `
     <input type="radio" name="workflow" value="v1">
     <input id="turbo-strength" type="range" value="0.8">
     <div id="dim-display"></div>
-    <select id="aspect-ratio"><option value="1024x1024">1:1</option></select>
+    <select id="aspect-ratio">
+      <option value="1024x1024">1:1</option>
+      <option value="custom">Custom…</option>
+    </select>
+    <div id="custom-size-row" style="display:none">
+      <input type="number" id="custom-width">
+      <input type="number" id="custom-height">
+    </div>
+    <input type="number" id="moss-cfg">
     <input type="radio" id="mode_photo" name="art_mode" value="photo">
     <input type="radio" id="mode_artstyle" name="art_mode" value="art_style" checked>
     <input type="radio" name="backend" value="runpod" checked>
@@ -88,6 +96,33 @@ describe('restoreMeta (gallery)', () => {
     restoreMeta({ model: 'moss', preset: 'Default' })
     expect(state.preset).toBe('Default') // untouched default from state
     expect(document.querySelector('input[name="steps"][data-preset="Quality"]').checked).toBe(false)
+  })
+
+  it('restores a custom cfg; pre-feature meta clears it to the preset default', async () => {
+    const { restoreMeta } = await load()
+    restoreMeta({ model: 'moss', mossPreset: 'Fast', mossCfg: 3.2 })
+    expect(state.moss.cfg).toBe(3.2)
+    expect(document.getElementById('moss-cfg').value).toBe('3.2')
+    expect(localStorage.getItem('ideogram_moss_cfg')).toBe('3.2')
+    // An older image carries no mossCfg — never inherit the previous run's.
+    restoreMeta({ model: 'moss', mossPreset: 'Fast' })
+    expect(state.moss.cfg).toBe(null)
+    expect(document.getElementById('moss-cfg').value).toBe('')
+    expect(localStorage.getItem('ideogram_moss_cfg')).toBe('')
+  })
+
+  it('restores a custom canvas size through the Custom… option', async () => {
+    const { restoreMeta } = await load()
+    const { initCustomSizeControls } = await import('../settings-custom-size.js')
+    initCustomSizeControls()
+    restoreMeta({ model: 'moss', width: 832, height: 1216 })
+    expect(state.canvas.width).toBe(832)
+    expect(state.canvas.height).toBe(1216)
+    expect(document.getElementById('aspect-ratio').value).toBe('custom')
+    expect(document.getElementById('custom-width').value).toBe('832')
+    expect(document.getElementById('custom-height').value).toBe('1216')
+    expect(localStorage.getItem('ideogram_custom_width')).toBe('832')
+    expect(localStorage.getItem('ideogram_custom_height')).toBe('1216')
   })
 
   it('legacy meta (no model) keeps identical Ideogram behaviour — no model switch', async () => {

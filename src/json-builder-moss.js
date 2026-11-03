@@ -64,7 +64,14 @@ export function applyMossText(raw) {
     document.getElementById('dim-display').textContent = `${dims.width} × ${dims.height}`;
     const arSelect = document.getElementById('aspect-ratio');
     const val = `${dims.width}x${dims.height}`;
-    if (arSelect && Array.from(arSelect.options).some(o => o.value === val)) arSelect.value = val;
+    const options = arSelect ? Array.from(arSelect.options).map(o => o.value) : [];
+    if (options.includes(val)) {
+      arSelect.value = val;
+    } else if (options.includes('custom')) {
+      // Non-preset size (e.g. an imported Civitai-style draft): route through
+      // Custom… — no change event, so the canvas:rebuild stays the only one.
+      emit('canvas:custom-size', { width: dims.width, height: dims.height });
+    }
     emit('canvas:rebuild');
   }
 
