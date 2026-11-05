@@ -54,6 +54,7 @@ export function restoreMoss(config) {
   const pm = config.mossPromptMode === 'caption' ? 'caption' : 'layout';
   state.moss.promptMode = pm;
   document.body.dataset.mossPrompt = pm;
+  emit('moss:prompt-mode', pm);
   const pmRadio = document.querySelector(`input[name="moss_prompt_mode"][value="${pm}"]`);
   if (pmRadio) pmRadio.checked = true;
 

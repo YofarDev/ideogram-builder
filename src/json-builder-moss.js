@@ -16,6 +16,7 @@ function splitList(value) {
 function setPromptMode(mode) {
   state.moss.promptMode = mode;
   document.body.dataset.mossPrompt = mode;
+  emit('moss:prompt-mode', mode);
   const radio = document.querySelector(`input[name="moss_prompt_mode"][value="${mode}"]`);
   if (radio) radio.checked = true;
 }

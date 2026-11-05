@@ -106,6 +106,7 @@ function restoreMossMeta(meta) {
     if (meta.promptFormat) {
         state.moss.promptMode = meta.promptFormat;
         document.body.dataset.mossPrompt = meta.promptFormat;
+        emit('moss:prompt-mode', meta.promptFormat);
         const r = document.querySelector(`input[name="moss_prompt_mode"][value="${meta.promptFormat}"]`);
         if (r) r.checked = true;
     }

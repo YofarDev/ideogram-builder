@@ -1,5 +1,5 @@
 // A gesture owns its listeners and commits only when it changes a box.
-import { state, nextBoxId, randomLayerColor, clampBox } from './state.js';
+import { state, nextBoxId, randomLayerColor, clampBox, isCaptionMode } from './state.js';
 import { emit } from './events.js';
 import { showToast } from './toast.js';
 import { createBoxDOM, selectBox, renderBoxes } from './canvas-core.js';
@@ -83,6 +83,8 @@ export function initCanvasPointer(canvas) {
 
   canvas.addEventListener('pointerdown', event => {
     if (event.button !== 0 || event.isPrimary === false || gesture || state.ui.previewMode) return;
+    // Caption mode hides the boxes; clicking the canvas must not draw invisible ones.
+    if (isCaptionMode()) return;
     const dom = event.target.closest('.bounding-box');
     if (event.target !== canvas && !dom) return;
     const selected = dom && state.boxes.find(box => box.id === dom.id);

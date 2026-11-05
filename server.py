@@ -989,6 +989,20 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 subprocess.Popen(["xdg-open", str(OUTPUT_DIR)])
             self._send_json(200, {"ok": True})
+        elif self.path.startswith("/api/open-image?"):
+            # Open a single output image in the system viewer (canvas caption mode).
+            name = parse_qs(urlparse(self.path).query).get("name", [""])[0]
+            target = OUTPUT_DIR / os.path.basename(name)
+            if target.suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp") or not target.is_file():
+                self._send_json(404, {"error": "Image not found"})
+            else:
+                if sys.platform == "darwin":
+                    subprocess.Popen(["open", str(target)])
+                elif sys.platform == "win32":
+                    os.startfile(str(target))
+                else:
+                    subprocess.Popen(["xdg-open", str(target)])
+                self._send_json(200, {"ok": True})
         elif self.path == "/api/list-output":
             OUTPUT_DIR.mkdir(exist_ok=True)
             items = []

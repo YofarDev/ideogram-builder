@@ -1,7 +1,7 @@
 // canvas.js — Pointer interactions, event listeners, overlay management.
 // Imports core canvas functions from canvas-core.
 
-import { state, nextBoxId, randomLayerColor, clampBox } from './state.js';
+import { state, nextBoxId, randomLayerColor, clampBox, isCaptionMode } from './state.js';
 import { on, emit } from './events.js';
 import { initCanvasPointer } from './canvas-pointer.js';
 import { localImageUrl } from './reference-image.js';
@@ -23,6 +23,7 @@ export function initCanvasEvents() {
     if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedBoxId) {
       if (!canvas.isConnected) return;
       if (!canvas.closest('#tab-editor')?.classList.contains('active') || state.ui.previewMode) return;
+      if (isCaptionMode()) return;
       if (document.activeElement?.closest('[contenteditable]:not([contenteditable="false"])')) return;
       const tag = document.activeElement?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -113,8 +114,14 @@ export function initCanvasEvents() {
     return state.boxes.length > 0 && state.boxes.every(b => !b.visible);
   }
 
+  // Clicks reach the image when the boxes can't: every layer toggled off, or
+  // caption mode where the boxes are hidden outright.
+  function imageClickable() {
+    return isCaptionMode() || allLayersHidden();
+  }
+
   function updateOverlayPointerEvents() {
-    overlay.style.pointerEvents = allLayersHidden() && overlay.classList.contains('visible') ? 'auto' : '';
+    overlay.style.pointerEvents = imageClickable() && overlay.classList.contains('visible') ? 'auto' : '';
   }
 
   on('image:ready', ({ imageUrl, dataUrl, opacity = 0.4 }) => {
@@ -143,13 +150,38 @@ export function initCanvasEvents() {
   }
 
   overlay.addEventListener('click', (e) => {
-    if (!allLayersHidden() || !overlay.src) return;
+    if (!imageClickable() || !overlay.src) return;
     e.stopPropagation();
-    window.open(overlay.src, '_blank');
+    openImageExternally();
   });
 
-  // Re-evaluate when any box visibility changes
+  // Local output images open in the OS viewer through the server; data/blob
+  // URLs (vision imports, fresh generations) have no file on disk, so fall
+  // back to a browser tab. Browsers refuse top-level data: navigation — hand
+  // those a short-lived blob URL instead.
+  async function openImageExternally() {
+    if (state.referenceImageUrl) {
+      try {
+        // referenceImageUrl is stored in encoded /output/… form; normalize
+        // through decode+encode so the server gets the plain file name once.
+        const name = decodeURIComponent(state.referenceImageUrl.slice('/output/'.length));
+        const res = await fetch(`/api/open-image?name=${encodeURIComponent(name)}`);
+        if (res.ok) return;
+      } catch { /* Server unreachable — open a tab below. */ }
+    }
+    if (state.imageDataUrl) {
+      const blobUrl = URL.createObjectURL(await (await fetch(state.imageDataUrl)).blob());
+      window.open(blobUrl, '_blank');
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      return;
+    }
+    window.open(overlay.src, '_blank');
+  }
+
+  // Re-evaluate when box visibility, the model or the MOSS prompt mode changes
   on('box:visibility', () => updateOverlayPointerEvents());
+  on('moss:prompt-mode', () => updateOverlayPointerEvents());
+  on('model:changed', () => updateOverlayPointerEvents());
 
   on('state:loaded', ({ json }) => {
     clearBoxes();

@@ -2171,36 +2171,17 @@
             color: var(--text);
         }
 
-        /* MOSS caption mode — boxes ignored, meta/canvas hidden */
-        body[data-moss-prompt="caption"] #moss-meta-group,
-        body[data-moss-prompt="caption"] #moss-canvas-group { display: none !important; }
+        /* MOSS caption mode — image-only view: boxes and the Layers panel are
+           hidden, drawing is off, and clicking the image opens it in the
+           system viewer (canvas.js routes the click through /api/open-image). */
+        body[data-model="moss"][data-moss-prompt="caption"] #moss-meta-group,
+        body[data-model="moss"][data-moss-prompt="caption"] #moss-canvas-group,
+        body[data-model="moss"][data-moss-prompt="caption"] #layers-panel { display: none !important; }
 
-        body[data-moss-prompt="caption"] #canvas-wrapper .bounding-box { opacity: 0.35; }
+        body[data-model="moss"][data-moss-prompt="caption"] #canvas-wrapper .bounding-box { display: none; }
 
-        /* Caption mode shows its own banner — the draw hint would stack on it */
-        body[data-moss-prompt="caption"] #canvas-wrapper.empty-state::after { display: none; }
-
-        #caption-mode-banner {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            padding: 6px 14px;
-            font-size: 12px;
-            font-weight: 500;
-            /* .canvas-container sets line-height:0 to kill inline gaps — the
-               banner is real text and must opt back in or its lines collapse */
-            line-height: 1.4;
-            color: var(--text);
-            background: var(--surface-2);
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
-            box-shadow: var(--shadow-strong);
-            pointer-events: none;
-        }
-
-        body:not([data-moss-prompt="caption"]) #caption-mode-banner { display: none; }
+        /* Drawing is disabled in caption mode — don't advertise the draw hint */
+        body[data-model="moss"][data-moss-prompt="caption"] #canvas-wrapper.empty-state::after { display: none; }
 
         /* Format chip next to the Prompt JSON title — shrinks with ellipsis so
            it never overlaps the title or the action buttons */
@@ -3825,7 +3806,6 @@
 
                 <div class="canvas-container">
                     <div id="canvas-wrapper" role="img" tabindex="-1" aria-label="Bounding box editor canvas. Drag to draw; Escape cancels. Edit boxes in the Box Properties panel."><img id="canvas-overlay" alt=""></div>
-                    <div id="caption-mode-banner" class="moss-only">Caption mode — boxes are ignored</div>
                     <span class="dim-display" id="dim-display" aria-live="polite" title="Output size in pixels">768 × 1152</span>
                 </div>
             </div>

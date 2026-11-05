@@ -17,6 +17,13 @@ export function validCanvasSize(width, height) {
   return [width, height].every(value => Number.isFinite(value) && value >= CANVAS_MIN_EDGE);
 }
 
+// MOSS caption mode shows the reference image alone: boxes are hidden and all
+// canvas interaction is off; clicking the image opens it in the system viewer.
+// The model check matters because mossPrompt survives a switch back to Ideogram.
+export function isCaptionMode() {
+  return state.model === MODEL_MOSS && state.moss.promptMode === 'caption';
+}
+
 export const state = {
   canvas: { width: 768, height: 1152, scale: 1, maxDisplayHeight: 800 },
   boxes: [],

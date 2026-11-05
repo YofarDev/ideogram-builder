@@ -31,6 +31,9 @@ beforeEach(async () => {
   state.globalPalette = []
   state.ui.previewMode = false
   state.canvas = { width: 1024, height: 1024, scale: 1, maxDisplayHeight: 800 }
+  state.model = 'ideogram'
+  state.moss.promptMode = 'layout'
+  state.referenceImageUrl = null
   delete state.imageDataUrl
   resetAllListeners()
   canvasModule = await import('../canvas.js')
@@ -39,6 +42,10 @@ beforeEach(async () => {
 })
 
 afterEach(() => window.dispatchEvent(new Event('blur')))
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 function pointer(target, type, values = {}) {
   const event = new MouseEvent(type, { bubbles: true, clientX: 100, clientY: 100, ...values })
@@ -272,5 +279,65 @@ describe('canvas', () => {
     window.dispatchEvent(new MouseEvent('pointerup'))
     expect(box.x).toBe(0)
     expect(box.y).toBe(0)
+  })
+
+  it('caption mode blocks drawing gestures', () => {
+    state.model = 'moss'
+    state.moss.promptMode = 'caption'
+    const canvas = document.getElementById('canvas-wrapper')
+    pointer(canvas, 'pointerdown')
+    pointer(window, 'pointermove', { clientX: 300, clientY: 300 })
+    pointer(window, 'pointerup')
+    expect(state.boxes).toHaveLength(0)
+  })
+
+  it('caption mode makes the overlay clickable and opens local images in the system viewer', async () => {
+    state.model = 'moss'
+    state.moss.promptMode = 'caption'
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const openMock = vi.spyOn(window, 'open').mockReturnValue(null)
+    emit('image:ready', { imageUrl: '/output/test%20img.png' })
+    const overlay = document.getElementById('canvas-overlay')
+    expect(overlay.style.pointerEvents).toBe('auto')
+    overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/open-image?name=test%20img.png'))
+    expect(openMock).not.toHaveBeenCalled()
+  })
+
+  it('images with no output file fall back to a blob tab on click', async () => {
+    state.model = 'moss'
+    state.moss.promptMode = 'caption'
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(new Blob(['x'])) })
+    vi.stubGlobal('fetch', fetchMock)
+    const openMock = vi.spyOn(window, 'open').mockReturnValue(null)
+    URL.createObjectURL = vi.fn(() => 'blob:mock')
+    URL.revokeObjectURL = vi.fn()
+    emit('image:ready', { imageUrl: 'data:image/png;base64,AAAA', dataUrl: 'data:image/png;base64,AAAA' })
+    document.getElementById('canvas-overlay').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => expect(openMock).toHaveBeenCalledWith('blob:mock', '_blank'))
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/api/open-image'))
+    delete URL.createObjectURL
+    delete URL.revokeObjectURL
+  })
+
+  it('moss:prompt-mode and model changes retarget overlay pointer events', () => {
+    emit('image:ready', { imageUrl: '/output/x.png' })
+    const overlay = document.getElementById('canvas-overlay')
+    expect(overlay.style.pointerEvents).toBe('')
+    // Caption mode under the Ideogram model never captures the overlay
+    state.model = 'moss'
+    state.moss.promptMode = 'layout'
+    emit('moss:prompt-mode', 'layout')
+    expect(overlay.style.pointerEvents).toBe('')
+    state.moss.promptMode = 'caption'
+    emit('moss:prompt-mode', 'caption')
+    expect(overlay.style.pointerEvents).toBe('auto')
+    state.moss.promptMode = 'layout'
+    emit('moss:prompt-mode', 'layout')
+    expect(overlay.style.pointerEvents).toBe('')
+    state.moss.promptMode = 'caption'
+    emit('model:changed', { model: 'moss' })
+    expect(overlay.style.pointerEvents).toBe('auto')
   })
 })
