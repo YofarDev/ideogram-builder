@@ -37,6 +37,7 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `json-convert.js` | `#btn-convert-json` (⇄ in the JSON header): converts the pane's prompt Ideogram ↔ MOSS and applies it via `prompt:apply` (overwrites the target model's fields) | state, events, toast, prompt-convert |
 | `model.js` | Workspace switch (`#model-toggle`, Ideogram/MOSS), `model:set`/`model:changed` events, persistence | state, events |
 | `runpod.js` | RunPod serverless API calls: `runJob(snapshot)` submit + poll; moss → `runpod.endpoints.moss` | nothing |
+| `modal-accounts.js` | Top-toolbar Modal account picker + monthly usage badge; switches via `/api/modal/active` | events, toast |
 | `settings-box.js` | Box Properties form: type toggle (obj/text/character), text/desc/tags, X/Y/W/H (split of settings) | state, events |
 | `settings-custom-size.js` | Custom canvas size: "Custom…" aspect-ratio option + W×H inputs, ×16 validation, `canvas:custom-size` listener (split of settings) | state, events, toast |
 | `settings-moss.js` | MOSS fieldset: prompt format, caption/meta/canvas/negative, D4 seeding on model switch | state, events, toast, prompt-convert |
@@ -89,6 +90,8 @@ Vanilla JS app for building Ideogram4 JSON image generation prompts. Canvas-base
 | `prompt:draft-changed` | none — persist manual prompt edits | prompt-draft | session |
 | `prompt:draft-restore` | `{ text }` — restore raw draft after editor state | session | json-builder |
 | `prompt:prepare` | mutable `{ ok }` — apply an editor draft before the generation snapshot | queue | json-builder |
+| `backend:changed` | `{ backend }` | settings, gallery-meta | settings-moss (capabilities), modal-accounts (picker visibility) |
+| `config:changed` | none — Modal endpoint/account changed; drop cached config | modal-accounts (after a switch) | modal (cache reset), settings-moss (refresh capabilities) |
 | `moss:settings-restored` | none — refresh enhancement and negative-field availability after restoring saved MOSS settings | session-moss, gallery-meta | settings-moss |
 | `image:saved` | `{ imageUrl, dataUrl }` — match an on-disk output to the current reference | gallery | canvas, session |
 | `overlay:changed` | none — persist reference opacity | canvas | session |

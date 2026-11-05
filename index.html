@@ -2080,6 +2080,24 @@
             outline-offset: 2px;
         }
 
+        /* Modal account picker (top toolbar, only when the Modal backend is on) */
+        .modal-account {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .modal-account[hidden] { display: none; }
+
+        .modal-account .ai-model-select { min-width: 120px; }
+
+        .modal-usage {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
         /* Pill Toggle */
         .pill-group {
             display: flex;
@@ -2617,6 +2635,10 @@
         body:has(.main-content.prompt-active) .backend-toggle,
         body:has(.main-content.json2caption-active) .backend-toggle,
         body:has(.main-content.vision-active) .backend-toggle,
+        body:has(.main-content.gallery-active) .modal-account,
+        body:has(.main-content.prompt-active) .modal-account,
+        body:has(.main-content.json2caption-active) .modal-account,
+        body:has(.main-content.vision-active) .modal-account,
         body:has(.main-content.gallery-active) .steps-toggle,
         body:has(.main-content.prompt-active) .steps-toggle,
         body:has(.main-content.json2caption-active) .steps-toggle,
@@ -2630,6 +2652,7 @@
 
         body:has(.main-content.collections-active) .workflow-toggle,
         body:has(.main-content.collections-active) .backend-toggle,
+        body:has(.main-content.collections-active) .modal-account,
         body:has(.main-content.collections-active) .steps-toggle,
         body:has(.main-content.collections-active) .moss-toggle {
             display: none;
@@ -3555,6 +3578,10 @@
             <label for="backend-runpod" class="pill-label">RunPod</label>
             <input type="radio" id="backend-modal" name="backend" value="modal">
             <label for="backend-modal" class="pill-label">Modal</label>
+        </div>
+        <div class="modal-account" id="modal-account-wrap" hidden>
+            <select id="modal-account" class="ai-model-select" aria-label="Modal account"></select>
+            <span id="modal-usage" class="modal-usage" role="status" aria-live="polite"></span>
         </div>
     </header>
 

@@ -8,6 +8,7 @@ import { enqueue, initQueue } from './queue.js';
 import { initImport } from './png-import.js';
 import { initModel } from './model.js';
 import { initSettings } from './settings.js';
+import { initModalAccounts } from './modal-accounts.js';
 import { initSettingsMoss } from './settings-moss.js';
 import { initAIEnhancer } from './ai-enhancer.js';
 import { initGallery } from './gallery.js';
@@ -25,6 +26,7 @@ import { emit, on } from './events.js';
 // Initialize all modules
 initModel();
 initSettings();
+initModalAccounts();
 initSettingsMoss();
 initAIEnhancer();
 initPalette();

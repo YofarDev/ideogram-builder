@@ -110,9 +110,212 @@ def _validate_lora_upload(model: str, raw_name: str) -> tuple[str, str]:
     return "", _sanitize_lora_name(raw_name)
 
 
+_MODAL_ENDPOINT_FIELDS = ("endpoint_url", "preview_rollback_endpoint_url", "rapid_preview_endpoint_url")
+_MODAL_USAGE_TTL_S = 300
+_modal_usage_cache: dict[str, tuple[float, dict]] = {}
+
+
+def _modal_profiles() -> dict[str, dict]:
+    """Profiles declared in ~/.modal*.toml (the standard file plus renamed copies)."""
+    profiles: dict[str, dict] = {}
+    for path in sorted(Path.home().glob(".modal*.toml")):
+        try:
+            lines = path.read_text().splitlines()
+        except OSError:
+            continue
+        name = None
+        for raw in lines:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            section = re.match(r"^\[([^\]]+)\]$", line)
+            if section:
+                name = section.group(1)
+                profiles.setdefault(name, {})
+                continue
+            if name is None:
+                continue
+            if re.match(r"^active\s*=\s*true$", line, re.I):
+                profiles[name]["active"] = True
+                continue
+            kv = re.match(r'^(\w+)\s*=\s*"([^"]*)"', line)
+            if kv:
+                profiles[name][kv.group(1)] = kv.group(2)
+    return profiles
+
+
+def _modal_swap_workspace(url, workspace: str):
+    """Point a Modal endpoint at another workspace (same app/region)."""
+    if not isinstance(url, str):
+        return url
+    parsed = urlparse(url)
+    if "--" not in parsed.netloc:
+        return url
+    return parsed._replace(netloc=f"{workspace}--{parsed.netloc.split('--', 1)[1]}").geturl()
+
+
+def _modal_endpoint_workspace(url) -> str:
+    if not isinstance(url, str):
+        return ""
+    host = urlparse(url).netloc
+    return host.split("--", 1)[0] if "--" in host else ""
+
+
+def _modal_settings(creds: dict) -> tuple[dict, dict]:
+    """Effective Modal config for the selected account + per-account overrides.
+
+    Accounts come from `modal.accounts`, the Modal CLI profiles, and the
+    workspace in the configured endpoint URL. Shared fields (auth_token,
+    lora_volume, endpoints) are inherited from the top-level `modal` object;
+    per-account endpoint URLs are derived by swapping the workspace prefix.
+    """
+    modal = creds.get("modal") if isinstance(creds.get("modal"), dict) else {}
+    explicit = modal.get("accounts") if isinstance(modal.get("accounts"), dict) else {}
+    base = {k: v for k, v in modal.items() if k not in ("accounts", "active")}
+    accounts: dict[str, dict] = {}
+    profiles = _modal_profiles()
+    for name, cfg in explicit.items():
+        if isinstance(cfg, dict):
+            accounts[str(name)] = dict(cfg)
+    for name, profile in profiles.items():
+        cfg = accounts.setdefault(name, {})
+        if profile.get("token_id"):
+            cfg.setdefault("token_id", profile["token_id"])
+        if profile.get("token_secret"):
+            cfg.setdefault("token_secret", profile["token_secret"])
+    current_workspace = _modal_endpoint_workspace(base.get("endpoint_url"))
+    if current_workspace:
+        accounts.setdefault(current_workspace, {})
+    for name, cfg in accounts.items():
+        for field in _MODAL_ENDPOINT_FIELDS:
+            if not cfg.get(field) and isinstance(base.get(field), str):
+                cfg[field] = _modal_swap_workspace(base[field], name)
+
+    active = modal.get("active")
+    if active not in accounts:
+        active = current_workspace if current_workspace in accounts else None
+    if active not in accounts:
+        active = next((n for n, p in profiles.items() if p.get("active") and n in accounts), None)
+    if active not in accounts:
+        active = next(iter(accounts), "default")
+        accounts.setdefault(active, {})
+
+    effective = {**base, **accounts[active]}
+    effective["active"] = active
+    effective["accounts"] = sorted(accounts)
+    return effective, accounts
+
+
+def _modal_public_config(effective: dict) -> dict:
+    """Browser-safe Modal config: never expose CLI token credentials."""
+    public = {field: effective[field] for field in _MODAL_ENDPOINT_FIELDS if field in effective}
+    if "auth_token" in effective:
+        public["auth_token"] = effective["auth_token"]
+    public["active"] = effective.get("active")
+    public["accounts"] = effective.get("accounts", [])
+    return public
+
+
+def _modal_billing_summary(env: dict) -> tuple[dict | None, str]:
+    """Run the Modal CLI billing summary, falling back to a current uvx build."""
+    commands = (
+        ["modal", "billing", "summary", "--json", "--for", "this month"],
+        ["uvx", "--from", "modal==1.6.3", "modal", "billing", "summary", "--json", "--for", "this month"],
+    )
+    last_error = ""
+    for cmd in commands:
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=90, env=env)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            last_error = str(exc)
+            continue
+        if res.returncode == 0:
+            try:
+                return json.loads(res.stdout), ""
+            except ValueError:
+                last_error = "invalid billing response"
+                continue
+        last_error = (res.stderr or res.stdout).strip()
+        if "no such command" not in last_error.lower():
+            return None, last_error
+    return None, last_error or "Modal billing API unavailable"
+
+
+def _modal_usage(creds: dict, account: str) -> dict:
+    effective, accounts = _modal_settings(creds)
+    account = account or effective.get("active") or ""
+    if account not in accounts:
+        return {"error": f"unknown Modal account '{account}'"}
+    cfg = accounts[account]
+    token_id = cfg.get("token_id") or effective.get("token_id")
+    token_secret = cfg.get("token_secret") or effective.get("token_secret")
+    if not (token_id and token_secret):
+        return {"error": f"No Modal CLI token for '{account}' — add its profile to a ~/.modal*.toml file"}
+
+    cached = _modal_usage_cache.get(account)
+    if cached and time.monotonic() - cached[0] < _MODAL_USAGE_TTL_S:
+        return cached[1]
+
+    env = {**os.environ, "MODAL_TOKEN_ID": token_id, "MODAL_TOKEN_SECRET": token_secret}
+    summary, error = _modal_billing_summary(env)
+    if summary is None:
+        return {"error": _scrub_secrets(error, [token_id, token_secret]) or "Modal billing API unavailable"}
+
+    try:
+        metered = float(summary.get("metered_cost") or 0)
+        billed = float(summary.get("billed_cost") or 0)
+    except (TypeError, ValueError):
+        return {"error": "invalid billing response"}
+    monthly = cfg.get("monthly_credits", effective.get("monthly_credits", 30))
+    try:
+        monthly = float(monthly) if monthly is not None else None
+    except (TypeError, ValueError):
+        monthly = None
+    result = {
+        "account": account,
+        "metered_cost": round(metered, 2),
+        "billed_cost": round(billed, 2),
+        "monthly_credits": monthly,
+        "remaining": round(max(0.0, monthly - metered), 2) if monthly is not None else None,
+    }
+    _modal_usage_cache[account] = (time.monotonic(), result)
+    return result
+
+
+def _write_credentials(creds: dict) -> None:
+    tmp = CREDENTIALS_PATH.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(creds, indent=2) + "\n")
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, CREDENTIALS_PATH)
+
+
+def _set_modal_account(creds: dict, name: str) -> None:
+    """Persist the selected account and materialize discovered endpoints."""
+    modal = creds.get("modal")
+    if not isinstance(modal, dict):
+        modal = creds["modal"] = {}
+    _, accounts = _modal_settings(creds)
+    if name not in accounts:
+        raise KeyError(name)
+    stored = modal.setdefault("accounts", {})
+    if not isinstance(stored, dict):
+        stored = modal["accounts"] = {}
+    for account, cfg in accounts.items():
+        entry = stored.setdefault(account, {})
+        for field in _MODAL_ENDPOINT_FIELDS:
+            if cfg.get(field) and not entry.get(field):
+                entry[field] = cfg[field]
+    target = {**{k: v for k, v in modal.items() if k not in ("accounts", "active")}, **accounts[name]}
+    modal["active"] = name
+    for field in _MODAL_ENDPOINT_FIELDS:
+        if target.get(field):
+            modal[field] = target[field]
+    _write_credentials(creds)
+
+
 def _lora_upload_targets(creds: dict) -> dict:
     hf = creds.get("huggingface") or {}
-    modal = creds.get("modal") or {}
+    modal, _ = _modal_settings(creds)
     return {
         "modal": bool(modal.get("lora_volume")),
         "hf": bool(hf.get("token") and hf.get("lora_repo")),
@@ -148,14 +351,24 @@ def _hf_lora_upload(creds: dict, local: Path, model: str, name: str) -> str:
 
 
 def _modal_lora_put(creds: dict, local: Path, model: str, name: str):
-    volume = creds["modal"]["lora_volume"]
+    effective, _ = _modal_settings(creds)
+    volume = effective["lora_volume"]
+    if not (effective.get("token_id") and effective.get("token_secret")):
+        raise RuntimeError(
+            f"No Modal CLI token for '{effective.get('active')}' — "
+            "add that workspace's profile to a ~/.modal*.toml file")
+    env = os.environ.copy()
+    env.update({
+        "MODAL_TOKEN_ID": effective["token_id"],
+        "MODAL_TOKEN_SECRET": effective["token_secret"],
+    })
     res = subprocess.run(
         ["modal", "volume", "put", "--force", volume, str(local), f"/{model}/{name}"],
-        capture_output=True, timeout=3600,
+        capture_output=True, timeout=3600, env=env,
     )
     if res.returncode != 0:
         raise RuntimeError("modal volume put failed: " + _scrub_secrets(
-            res.stderr.decode("utf-8", "replace"), []))
+            res.stderr.decode("utf-8", "replace"), [effective.get("token_id"), effective.get("token_secret")]))
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -738,13 +951,23 @@ class Handler(SimpleHTTPRequestHandler):
             self._thumbnail_cacheable = True
             self.end_headers()
             self.wfile.write(preview)
+        elif self.path.startswith("/api/modal/usage"):
+            params = parse_qs(urlparse(self.path).query)
+            account = (params.get("account") or [""])[0]
+            try:
+                creds = json.loads(CREDENTIALS_PATH.read_text())
+            except FileNotFoundError:
+                creds = {}
+            self._send_json(200, _modal_usage(creds, account))
         elif self.path == "/api/config":
             try:
                 creds = json.loads(CREDENTIALS_PATH.read_text())
                 config = {}
-                for key in ("deepseek", "google", "openrouter", "mimo", "runpod", "modal", "vision"):
+                for key in ("deepseek", "google", "openrouter", "mimo", "runpod", "vision"):
                     if key in creds:
                         config[key] = creds[key]
+                effective, _ = _modal_settings(creds)
+                config["modal"] = _modal_public_config(effective)
                 config["_meta"] = {
                     "local_available": sys.platform == "darwin",
                 }
@@ -829,6 +1052,32 @@ class Handler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        if self.path == "/api/modal/active":
+            length = int(self.headers.get("Content-Length") or 0)
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except ValueError:
+                body = {}
+            name = str(body.get("name") or "")
+            try:
+                creds = json.loads(CREDENTIALS_PATH.read_text())
+            except FileNotFoundError:
+                creds = {}
+            try:
+                _set_modal_account(creds, name)
+            except KeyError:
+                self._send_json(404, {"error": f"unknown Modal account '{name}'"})
+                return
+            except OSError as exc:
+                self._send_json(500, {"error": f"could not save credentials: {exc}"})
+                return
+            try:
+                subprocess.run(["modal", "profile", "activate", name], capture_output=True, timeout=10, check=False)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            effective, _ = _modal_settings(creds)
+            self._send_json(200, _modal_public_config(effective))
+            return
         if self.path.startswith("/api/lora/upload"):
             params = parse_qs(urlparse(self.path).query)
             model = (params.get("model") or ["ideogram"])[0]

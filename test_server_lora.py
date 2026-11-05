@@ -17,7 +17,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import server
 
 CREDS_BOTH = {
-    "modal": {"lora_volume": "ideogram-loras"},
+    "modal": {
+        "lora_volume": "ideogram-loras",
+        "token_id": "ak-test",
+        "token_secret": "as-test",
+    },
     "huggingface": {"token": "hf_secret_token", "lora_repo": "user/private-loras"},
 }
 

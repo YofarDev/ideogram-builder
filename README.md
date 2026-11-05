@@ -32,14 +32,14 @@ Visual prompt builder for [Ideogram4](https://ideogram.ai/) and [MOSS-Image](htt
 python3 server.py
 ```
 
-Opens at `http://localhost:8080`. Server auto-loads LLM credentials from `~/.config/llm-credentials.json` (see `config.example.json` for every key, including `runpod.endpoints.moss`, `modal.lora_volume` and `huggingface` for private LoRA uploads).
+Opens at `http://localhost:8080`. Server auto-loads LLM credentials from `~/.config/llm-credentials.json` (see `config.example.json` for every key, including `runpod.endpoints.moss`, `modal.lora_volume` and `huggingface` for private LoRA uploads). Modal accounts are discovered from the profiles in `~/.modal*.toml` (their endpoint URLs are derived from the configured workspace) and switchable from the toolbar; add `modal.accounts` entries for custom endpoints or tokens.
 
 ## Tests
 
 ```bash
 NODE_OPTIONS=--no-experimental-webstorage npm test          # frontend (Node 26 needs the flag)
 uv run --with pytest --with requests --with websocket-client pytest runpod        # handler
-uv run --with pytest --with numpy --with pillow --with requests pytest test_server_lora.py test_gallery_thumbnails.py  # local server
+uv run --with pytest --with numpy --with pillow --with requests pytest test_server_modal_accounts.py test_server_lora.py test_gallery_thumbnails.py  # local server
 ```
 
 ## Tech Stack

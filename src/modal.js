@@ -3,7 +3,12 @@
 // Same { dataUrl, imageUrl } return shape as runpod.js, plus optional
 // { seed, metrics, generation, clientTotalMs } from the server result.
 
+import { on } from './events.js';
+
 let config = null;
+
+// Account switches rewrite the effective endpoint; drop the cached config.
+on('config:changed', () => { config = null; });
 
 // Completion-detection schedule: an immediate first poll (a fast GPU result
 // should not wait for a timer), 250/500 ms next, then 1 s intervals through the

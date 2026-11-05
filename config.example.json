@@ -69,7 +69,14 @@
   "modal": {
     "endpoint_url": "https://<workspace>--ideogram-builder-web-app.modal.run/generate",
     "auth_token": "<same-secret-as-modal-secret>",
-    "lora_volume": "ideogram-loras"
+    "lora_volume": "ideogram-loras",
+    "monthly_credits": 30,
+    "accounts": {
+      "<workspace>": {
+        "endpoint_url": "https://<workspace>--ideogram-builder-web-app.modal.run/generate",
+        "auth_token": "<optional-per-account-secret>"
+      }
+    }
   },
   "huggingface": {
     "token": "hf-your-hf-token",
